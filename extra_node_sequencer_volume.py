@@ -28,7 +28,7 @@ bl_info = {
 
 """
 
-At the moment of writing this note, there are really limitations/walls when creating GeometryNodeCustomGroup:
+About creating GeometryNodeCustomGroup:
 
 >Here are the possibilities: 
     - you can either create a custom interface that interact with a nodegroup
