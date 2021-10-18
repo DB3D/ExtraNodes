@@ -23,12 +23,13 @@ bl_info = {
     "version": (1,0,0),
     "location":"Node Editor > Geometry Node > Add Menu > Extra",
     "warning":"",
+    "tracker_url": "https://devtalk.blender.org/t/extra-nodes-for-geometrynodes/20942",
     "category":"Node",
     }
 
 """
 
-About creating GeometryNodeCustomGroup:
+At the moment of writing this note, there are really limitations/walls when creating GeometryNodeCustomGroup:
 
 >Here are the possibilities: 
     - you can either create a custom interface that interact with a nodegroup
@@ -115,16 +116,16 @@ def remove_socket(ng, idx):
     ng.outputs.remove(todel)
     return None 
 
-def create_new_nodegroup(name, sockets={},):
-    """create new nodegroup with outputs from given dict {"type":"name",}, make sure given type are correct"""
+def create_new_nodegroup(name, sockets={}):
+    """create new nodegroup with outputs from given dict {"name":"type",}, make sure given type are correct"""
 
-    ng = bpy.data.node_groups.new(name=name,type="GeometryNodeTree")
+    ng = bpy.data.node_groups.new(name=name, type="GeometryNodeTree")
     in_node = ng.nodes.new("NodeGroupInput")
-    in_node.location.x-=200
+    in_node.location.x -= 200
     out_node = ng.nodes.new("NodeGroupOutput")
-    out_node.location.x+=200
+    out_node.location.x += 200
 
-    for socket_type,socket_name in sockets.items():
+    for socket_name, socket_type in sockets.items():
         create_socket(ng, socket_type=socket_type, socket_name=socket_name)
 
     return ng
@@ -170,7 +171,7 @@ class EXTRANODESEQUENCERVOLUME_NG_sequencer_volume(bpy.types.GeometryNodeCustomG
 
         name = f".{self.bl_idname}"
         if not name in bpy.data.node_groups.keys():
-             ng = create_new_nodegroup(name, sockets={"NodeSocketFloat":"Volume"},)
+             ng = create_new_nodegroup(name, sockets={"Volume":"NodeSocketFloat"},)
         else: ng = bpy.data.node_groups[name].copy()
 
         self.node_tree = ng
