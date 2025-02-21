@@ -2,6 +2,14 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+
+#How does it works?
+# 1- Find the variables or constants with regex
+# 2- dynamically remove/create sockets accordingly
+# 3- transform the algebric expression into 'function expressions' using 'mathexpression_to_fctexpression'
+# 4- execute the function expression with 'NodeSetter' using exec(), which will set the nodes in place.
+
+
 import bpy 
 
 import re, ast
