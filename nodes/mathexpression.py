@@ -192,6 +192,22 @@ class NodeSetter():
         return cls._generic_floatmath('TRUNC', sock1)
 
     @classmethod
+    def modulo(cls, sock1, sock2):
+        return cls._generic_floatmath('MODULO', sock1, sock2)
+    
+    @classmethod
+    def wrap(cls, sock1, sock2, sock3):
+        return cls._generic_floatmath('WRAP', sock1, sock2, sock3)
+    
+    @classmethod
+    def snap(cls, sock1, sock2):
+        return cls._generic_floatmath('SNAP', sock1, sock2)
+    
+    @classmethod
+    def floordiv(cls, sock1, sock2): #Custom
+        return cls.floor(cls.div(sock1,sock2),)
+    
+    @classmethod
     def sin(cls, sock1):
         return cls._generic_floatmath('SINE', sock1)
 
@@ -227,6 +243,10 @@ class FunctionTransformer(ast.NodeTransformer):
             func_name = 'div'
         elif isinstance(node.op, ast.Pow):
             func_name = 'exp'
+        elif isinstance(node.op, ast.Mod):
+            func_name = 'modulo'
+        elif isinstance(node.op, ast.FloorDiv):
+            func_name = 'floordiv'
         else:
             raise NotImplementedError(f"Operator {node.op} not supported")
 
@@ -318,7 +338,8 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     
     #TODO what if user use a function with wrong number of arguments?
     #TODO support more math symbols? https://en.wikipedia.org/wiki/Glossary_of_mathematical_symbols
-        
+    #TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
+    
     bl_idname = "GeometryNodeExtraMathExpression"
     bl_label = "Math Expression"
 
@@ -389,7 +410,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         expression = expression.replace('³','**3')
         
         # Make a list of authorized symbols
-        authorized_symbols = '/*-+.,()'
+        authorized_symbols = '/*-+.,()%'
         authorized_symbols += ''.join(chr(c) for c in range(ord('a'), ord('z') + 1)) #alphabet
         authorized_symbols += ''.join(chr(c).upper() for c in range(ord('a'), ord('z') + 1)) #alphabet upper
         authorized_symbols += ''.join(chr(c) for c in range(ord('0'), ord('9') + 1)) #numbers
