@@ -219,6 +219,38 @@ class NodeSetter():
     def tan(cls, sock1):
         return cls._generic_floatmath('TANGENT', sock1)
 
+    @classmethod
+    def asin(cls, sock1):
+        return cls._generic_floatmath('ARCSINE', sock1)
+
+    @classmethod
+    def acos(cls, sock1):
+        return cls._generic_floatmath('ARCCOSINE', sock1)
+    
+    @classmethod
+    def atan(cls, sock1):
+        return cls._generic_floatmath('ARCTANGENT', sock1)
+    
+    @classmethod
+    def hsin(cls, sock1):
+        return cls._generic_floatmath('SINH', sock1)
+
+    @classmethod
+    def hcos(cls, sock1):
+        return cls._generic_floatmath('COSH', sock1)
+    
+    @classmethod
+    def htan(cls, sock1):
+        return cls._generic_floatmath('TANH', sock1)
+    
+    @classmethod
+    def rad(cls, sock1):
+        return cls._generic_floatmath('RADIANS', sock1)
+    
+    @classmethod
+    def deg(cls, sock1):
+        return cls._generic_floatmath('DEGREES', sock1)
+
 
 class FunctionTransformer(ast.NodeTransformer):
     """ast Transformer class for 'mathexpression_to_fctexpression'"""
