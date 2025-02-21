@@ -518,7 +518,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         # Give it a refresh signal, when we remove/create a lot of sockets, the customnode inputs/outputs needs a kick
         self.update_all()
         
-        if (not variables):
+        if not (variables or constants):
             return None
         
         # Transform user expression into pure function expression
@@ -589,10 +589,10 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
 
 
 class EXTRANODES_OT_bake_mathexpression(bpy.types.Operator):
-    """Replace a node with a Node Group node, preserving defaults and links"""
+    """Replace the custom node with a nodegroup, preserve values and links"""
     
     bl_idname = "extranode.bake_mathexpression"
-    bl_label = "Replace Node with Node Group"
+    bl_label = "Bake Expression"
     bl_options = {'REGISTER', 'UNDO'}
 
     nodegroup_name: bpy.props.StringProperty()
