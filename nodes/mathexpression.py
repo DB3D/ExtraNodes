@@ -19,6 +19,10 @@ from ..__init__ import get_addon_prefs
 from .boiler import create_new_nodegroup, create_socket, remove_socket, link_sockets, replace_node
 
 
+NODE_Y_OFFSET = 120
+NODE_X_OFFSET = 70
+
+
 def replace_exact_tokens(string, tokens_mapping):
     """replace any token of a given strings with the new values from a given dict mapping"""
     
@@ -118,7 +122,7 @@ class NodeSetter():
         try:
             last = node_tree.nodes.active
             out_node = node_tree.nodes['Group Output']
-            out_node.location = (last.location.x+last.width+50, last.location.y-100,)
+            out_node.location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
             
             sock1, sock2 = last.outputs[0], out_node.inputs[0]
             link_sockets(sock1, sock2)
@@ -134,10 +138,11 @@ class NodeSetter():
         """generic operation for adding a float math node and linking"""
         
         ng = sock1.id_data
+        last = ng.nodes.active
         
         location = (0,200,)
         if (last):
-            location = (last.location.x+last.width+50, last.location.y-100,)
+            location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
 
         node = ng.nodes.new('ShaderNodeMath')
         node.operation = operation_type
@@ -163,7 +168,7 @@ class NodeSetter():
         
         location = (0,200,)
         if (last):
-            location = (last.location.x+last.width+50, last.location.y-100,)
+            location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
 
         node = ng.nodes.new('ShaderNodeMix')
         node.data_type = data_type
@@ -193,7 +198,7 @@ class NodeSetter():
         
         location = (0,200,)
         if (last):
-            location = (last.location.x+last.width+50, last.location.y-100,)
+            location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
 
         node = ng.nodes.new('ShaderNodeClamp')
         node.clamp_type = clamp_type
@@ -204,7 +209,7 @@ class NodeSetter():
         link_sockets(sock1, node.inputs[0])
         link_sockets(sock2, node.inputs[1])
         link_sockets(sock3, node.inputs[2])
-            
+        
         return node.outputs[0]
     
     @classmethod
