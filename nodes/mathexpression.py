@@ -305,8 +305,9 @@ def get_socket_python_api(node, identifier) -> str:
 
 
 class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
-    """Custom Nodgroup: Evaluate a python expression as a single value output
-    the evaluated type can be a float, int, string, object. By default the values will be updated on depsgraph"""
+    """Custom Nodgroup: Evaluate a math expression using the float math node.
+    Under the hood, the expression will be sanarized, the transformed into functions that will be executed to create a new nodetree.
+    The nodetree will be recomposed on each expression keystrokes"""
     
     #TODO later support multi type operation with blender with int/vector/bool operator?  and other math operation, 
     #     - right now we only support the float math node.. we could support these other nodes
@@ -332,6 +333,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     
     user_mathexp : bpy.props.StringProperty(
         default="a + b + c",
+        name="Expression",
         update=update_user_mathexp,
         description="type your math expression right here",
         )
