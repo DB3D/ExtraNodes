@@ -1,0 +1,12 @@
+schema_version = "1.0.0"
+id = "extranodes"
+name = "ExtraNodes"
+version = "1.0.0"
+tagline = "ExtraNodes (for Geometry Nodes)"
+maintainer = "bd3d, Andrew Stevenson"
+type = "add-on"
+tags = ["Geometry Nodes"]
+blender_version_min = "4.2.0"
+license = ["SPDX:GPL-2.0-or-later"]
+website = "https://projects.blender.org/extensions/extranodes"
+copyright = ["2025 BD3D DIGITAL DESIGN, SLU"]

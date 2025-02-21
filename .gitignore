@@ -1,0 +1,6 @@
+.DS_Store
+__pycache__
+.vs
+*.ffs_db
+sync.ffs_lock
+.tm_properties
