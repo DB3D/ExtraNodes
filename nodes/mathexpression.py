@@ -393,8 +393,14 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         if (self.user_mathexp):
             variables = sorted(set(re.findall(r"\b[a-zA-Z]+\b(?!\s*\()", self.user_mathexp))) #any single letter not followed by '('
             constants = set(re.findall(r"\b\d+(?:\.\d+)?\b", self.user_mathexp)) #any floats or ints
-        print("Extracted variables:", variables)
-        print("Extracted constants:", constants)
+        
+        # Make sure the variables aren't function names..
+        functions_available = NodeSetter.all_functions(get_names=True)
+        for var in variables:
+            if (var in functions_available):
+                self.error_message = f"Variable '{var}' is Taken"
+                self.debug_fctexp = 'Failed'
+                return None
         
         # Clear node tree
         for node in list(ng.nodes):
@@ -407,7 +413,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             for var in variables:
                 if (var not in current_vars):
                     create_socket(ng, in_out='INPUT', socket_type="NodeSocketFloat", socket_name=var,)
-            
+        
         # Remove unused vars sockets
         idx_to_del = []
         for idx,socket in enumerate(in_nod.outputs):
