@@ -17,9 +17,9 @@ class EXTRANODES_MT_addmenu_general(bpy.types.Menu):
 
     def draw(self, context):
         
-        from . geometrycustomnodes import EXTRANODES_NG_camerainfo, EXTRANODES_NG_isrenderedview, EXTRANODES_NG_sequencervolume, EXTRANODES_NG_pythonapi
+        from . geometrycustomnodes import classes as customnodes
         
-        for cls in (EXTRANODES_NG_camerainfo, EXTRANODES_NG_isrenderedview, EXTRANODES_NG_sequencervolume, EXTRANODES_NG_pythonapi,):
+        for cls in customnodes:
             op = self.layout.operator("node.add_node", text=cls.bl_label,)
             op.type = cls.bl_idname
             op.use_transform = True
