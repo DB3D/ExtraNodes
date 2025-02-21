@@ -47,7 +47,7 @@ class NodeSetter():
     """Set the nodes depending on a given function expression"""
     
     @classmethod
-    def all_functions(cls, get_names=False,):
+    def get_functions(cls, get_names=False,):
         """get a list of all available functions"""
 
         r = set()
@@ -62,7 +62,7 @@ class NodeSetter():
             #ignore internal functions
             if fname.startswith('_'): 
                 continue
-            if fname in ('all_functions', 'execute_function_expression'):
+            if fname in ('get_functions', 'execute_function_expression'):
                 continue
             
             if (get_names):
@@ -81,7 +81,7 @@ class NodeSetter():
         # Define the namespace of the execution, and include our functions
         namespace = {}
         namespace["ng"] = node_tree
-        for f in cls.all_functions():
+        for f in cls.get_functions():
             namespace[f.__name__] = partial(f, cls)
         
         # Try to execute the functions:
@@ -259,12 +259,6 @@ class FunctionTransformer(ast.NodeTransformer):
 def mathexpression_to_fctexpression(mathexp:str) -> str | Exception:
     """transform a math algebric expression into a funciton expression
     ex: 'x*2 + (3 - 4/5)/3 + (x+y)**2' will become 'add(mult(x,2),div(subtract(3,div(4,5)),3),exp(add(x,y),2))'"""
-            
-    # First we format the expression a little
-    if ('²' in mathexp):
-        mathexp = mathexp.replace('²','**2')
-    if ('³' in mathexp):
-        mathexp = mathexp.replace('³','**3')
 
     # Parse the expression.
     try:
@@ -285,7 +279,7 @@ def mathexpression_to_fctexpression(mathexp:str) -> str | Exception:
     fctexp = str(ast.unparse(astvisited))
     
     # Return both the transformed expression and the sorted list of functions used.
-    functions_available = NodeSetter.all_functions(get_names=True)
+    functions_available = NodeSetter.get_functions(get_names=True)
     for fname in transformer.functions_used:
         if (fname not in functions_available):
             return Exception(f"'{fname}' Function Not Recognized")
@@ -316,24 +310,24 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     
     #TODO later support multi type operation with blender with int/vector/bool operator?  and other math operation, 
     #     - right now we only support the float math node.. we could support these other nodes
-    #     - all vars could start with 'v' 'f' 'i' 'b'
+    #     - all vars could start with 'v' 'f' 'i' 'b' to designate their types?
     #     - could procedurally change sockets input/outputs depending on type
     #     - however, there will be a lot of checks required to see if the user is using valid types.. quite annoying. Perhaps could be done by checking 'is_valid'
     #     Or maybe create a separate 'ComplexMath' node and keep this simple one?
     
     #TODO what if user use a function with wrong number of arguments?
-    
-    #TODO would be nice to have some sort of operator within the node interface that bake the node into a nodegroup.
-    
+    #TODO support more math symbols? https://en.wikipedia.org/wiki/Glossary_of_mathematical_symbols
+        
     bl_idname = "GeometryNodeExtraMathExpression"
     bl_label = "Math Expression"
 
     error_message : bpy.props.StringProperty()
+    debug_sanatized : bpy.props.StringProperty()
     debug_fctexp : bpy.props.StringProperty()
     
     def update_user_mathexp(self,context):
         """evaluate user expression and change the sockets implicitly"""
-        self.generate_expression()
+        self.apply_expression()
         return None 
     
     user_mathexp : bpy.props.StringProperty(
@@ -382,26 +376,75 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         """generic update function"""
                 
         return None
+    
+    def sanatize_expression(self, expression) -> str | Exception:
+        """ensure the user expression is correct, sanatized it"""
         
-    def generate_expression(self):
+        # First we format some symbols
+        expression = expression.replace(' ','')
+        expression = expression.replace('^','**')
+        expression = expression.replace('²','**2')
+        expression = expression.replace('³','**3')
+        
+        # Make a list of authorized symbols
+        authorized_symbols = '/*-+.,()'
+        authorized_symbols += ''.join(chr(c) for c in range(ord('a'), ord('z') + 1)) #alphabet
+        authorized_symbols += ''.join(chr(c).upper() for c in range(ord('a'), ord('z') + 1)) #alphabet upper
+        authorized_symbols += ''.join(chr(c) for c in range(ord('0'), ord('9') + 1)) #numbers
+        
+        # Ensure user is using correct symbols
+        for char in expression:
+            if (char not in authorized_symbols):
+                return Exception(f"Unrecorgnized Symbol '{char}'")
+        
+        # Ensure user is using correct functions
+        functions_available = NodeSetter.get_functions(get_names=True)
+        user_functions = set(re.findall(r"\b[a-zA-Z]+(?=\()", expression))
+        for fname in user_functions:
+            if (fname not in functions_available):
+                return Exception(f"Unrecorgnized Function '{fname}'")
+        
+        # Support for implicit math operation on variables (ex 2a, 0.5a)
+        expression = re.sub(r"(\d+(?:\.\d+)?)([A-Za-z])", r"\1*\2", expression)
+        
+        # Disregard user variable that are mixing numbers and alphabets (ex 2a a1)
+        invalid_args = re.findall(r"\b(?=[A-Za-z0-9]*[A-Za-z])(?=[A-Za-z0-9]*\d)[A-Za-z0-9]+\b", expression)
+        if (invalid_args):
+            for inva in invalid_args:
+                return Exception(f"Invalid Variable '{inva}'")
+        
+        # Support for implicit math operation on parentheses (ex 2(a+b) or 2.59(c²))
+        expression = re.sub(r"(\d+(?:\.\d+)?)(\()", r"\1*\2", expression)
+        
+        return expression
+    
+    def apply_expression(self) -> None:
         """transform the math expression into sockets and nodes arrangements"""
         
-        #reset error message
-        self.error_message = ""
-        self.debug_fctexp = "No Init"
+        # Reset error message
+        self.error_message = self.debug_sanatized = self.debug_fctexp = ""
         
+        # First we make sure the user expression is correct
+        rval = self.sanatize_expression(self.user_mathexp)
+        if (type(rval) is Exception):
+            self.error_message = str(rval)
+            self.debug_sanatized = 'Failed'
+            return None
+        
+        sanatized_expr = self.debug_sanatized = rval
+    
         ng = self.node_tree 
         in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
         variables, constants = set(), set() #List of variable or constant represented as str
         vareq, consteq = dict(), dict() #Equivalence from the str collected above to python API
         
         # Extract variable and constants from the expression.
-        if (self.user_mathexp):
-            variables = sorted(set(re.findall(r"\b[a-zA-Z]+\b(?!\s*\()", self.user_mathexp))) #any single letter not followed by '('
-            constants = set(re.findall(r"\b\d+(?:\.\d+)?\b", self.user_mathexp)) #any floats or ints
+        if (sanatized_expr):
+            variables = sorted(set(re.findall(r"\b[a-zA-Z]+\b(?!\s*\()", sanatized_expr))) #any series of letter not followed by '('
+            constants = set(re.findall(r"\b\d+(?:\.\d+)?\b", sanatized_expr)) #any floats or ints
         
-        # Make sure the variables aren't function names..
-        functions_available = NodeSetter.all_functions(get_names=True)
+        # Make sure the user variables aren't function names.
+        functions_available = NodeSetter.get_functions(get_names=True)
         for var in variables:
             if (var in functions_available):
                 self.error_message = f"Variable '{var}' is Taken"
@@ -456,7 +499,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             return None
         
         # Transform user expression into pure function expression
-        fctexp = mathexpression_to_fctexpression(self.user_mathexp)
+        fctexp = mathexpression_to_fctexpression(sanatized_expr)
         if (type(fctexp) is Exception):
             self.error_message = str(fctexp)
             self.debug_fctexp = 'Failed'
@@ -482,7 +525,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     def draw_buttons(self, context, layout,):
         """node interface drawing"""
                 
-        col = layout.row(align=True)
+        col = layout.column(align=True)
         
         row = col.row(align=True)
         row.alert = bool(self.error_message)
@@ -499,7 +542,16 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             box.label(text='Debug')
             box.separator(type='LINE', factor=0.5,)
             box.template_ID(self, "node_tree")
-            box.prop(self, "debug_fctexp", text="",)
+            
+            col = box.column(align=True)
+            col.scale_y = 0.9
+            col.label(text="SanatizedExp:")
+            col.prop(self, "debug_sanatized", text="",)
+
+            col = box.column(align=True)
+            col.scale_y = 0.9
+            col.label(text="FunctionExp:")
+            col.prop(self, "debug_fctexp", text="",)
 
         return None
 
