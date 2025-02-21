@@ -17,25 +17,53 @@ from math import *      # Needed to eval user python expression (cannot import a
 
 
 def get_socket_interface_item(ng, idx, in_out='OUTPUT',):
-    """return a given socket index as an interface item"""
-        
-    for itm in ng.interface.items_tree:
-        if (itm.in_out == in_out):
-            if (itm.position == idx):
-                return itm
+    """return a given socket index as an interface item, either find the socket by it's index, name or socketidentifier"""
     
-    return None
+    #first we need to retrieve the socket identifier from index
+    identifier = None
+    sockets = ng.nodes["Group Output"].inputs if (in_out=='OUTPUT') else ng.nodes["Group Input"].outputs
+    for i,s in enumerate(sockets):
+        if (i==idx):
+            identifier = s.identifier
+            break
+    
+    if (identifier is None):
+        raise Exception("ERROR: get_socket_interface_item(): couldn't retrieve socket identifier..")
+    
+    #then we retrieve thesocket interface item from identifier
+    sockui = None
+    findgen = [itm for itm in ng.interface.items_tree
+               if hasattr(itm,'identifier') and (itm.identifier == identifier)]
+    if len(findgen):
+        sockui = findgen[0]
+        
+    if (sockui is None):
+        raise Exception("ERROR: get_socket_interface_item(): couldn't retrieve socket interface item..")
+    
+    return sockui
 
-def get_socket_value(ng, idx, in_out='OUTPUT',):
+def get_socket_defvalue(ng, idx, in_out='OUTPUT',):
     """return the value of the given nodegroups output at given socket idx"""
     
-    return ng.nodes["Group Output"].inputs[idx].default_value
-
-def set_socket_value(ng, idx, in_out='OUTPUT', value=None,):
+    match in_out:
+        case 'OUTPUT':
+            return ng.nodes["Group Output"].inputs[idx].default_value
+        case 'INPUT':
+            return ng.nodes["Group Input"].outputs[idx].default_value
+        case _:
+            raise Exception("get_socket_defvalue(): in_out arg not valid")
+                    
+def set_socket_defvalue(ng, idx, in_out='OUTPUT', value=None,):
     """set the value of the given nodegroups output at given socket idx"""
     
-    ng.nodes["Group Output"].inputs[idx].default_value = value 
-    
+    match in_out:
+        case 'OUTPUT':
+            ng.nodes["Group Output"].inputs[idx].default_value = value 
+        case 'INPUT':
+            ng.nodes["Group Input"].outputs[idx].default_value = value 
+        case _:
+            raise Exception("get_socket_defvalue(): in_out arg not valid")
+        
     return None
 
 def set_socket_label(ng, idx, in_out='OUTPUT', label=None,):
@@ -76,19 +104,19 @@ def remove_socket(ng, idx, in_out='OUTPUT',):
 def create_new_nodegroup(name, in_sockets={}, out_sockets={},):
     """create new nodegroup with outputs from given dict {"name":"type",}"""
 
-    ng = bpy.data.node_groups.new(name=name, type="GeometryNodeTree")
+    ng = bpy.data.node_groups.new(name=name, type='GeometryNodeTree',)
     
     #create main input/output
-    in_node = ng.nodes.new("NodeGroupInput")
+    in_node = ng.nodes.new('NodeGroupInput')
     in_node.location.x -= 200
-    out_node = ng.nodes.new("NodeGroupOutput")
+    out_node = ng.nodes.new('NodeGroupOutput')
     out_node.location.x += 200
 
     #create the sockets
     for socket_name, socket_type in in_sockets.items():
-        create_socket(ng, in_out='INPUT', socket_type=socket_type, socket_name=socket_name)
+        create_socket(ng, in_out='INPUT', socket_type=socket_type, socket_name=socket_name,)
     for socket_name, socket_type in out_sockets.items():
-        create_socket(ng, in_out='OUTPUT', socket_type=socket_type, socket_name=socket_name)
+        create_socket(ng, in_out='OUTPUT', socket_type=socket_type, socket_name=socket_name,)
         
     return ng
 
@@ -206,16 +234,16 @@ class EXTRANODES_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
 
         scene = bpy.context.scene
         cam_obj = scene.camera if (self.use_scene_cam) else self.camera_obj
-        set_socket_value(self.node_tree, 0, cam_obj)
+        set_socket_defvalue(self.node_tree, 0, cam_obj)
         
         if (cam_obj and cam_obj.data):
-            set_socket_value(self.node_tree, 1, cam_obj.data.angle)
-            set_socket_value(self.node_tree, 2, cam_obj.data.shift_x)
-            set_socket_value(self.node_tree, 3, cam_obj.data.shift_y)
-            set_socket_value(self.node_tree, 4, cam_obj.data.clip_start)
-            set_socket_value(self.node_tree, 5, cam_obj.data.clip_end)
-            set_socket_value(self.node_tree, 6, scene.render.resolution_x)
-            set_socket_value(self.node_tree, 7, scene.render.resolution_y)
+            set_socket_defvalue(self.node_tree, 1, cam_obj.data.angle)
+            set_socket_defvalue(self.node_tree, 2, cam_obj.data.shift_x)
+            set_socket_defvalue(self.node_tree, 3, cam_obj.data.shift_y)
+            set_socket_defvalue(self.node_tree, 4, cam_obj.data.clip_start)
+            set_socket_defvalue(self.node_tree, 5, cam_obj.data.clip_end)
+            set_socket_defvalue(self.node_tree, 6, scene.render.resolution_x)
+            set_socket_defvalue(self.node_tree, 7, scene.render.resolution_y)
 
         return None
 
@@ -307,7 +335,7 @@ class EXTRANODES_NG_sequencervolume(bpy.types.GeometryNodeCustomGroup):
         # if (self.frame_delay):
         #     frame = bpy.context.scene.frame_current + self.frame_delay
 
-        set_socket_value(ng,0,
+        set_socket_defvalue(ng,0,
             value=self.evaluate_sequencer_volume(),
             )
 
@@ -488,9 +516,9 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
 
         #check if string is empty first, perhaps user didn't input anything yet 
         if (self.user_expression==""):
-
-            set_socket_value(ng,1, value=True,)
+            
             set_socket_label(ng,0, label="Waiting for Input" ,)
+            set_socket_defvalue(ng,1, value=True,)
 
             return None
         
@@ -518,7 +546,7 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                     if implicit_conversion and (get_socket_type(ng,0)!="BOOLEAN"):
                         set_socket_type(ng,0, socket_type="NodeSocketBool")
                         self.socket_type = "NodeSocketBool"
-                    set_socket_value(ng,0, value=value ,)
+                    set_socket_defvalue(ng,0, value=value ,)
                     set_socket_label(ng,0, label=value ,)
 
                 case int():
@@ -526,7 +554,7 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                     if implicit_conversion and (get_socket_type(ng,0)!="INT"):
                         set_socket_type(ng,0, socket_type="NodeSocketInt")
                         self.socket_type = "NodeSocketInt"
-                    set_socket_value(ng,0, value=value ,)
+                    set_socket_defvalue(ng,0, value=value ,)
                     set_socket_label(ng,0, label=value ,)
 
                 case float():
@@ -534,7 +562,7 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                     if implicit_conversion and (get_socket_type(ng,0)!="VALUE"):
                         set_socket_type(ng,0, socket_type="NodeSocketFloat")
                         self.socket_type = "NodeSocketFloat"
-                    set_socket_value(ng,0, value=value ,)
+                    set_socket_defvalue(ng,0, value=value ,)
                     set_socket_label(ng,0, label=round(value,4) ,)
                 
                 case list():
@@ -545,7 +573,7 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                         if implicit_conversion and (get_socket_type(ng,0)!="VECTOR"):
                             set_socket_type(ng,0, socket_type="NodeSocketVector")
                             self.socket_type = "NodeSocketVector"
-                        set_socket_value(ng,0, value=value ,)
+                        set_socket_defvalue(ng,0, value=value ,)
                         set_socket_label(ng,0, label=[round(n,4) for n in value] ,)
                     
                     #evaluate as color? 
@@ -554,7 +582,7 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                         if implicit_conversion and (get_socket_type(ng,0)!="RGBA"):
                             set_socket_type(ng,0, socket_type="NodeSocketColor")
                             self.socket_type = "NodeSocketColor"
-                        set_socket_value(ng,0, value=value ,)
+                        set_socket_defvalue(ng,0, value=value ,)
                         set_socket_label(ng,0, label=[round(n,4) for n in value] ,)
 
                     #only vec3 and vec4 are supported
@@ -567,7 +595,7 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                     if implicit_conversion and (get_socket_type(ng,0)!="STRING"):
                         set_socket_type(ng,0, socket_type="NodeSocketString")
                         self.socket_type = "NodeSocketString"
-                    set_socket_value(ng,0, value=value ,)
+                    set_socket_defvalue(ng,0, value=value ,)
                     set_socket_label(ng,0, label='"'+value+'"' ,)
 
                 case bpy.types.Object():
@@ -575,7 +603,7 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                     if implicit_conversion and (get_socket_type(ng,0)!="OBJECT"):
                         set_socket_type(ng,0, socket_type="NodeSocketObject")
                         self.socket_type = "NodeSocketObject"
-                    set_socket_value(ng,0, value=value,)
+                    set_socket_defvalue(ng,0, value=value,)
                     set_socket_label(ng,0, label=f'D.objects["{value.name}"]',)
 
                 case bpy.types.Collection():
@@ -583,7 +611,7 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                     if implicit_conversion and (get_socket_type(ng,0)!="COLLECTION"):
                         set_socket_type(ng,0, socket_type="NodeSocketCollection")
                         self.socket_type = "NodeSocketCollection"
-                    set_socket_value(ng,0, value=value,)
+                    set_socket_defvalue(ng,0, value=value,)
                     set_socket_label(ng,0, label=f'D.collections["{value.name}"]',)
 
                 case bpy.types.Material():
@@ -591,7 +619,7 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                     if implicit_conversion and (get_socket_type(ng,0)!="MATERIAL"):
                         set_socket_type(ng,0, socket_type="NodeSocketMaterial")
                         self.socket_type = "NodeSocketMaterial"
-                    set_socket_value(ng,0, value=value,)
+                    set_socket_defvalue(ng,0, value=value,)
                     set_socket_label(ng,0, label=f'D.materials["{value.name}"]',)
 
                 case bpy.types.Image():
@@ -599,7 +627,7 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                     if implicit_conversion and (get_socket_type(ng,0)!="IMAGE"):
                         set_socket_type(ng,0, socket_type="NodeSocketImage")
                         self.socket_type = "NodeSocketImage"
-                    set_socket_value(ng,0, value=value,)
+                    set_socket_defvalue(ng,0, value=value,)
                     set_socket_label(ng,0, label=f'D.images["{value.name}"]',)
 
                 case _:
@@ -607,17 +635,17 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                     raise Exception(f"TypeError: '{type(value).__name__.title()}' not supported")
             
             #no error, then return False to error prop
-            set_socket_value(ng,1, value=False,)
+            set_socket_defvalue(ng,1, value=False,)
 
             self.evaluation_error = False
-            return get_socket_value(ng,0)
+            return get_socket_defvalue(ng,0)
 
         except Exception as e:
 
             self.evaluation_error = True 
             print(f"{self.bl_idname} EVALUATION ERROR:\n{e}")
 
-            set_socket_value(ng,1, value=True,)
+            set_socket_defvalue(ng,1, value=True,)
             set_socket_label(ng,0, label=e,)
 
         return None
@@ -685,11 +713,6 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         ng = bpy.data.node_groups.get(name)
         if (ng is None):
             ng = create_new_nodegroup(name,
-                in_sockets={
-                    "a" : "NodeSocketFloat",
-                    "b" : "NodeSocketFloat",
-                    "c" : "NodeSocketFloat",                    
-                },
                 out_sockets={
                     "Result" : "NodeSocketFloat",
                 },
@@ -701,8 +724,8 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         self.width = 250
         self.label = self.bl_label
 
-        #mark an update signal so handler fct do not need to loop every single nodegroups
-        bpy.context.space_data.node_tree["extranodes_pythonapi_updateflag"] = True
+        #initialize default expression
+        self.user_mathexp = self.user_mathexp
 
         return None 
 
@@ -715,65 +738,73 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     
     def update(self):
         """generic update function"""
-        
-        self.generate_expression()
-        
+                
         return None
     
     def generate_expression(self):
-        """
-        Evaluate the user math expression in self.user_mathexp and rebuild the node tree
-        for a Geometry Nodes math expression. This function:
-        1. Clears all nodes except Group Input and Group Output.
-        2. Extracts variable names from the expression.
-        3. Creates input sockets on the Group Input node for each variable.
-        4. Parses the expression (using Python’s ast) and recursively creates math and value nodes.
-        5. Connects the final node’s output to the first input of the Group Output.
-        """
+        """transform the math expression into sockets and nodes arrangements"""
+
         import re, ast
         
-        ng = self.node_tree  # The node group.
+        ng = self.node_tree 
+        in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
+        variables, constants = set(), set()
+        vareq, consteq = dict(), dict()
         
-        group_input = ng.nodes.get("Group Input")
-        group_output = ng.nodes.get("Group Output")
-        if not group_input or not group_output:
-            print("ERROR: generate_expression(): Group Input or Output are gone")
-            return None
-        
-        #Extract variable names from the expression.
-        FUNCS = {"sin", "cos", "tan", "log", "exp", "sqrt"}
-        variables = set()
+        # Extract variable and constants from the expression.
         expr = self.user_mathexp
         if (expr):
-            # Simple regex to extract words starting with a letter or underscore.
-            variables = set(re.findall(r"(?<!\d)\b[a-zA-Z_]\w*\b", expr))
-            # Filter out common math functions (adjust as needed).
-            for func in FUNCS:
-                variables.discard(func)
-        
+            variables = sorted(set(re.findall(r"\b[a-zA-Z]\b", expr)))
+            constants = set(map(float, re.findall(r"\b\d+(?:\.\d+)?\b", expr)))
         print("Extracted variables:", variables)
+        print("Extracted variables:", constants)
         
-        # Clear node tree (except Group Input and Group Output).
+        # Clear node tree
         for node in list(ng.nodes):
             if node.type not in {'GROUP_INPUT', 'GROUP_OUTPUT'}:
                 ng.nodes.remove(node)
                 
-        # create or remove input socket dynamically
-        for var in variables:
-            if (var not in group_input.outputs):
-                create_socket(ng, in_out='INPUT', socket_type="NodeSocketFloat", socket_name=var,)
-
+        # Create new sockets depending on vars
+        if (variables):
+            current_vars = [s.name for s in in_nod.outputs]
+            for var in variables:
+                if (var not in current_vars):
+                    create_socket(ng, in_out='INPUT', socket_type="NodeSocketFloat", socket_name=var,)
+            
+        # Remove unused vars sockets
         idx_to_del = []
-        for idx,socket in enumerate(group_input.outputs):
+        for idx,socket in enumerate(in_nod.outputs):
             if ((socket.type!='CUSTOM') and (socket.name not in variables)):
                 idx_to_del.append(idx)
-        print(idx_to_del)
         for idx in reversed(idx_to_del):
-            remove_socket(ng, idx+1, in_out='INPUT') #WHY+1???
-                
-        if (not variables):
-            return None 
+            remove_socket(ng, idx, in_out='INPUT')
         
+        # Fill equivalence dict with it's socket eq
+        if (variables):
+            for s in in_nod.outputs:
+                vareq[s.name] = s.identifier
+                
+        # Add input for constant right below the vars group input
+        if (constants):
+            xloc, yloc = in_nod.location.x, in_nod.location.y
+            xloc -= 175
+            for const in constants:
+                con_nod = ng.nodes.new('ShaderNodeValue')
+                con_nod.outputs[0].default_value = const
+                con_nod.name = str(const)
+                con_nod.label = str(const)
+                con_nod.location.x = xloc
+                con_nod.location.y = yloc
+                yloc -= 90
+                # Also fill const to socket equivalence dict
+                consteq[const] = con_nod.outputs[0].identifier
+        
+        # Give it a refresh signal, when we remove/create a lot of sockets, the customnode inputs/outputs needs a kick
+        self.update_all()
+        
+        if (not variables):
+            return None
+                
         return None
         
         # --- Step 4: Parse the expression and create nodes.
@@ -827,12 +858,12 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             elif isinstance(node_ast, ast.Name):
                 var_name = node_ast.id
                 # Find the socket on the group input.
-                sock = group_input.outputs.get(var_name)
+                sock = in_nod.outputs.get(var_name)
                 if not sock:
                     raise ValueError("Variable not found: " + var_name)
                 # For linking purposes, we use the group input node's output.
                 # In Blender, you can link directly from the Group Input.
-                return group_input
+                return in_nod
             
             else:
                 raise ValueError("Unsupported AST node type: " + str(type(node_ast)))
@@ -845,8 +876,8 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
 
         # --- Step 5: Connect the result to the Group Output node.
         # Assume that the Group Output node's first input is intended for the final result.
-        if group_output.inputs:
-            ng.links.new(result_node.outputs[0], group_output.inputs[0])
+        if out_nod.inputs:
+            ng.links.new(result_node.outputs[0], out_nod.inputs[0])
             print("Successfully connected the result to Group Output.")
         else:
             print("Group Output has no input sockets to connect to.")
@@ -877,8 +908,8 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     def update_all(cls):
         """search for all nodes of this type and update them"""
         
-        # for n in [n for ng in bpy.data.node_groups if ('extranodes_pythonapi_updateflag' in ng) for n in ng.nodes if (n.bl_idname==cls.bl_idname)]:
-        #     n.update()
+        for n in [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]:
+            n.update()
             
         return None 
 

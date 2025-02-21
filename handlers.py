@@ -8,7 +8,7 @@ import bpy
 from collections.abc import Iterable
 
 from . __init__ import get_addon_prefs
-from . geometrycustomnodes import set_socket_value, EXTRANODES_NG_camerainfo, EXTRANODES_NG_pythonapi, EXTRANODES_NG_sequencervolume
+from . geometrycustomnodes import set_socket_defvalue, EXTRANODES_NG_camerainfo, EXTRANODES_NG_pythonapi, EXTRANODES_NG_sequencervolume
 
 
 @bpy.app.handlers.persistent
@@ -88,7 +88,7 @@ def msgbus_viewportshading_callback(*args):
 
     ng = bpy.data.node_groups.get(".GeometryNodeExtraNodesIsRenderedView")
     if (ng):
-        set_socket_value(ng, 0, value=is_rendered_view(),)
+        set_socket_defvalue(ng, 0, value=is_rendered_view(),)
 
     return None 
 
