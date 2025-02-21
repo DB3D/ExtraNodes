@@ -122,3 +122,65 @@ def link_sockets(socket1, socket2):
 
     ng = socket1.id_data
     return ng.links.new(socket1, socket2)
+
+
+def replace_node(node_tree, old_node, node_group):
+    """Replace an existing node with a new Node Group node (assuming same socket structure)"""
+    
+    # Save old node properties.
+    old_node_width = float(old_node.width)
+    old_node_location = old_node.location.copy()
+    
+    # For inputs, store default values and the linked from_socket (if exists)
+    old_inputs_defaults = [getattr(sock, 'default_value', None) for sock in old_node.inputs]
+    old_inputs_links = [sock.links[0].from_socket if sock.links else None for sock in old_node.inputs]
+    
+    # For outputs, store the linked to_socket (if exists)
+    old_outputs_links = [sock.links[0].to_socket if sock.links else None for sock in old_node.outputs]
+    
+    # Delete the old node.
+    node_tree.nodes.remove(old_node)
+    
+    # Determine the appropriate node type for a node group.
+    if node_tree.bl_idname == "ShaderNodeTree":
+        new_node_type = "ShaderNodeGroup"
+    elif node_tree.bl_idname == "CompositorNodeTree":
+        new_node_type = "CompositorNodeGroup"
+    elif node_tree.bl_idname == "GeometryNodeTree":
+        new_node_type = "GeometryNodeGroup"
+    else:
+        new_node_type = "ShaderNodeGroup"  # Fallback if unknown.
+    
+    # Create the new node group node.
+    new_node = node_tree.nodes.new(new_node_type)
+    new_node.location = old_node_location
+    new_node.width = old_node_width
+    
+    # Assign the provided node group.
+    new_node.node_tree = node_group
+
+    # Re-apply default values to new node inputs (if available).
+    for i, sock in enumerate(new_node.inputs):
+        if i < len(old_inputs_defaults) and old_inputs_defaults[i] is not None:
+            try:
+                sock.default_value = old_inputs_defaults[i]
+            except Exception as e:
+                print(f"Warning: Could not copy default for input '{sock.name}': {e}")
+    
+    # Re-create input links.
+    for i, sock in enumerate(new_node.inputs):
+        if i < len(old_inputs_links) and old_inputs_links[i] is not None:
+            try:
+                node_tree.links.new(old_inputs_links[i], sock)
+            except Exception as e:
+                print(f"Warning: Could not re-link input '{sock.name}': {e}")
+    
+    # Re-create output links.
+    for i, sock in enumerate(new_node.outputs):
+        if i < len(old_outputs_links) and old_outputs_links[i] is not None:
+            try:
+                node_tree.links.new(sock, old_outputs_links[i])
+            except Exception as e:
+                print(f"Warning: Could not re-link output '{sock.name}': {e}")
+    
+    return new_node

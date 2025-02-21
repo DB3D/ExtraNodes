@@ -16,7 +16,7 @@ import re, ast
 from functools import partial
 
 from ..__init__ import get_addon_prefs
-from .boiler import create_new_nodegroup, create_socket, remove_socket, link_sockets
+from .boiler import create_new_nodegroup, create_socket, remove_socket, link_sockets, replace_node
 
 
 def replace_exact_tokens(string, tokens_mapping):
@@ -482,9 +482,14 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     def draw_buttons(self, context, layout,):
         """node interface drawing"""
                 
-        col = layout.column(align=True)
-        col.alert = bool(self.error_message)
-        col.prop(self,"user_mathexp", text="",)
+        col = layout.row(align=True)
+        
+        row = col.row(align=True)
+        row.alert = bool(self.error_message)
+        row.prop(self,"user_mathexp", text="",)
+        op = row.operator("extranode.bake_mathexpression", text="", icon="CURRENT_FILE",)
+        op.nodegroup_name = self.node_tree.name
+        op.node_name = self.name
         
         if (self.error_message):
             col.label(text=self.error_message)
@@ -505,4 +510,42 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         for n in [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]:
             n.update()
             
-        return None 
+        return None
+
+
+class EXTRANODES_OT_bake_mathexpression(bpy.types.Operator):
+    """Replace a node with a Node Group node, preserving defaults and links"""
+    
+    bl_idname = "extranode.bake_mathexpression"
+    bl_label = "Replace Node with Node Group"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    nodegroup_name: bpy.props.StringProperty()
+    node_name: bpy.props.StringProperty()
+
+    def execute(self, context):
+        
+        space = context.space_data
+        if not space or not hasattr(space, "edit_tree") or space.edit_tree is None:
+            self.report({'ERROR'}, "No active node tree found")
+            return {'CANCELLED'}
+        node_tree = space.edit_tree
+
+        old_node = node_tree.nodes.get(self.node_name)
+        if (old_node is None):
+            self.report({'ERROR'}, "Node with given name not found")
+            return {'CANCELLED'}
+
+        node_group = bpy.data.node_groups.get(self.nodegroup_name)
+        if (node_group is None):
+            self.report({'ERROR'}, "Node group with given name not found")
+            return {'CANCELLED'}
+
+        node_group = node_group.copy()
+        node_group.name = f'{node_group.name}.Baked'
+        
+        replace_node(node_tree, old_node, node_group,)
+        self.report({'INFO'}, f"Replaced node '{self.node_name}' with node group '{self.node_name}'")
+        
+        return {'FINISHED'}
+

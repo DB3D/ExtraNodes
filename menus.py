@@ -20,9 +20,10 @@ class EXTRANODES_MT_addmenu_general(bpy.types.Menu):
     def draw(self, context):
         
         for cls in nodeclasses:
-            op = self.layout.operator("node.add_node", text=cls.bl_label,)
-            op.type = cls.bl_idname
-            op.use_transform = True
+            if ('_NG_' in cls.__name__):
+                op = self.layout.operator("node.add_node", text=cls.bl_label,)
+                op.type = cls.bl_idname
+                op.use_transform = True
         
         return None
 
