@@ -3,6 +3,14 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
+#TODO ideas for later
+#  - Share nodes between ShaderEditor/Compositor as well? Would be nice to introduce BaseClass then..
+#  - MathExpression node could have a big brother supporting plenty of other datatype, not only floats.. 
+#    Vectors, Rotation, Comparison, Matrix ect.. Auto socket type swap as well
+#  - Sequencer volume could use some options for sampling a specific time. Perhaps sampling other elements of the sound?
+#  - Other node ideas from user feedback?
+
+
 import bpy, sys
 
 
