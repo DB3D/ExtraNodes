@@ -19,28 +19,28 @@ from ..__init__ import get_addon_prefs
 from .boiler import create_new_nodegroup, create_socket, remove_socket, link_sockets
 
 
-def build_token_pattern(tokens):
-    def boundary(token):
-        # If token is a number (integer or float)
-        if re.fullmatch(r'\d+(?:\.\d+)?', token):
-            # Use negative lookbehind and lookahead to ensure the token isn't part of a larger number.
-            return r'(?<![\d.])' + re.escape(token) + r'(?![\d.])'
-        else:
-            # For alphabetic tokens, use word boundaries.
-            return r'\b' + re.escape(token) + r'\b'
-    # Build the overall pattern by joining each token pattern with '|'
-    return '|'.join(boundary(token) for token in tokens)
+def replace_exact_tokens(string, tokens_mapping):
+    """replace any token of a given strings with the new values from a given dict mapping"""
+    
+    def build_token_pattern(tokens):
+        def boundary(token):
+            # If token is a number (integer or float)
+            if re.fullmatch(r'\d+(?:\.\d+)?', token):
+                # Use negative lookbehind and lookahead to ensure the token isn't part of a larger number.
+                return r'(?<![\d.])' + re.escape(token) + r'(?![\d.])'
+            else:
+                # For alphabetic tokens, use word boundaries.
+                return r'\b' + re.escape(token) + r'\b'
+        # Build the overall pattern by joining each token pattern with '|'
+        return '|'.join(boundary(token) for token in tokens)
 
-
-def replace_exact_tokens(expr, tokens_mapping):
-    # Build a regex pattern that matches any of the tokens with the proper boundaries.
     pattern = build_token_pattern(tokens_mapping.keys())
     
     def repl(match):
         token = match.group(0)
         return tokens_mapping.get(token, token)
     
-    return re.sub(pattern, repl, expr)
+    return re.sub(pattern, repl, string)
 
 
 class NodeSetter():
@@ -120,10 +120,8 @@ class NodeSetter():
                 
         if (sock1):
             link_sockets(sock1, node.inputs[0])
-            
         if (sock2):
             link_sockets(sock2, node.inputs[1])
-            
         if (sock3):
             link_sockets(sock3, node.inputs[2])
             
