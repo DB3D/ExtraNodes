@@ -116,8 +116,11 @@ class NodeSetter():
         # When executing, the last one created should be the active node, 
         # We still need to connect it to the ng output
         try:
-            sock1 = node_tree.nodes.active.outputs[0]
-            sock2 = node_tree.nodes['Group Output'].inputs[0]
+            last = node_tree.nodes.active
+            out_node = node_tree.nodes['Group Output']
+            out_node.location = (last.location.x+last.width+50, last.location.y-100,)
+            
+            sock1, sock2 = last.outputs[0], out_node.inputs[0]
             link_sockets(sock1, sock2)
             
         except Exception as e:
@@ -131,16 +134,76 @@ class NodeSetter():
         """generic operation for adding a float math node and linking"""
         
         ng = sock1.id_data
+        
+        location = (0,200,)
+        if (last):
+            location = (last.location.x+last.width+50, last.location.y-100,)
+
         node = ng.nodes.new('ShaderNodeMath')
         node.operation = operation_type
-        ng.nodes.active = node
+        node.use_clamp = False
+        
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
                 
-        if (sock1):
-            link_sockets(sock1, node.inputs[0])
+        link_sockets(sock1, node.inputs[0])
         if (sock2):
             link_sockets(sock2, node.inputs[1])
         if (sock3):
             link_sockets(sock3, node.inputs[2])
+            
+        return node.outputs[0]
+    
+    @classmethod
+    def _mix(cls, data_type, sock1, sock2, sock3,):
+        """generic operation for adding a mix node and linking"""
+        
+        ng = sock1.id_data
+        last = ng.nodes.active
+        
+        location = (0,200,)
+        if (last):
+            location = (last.location.x+last.width+50, last.location.y-100,)
+
+        node = ng.nodes.new('ShaderNodeMix')
+        node.data_type = data_type
+        node.clamp_factor = False
+        
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+        
+        link_sockets(sock1, node.inputs[0])
+        
+        # Need to choose socket depending on node data_type (hidden sockets)
+        match data_type:
+            case 'FLOAT':
+                link_sockets(sock2, node.inputs[2])
+                link_sockets(sock3, node.inputs[3])
+            case _:
+                raise Exception("Integration Needed")
+            
+        return node.outputs[0]
+    
+    @classmethod
+    def _floatclamp(cls, clamp_type, sock1, sock2, sock3,):
+        """generic operation for adding a mix node and linking"""
+        
+        ng = sock1.id_data
+        last = ng.nodes.active
+        
+        location = (0,200,)
+        if (last):
+            location = (last.location.x+last.width+50, last.location.y-100,)
+
+        node = ng.nodes.new('ShaderNodeClamp')
+        node.clamp_type = clamp_type
+        
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+        
+        link_sockets(sock1, node.inputs[0])
+        link_sockets(sock2, node.inputs[1])
+        link_sockets(sock3, node.inputs[2])
             
         return node.outputs[0]
     
@@ -267,6 +330,22 @@ class NodeSetter():
     @classmethod
     def deg(cls, sock1):
         return cls._floatmath('DEGREES', sock1)
+    
+    @classmethod
+    def lerp(cls, sock1, sock2, sock3):
+        return cls._mix('FLOAT', sock1, sock2, sock3)
+    
+    @classmethod
+    def mix(cls, sock1, sock2, sock3): #Synonym of 'lerp'
+        return cls.lerp(sock1, sock2, sock3)
+    
+    @classmethod
+    def clamp(cls, sock1, sock2, sock3):
+        return cls._floatclamp('MINMAX', sock1, sock2, sock3)
+    
+    @classmethod
+    def clampr(cls, sock1, sock2, sock3):
+        return cls._floatclamp('RANGE', sock1, sock2, sock3)
 
 
 class FunctionTransformer(ast.NodeTransformer):
@@ -348,11 +427,11 @@ class FunctionTransformer(ast.NodeTransformer):
 
 
 class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
-    """Custom Nodgroup: Evaluate a math expression using the float math node.
+    """Custom Nodgroup: Evaluate a math expression using float math nodes.
     Under the hood, the expression will be sanarized, the transformed into functions that will be executed to create a new nodetree.
     The nodetree will be recomposed on each expression keystrokes"""
     
-    #TODO later support multi type operation with blender with int/vector/bool operator?  and other math operation, 
+    #TODO later support multi type operation with blender with int/vector/bool operator?  and other math operation?
     #     - right now we only support the float math node.. we could support these other nodes
     #     - all vars could start with 'v' 'f' 'i' 'b' to designate their types?
     #     - could procedurally change sockets input/outputs depending on type
@@ -450,8 +529,13 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             if (fname not in functions_available):
                 return Exception(f"Unrecorgnized Function '{fname}'")
         
-        # Support for implicit math operation on variables (ex 2a, 0.5a)
-        expression = re.sub(r"(\d+(?:\.\d+)?)([A-Za-z])", r"\1*\2", expression)
+        # # Support for implicit math operation on variables (ex 2a, 0.5a) ?
+        # # expression = re.sub(r"(\d+(?:\.\d+)?)([A-Za-z])", r"\1*\2", expression)
+        # NOTE feature currently broken, needs to respect priority of operation.. 
+        #      (a+2)/2ab need to be transformed into (a+2)/(2*ab), currently is (a+2)/2*ab which will lead to errors..
+        # NOTE the notation above notation is ambiguous, what about 2ab² then?.. should be 2*a*(b**2).
+        #      then only way to support this notation is to consider a variable as a single letter, 
+        #      which is not the case right now. Not worth it... ? 
         
         # Disregard user variable that are mixing numbers and alphabets (ex 2a a1)
         invalid_args = re.findall(r"\b(?=[A-Za-z0-9]*[A-Za-z])(?=[A-Za-z0-9]*\d)[A-Za-z0-9]+\b", expression)
@@ -525,8 +609,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 
         # Add input for constant right below the vars group input
         if (constants):
-            xloc, yloc = in_nod.location.x, in_nod.location.y
-            xloc -= 175
+            xloc, yloc = in_nod.location.x, in_nod.location.y-330
             for const in constants:
                 con_nod = ng.nodes.new('ShaderNodeValue')
                 con_nod.outputs[0].default_value = float(const)
@@ -649,4 +732,3 @@ class EXTRANODES_OT_bake_mathexpression(bpy.types.Operator):
         self.report({'INFO'}, f"Replaced node '{self.node_name}' with node group '{self.node_name}'")
         
         return {'FINISHED'}
-
