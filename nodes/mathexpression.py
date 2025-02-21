@@ -88,6 +88,17 @@ class NodeSetter():
             print(f"ExecutionError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
             return Exception("Error on Execution")
         
+        # When executing, the last one created should be the active node, 
+        # We still need to connect it to the ng output
+        try:
+            sock1 = node_tree.nodes.active.outputs[0]
+            sock2 = node_tree.nodes['Group Output'].inputs[0]
+            link_sockets(sock1, sock2)
+            
+        except Exception as e:
+            print(f"FinalLinkError:\n  {e}")
+            return Exception("Error on Final Link")
+        
         return None            
     
     @classmethod
@@ -97,9 +108,8 @@ class NodeSetter():
         ng = sock1.id_data
         node = ng.nodes.new('ShaderNodeMath')
         node.operation = operation_type
-        
-        print("--->",ng, operation_type, sock1, sock2, sock3)
-        
+        ng.nodes.active = node
+                
         if (sock1):
             link_sockets(sock1, node.inputs[0])
             
@@ -303,6 +313,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     #     - all vars could start with 'v' 'f' 'i' 'b'
     #     - could procedurally change sockets input/outputs depending on type
     #     - however, there will be a lot of checks required to see if the user is using valid types.. quite annoying. Perhaps could be done by checking 'is_valid'
+    #     Or maybe create a separate 'ComplexMath' node and keep this simple one?
     
     #TODO what if user use a function with wrong number of arguments?
     
