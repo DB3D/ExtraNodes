@@ -1,0 +1,125 @@
+# SPDX-FileCopyrightText: 2025 BD3D DIGITAL DESIGN, Andrew Stevenson
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+import bpy 
+
+from ..__init__ import get_addon_prefs
+from .boiler import create_new_nodegroup, set_socket_defvalue
+
+
+class EXTRANODES_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
+
+    bl_idname = "GeometryNodeExtraNodesCameraInfo"
+    bl_label = "Camera info"
+
+    use_scene_cam: bpy.props.BoolProperty(
+        default=True,
+        )
+
+    def camera_obj_poll(self, obj):
+        return obj.type == 'CAMERA'
+
+    camera_obj: bpy.props.PointerProperty(
+        type=bpy.types.Object,
+        poll=camera_obj_poll,
+        )
+
+
+    @classmethod
+    def poll(cls, context):
+        """mandatory poll"""
+        return True
+
+
+    def init(self, context):
+        """this fct run when appending the node for the first time"""
+
+        name = f".{self.bl_idname}"
+
+        ng = bpy.data.node_groups.get(name)
+        if (ng is None):
+            ng = create_new_nodegroup(name,
+                out_sockets={
+                    "Camera Object" : "NodeSocketObject",
+                    "Field of View" : "NodeSocketFloat",
+                    "Shift X" : "NodeSocketFloat",
+                    "Shift Y" : "NodeSocketFloat",
+                    "Clip Start" : "NodeSocketFloat",
+                    "Clip End" : "NodeSocketFloat",
+                    "Resolution X" : "NodeSocketInt",
+                    "Resolution Y" : "NodeSocketInt",
+                },
+            )
+         
+        ng = ng.copy() #always using a copy of the original ng
+        
+        self.node_tree = ng
+        self.label = self.bl_label
+
+        return None
+
+
+    def copy(self, node):
+        """fct run when dupplicating the node"""
+        
+        self.node_tree = node.node_tree.copy()
+        
+        return None
+
+
+    def update(self):
+        """generic update function"""
+
+        scene = bpy.context.scene
+        cam_obj = scene.camera if (self.use_scene_cam) else self.camera_obj
+        set_socket_defvalue(self.node_tree, 0, cam_obj)
+        
+        if (cam_obj and cam_obj.data):
+            set_socket_defvalue(self.node_tree, 1, cam_obj.data.angle)
+            set_socket_defvalue(self.node_tree, 2, cam_obj.data.shift_x)
+            set_socket_defvalue(self.node_tree, 3, cam_obj.data.shift_y)
+            set_socket_defvalue(self.node_tree, 4, cam_obj.data.clip_start)
+            set_socket_defvalue(self.node_tree, 5, cam_obj.data.clip_end)
+            set_socket_defvalue(self.node_tree, 6, scene.render.resolution_x)
+            set_socket_defvalue(self.node_tree, 7, scene.render.resolution_y)
+
+        return None
+
+
+    def draw_label(self,):
+        """node label"""
+        
+        return self.bl_label
+
+
+    def draw_buttons(self, context, layout):
+        """node interface drawing"""
+        
+        row = layout.row(align=True)
+        sub = row.row(align=True)
+        sub.active = not self.use_scene_cam
+        
+        if (self.use_scene_cam):
+            sub.prop(bpy.context.scene, "camera", text="", icon="CAMERA_DATA")
+        else:
+            sub.prop(self, "camera_obj", text="", icon="CAMERA_DATA")
+        
+        row.prop(self, "use_scene_cam", text="", icon="SCENE_DATA")
+
+        if (get_addon_prefs().debug):
+            box = layout.column()
+            box.active = False
+            box.template_ID(self, "node_tree")
+
+        return None
+
+
+    @classmethod
+    def update_all(cls):
+        """search for all nodes of this type and update them"""
+        
+        for n in [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]:
+            n.update()
+            
+        return None 

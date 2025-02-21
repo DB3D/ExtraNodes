@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 BD3D DIGITAL DESIGN, SLU
+# SPDX-FileCopyrightText: 2025 BD3D DIGITAL DESIGN
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -7,8 +7,9 @@ import bpy
 
 from collections.abc import Iterable
 
-from . __init__ import get_addon_prefs
-from . geometrycustomnodes import set_socket_defvalue, EXTRANODES_NG_camerainfo, EXTRANODES_NG_pythonapi, EXTRANODES_NG_sequencervolume
+from .__init__ import get_addon_prefs
+from .nodes import EXTRANODES_NG_camerainfo, EXTRANODES_NG_pythonapi, EXTRANODES_NG_sequencervolume
+from .nodes.boiler import set_socket_defvalue
 
 
 @bpy.app.handlers.persistent

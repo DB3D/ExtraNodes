@@ -1,9 +1,11 @@
-# SPDX-FileCopyrightText: 2025 BD3D DIGITAL DESIGN, SLU
+# SPDX-FileCopyrightText: 2025 BD3D DIGITAL DESIGN
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
 import bpy 
+
+from .nodes import classes as nodeclasses
 
 
 class EXTRANODES_MT_addmenu_general(bpy.types.Menu):
@@ -17,9 +19,7 @@ class EXTRANODES_MT_addmenu_general(bpy.types.Menu):
 
     def draw(self, context):
         
-        from . geometrycustomnodes import classes as customnodes
-        
-        for cls in customnodes:
+        for cls in nodeclasses:
             op = self.layout.operator("node.add_node", text=cls.bl_label,)
             op.type = cls.bl_idname
             op.use_transform = True
