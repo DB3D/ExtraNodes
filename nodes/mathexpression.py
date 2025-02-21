@@ -6,7 +6,7 @@
 #How does it works?
 # 1- Find the variables or constants with regex
 # 2- dynamically remove/create sockets accordingly
-# 3- transform the algebric expression into 'function expressions' using 'mathexpression_to_fctexpression'
+# 3- transform the algebric expression into 'function expressions' using 'transform_expression'
 # 4- execute the function expression with 'NodeSetter' using exec(), which will set the nodes in place.
 
 
@@ -43,6 +43,23 @@ def replace_exact_tokens(string, tokens_mapping):
     return re.sub(pattern, repl, string)
 
 
+def get_socket_python_api(node, identifier) -> str:
+    
+    idx = None
+    in_out_api = "inputs"
+    for sockets in (node.inputs, node.outputs):
+        for i,s in enumerate(sockets):
+            if (hasattr(s,'identifier') and (s.identifier==identifier)):
+                idx = i
+                if (s.is_output):
+                    in_out_api = "outputs"
+                break
+    
+    assert idx is not None, 'ERROR: get_socket_python_api(): Did not find socket idx..'
+    
+    return f"ng.nodes['{node.name}'].{in_out_api}[{idx}]"
+
+
 class NodeSetter():
     """Set the nodes depending on a given function expression"""
     
@@ -73,7 +90,7 @@ class NodeSetter():
     
     @classmethod
     def execute_function_expression(cls, expression, node_tree=None, varsapi=None, constapi=None,) -> None | Exception:
-        """try to execute the functions to arrange the node_tree"""
+        """Execute the functions to arrange the node_tree"""
         
         # Replace the constants or variable with sockets API
         api_expression = replace_exact_tokens(expression, {**varsapi, **constapi},)
@@ -110,7 +127,7 @@ class NodeSetter():
         return None            
     
     @classmethod
-    def _generic_floatmath(cls, operation_type, sock1, sock2=None, sock3=None,):
+    def _floatmath(cls, operation_type, sock1, sock2=None, sock3=None,):
         """generic operation for adding a float math node and linking"""
         
         ng = sock1.id_data
@@ -129,23 +146,23 @@ class NodeSetter():
     
     @classmethod
     def add(cls, sock1, sock2):
-        return cls._generic_floatmath('ADD', sock1, sock2)
+        return cls._floatmath('ADD', sock1, sock2)
 
     @classmethod
     def subtract(cls, sock1, sock2):
-        return cls._generic_floatmath('SUBTRACT', sock1, sock2)
+        return cls._floatmath('SUBTRACT', sock1, sock2)
 
     @classmethod
     def mult(cls, sock1, sock2):
-        return cls._generic_floatmath('MULTIPLY', sock1, sock2)
+        return cls._floatmath('MULTIPLY', sock1, sock2)
 
     @classmethod
     def div(cls, sock1, sock2):
-        return cls._generic_floatmath('DIVIDE', sock1, sock2)
+        return cls._floatmath('DIVIDE', sock1, sock2)
 
     @classmethod
     def exp(cls, sock1, sock2):
-        return cls._generic_floatmath('POWER', sock1, sock2)
+        return cls._floatmath('POWER', sock1, sock2)
 
     @classmethod
     def power(cls, sock1, sock2): #Synonym of 'exp'
@@ -153,55 +170,55 @@ class NodeSetter():
     
     @classmethod
     def log(cls, sock1, sock2):
-        return cls._generic_floatmath('LOGARITHM', sock1, sock2)
+        return cls._floatmath('LOGARITHM', sock1, sock2)
 
     @classmethod
     def sqrt(cls, sock1):
-        return cls._generic_floatmath('SQRT', sock1)
+        return cls._floatmath('SQRT', sock1)
     
     @classmethod
     def invsqrt(cls, sock1):
-        return cls._generic_floatmath('INVERSE_SQRT', sock1)
+        return cls._floatmath('INVERSE_SQRT', sock1)
 
     @classmethod
     def abs(cls, sock1):
-        return cls._generic_floatmath('ABSOLUTE', sock1)
+        return cls._floatmath('ABSOLUTE', sock1)
     
     @classmethod
     def min(cls, sock1, sock2):
-        return cls._generic_floatmath('MINIMUM', sock1, sock2)
+        return cls._floatmath('MINIMUM', sock1, sock2)
     
     @classmethod
     def max(cls, sock1, sock2):
-        return cls._generic_floatmath('MAXIMUM', sock1, sock2)
+        return cls._floatmath('MAXIMUM', sock1, sock2)
     
     @classmethod
     def round(cls, sock1):
-        return cls._generic_floatmath('ROUND', sock1)
+        return cls._floatmath('ROUND', sock1)
 
     @classmethod
     def floor(cls, sock1):
-        return cls._generic_floatmath('FLOOR', sock1)
+        return cls._floatmath('FLOOR', sock1)
 
     @classmethod
     def ceil(cls, sock1):
-        return cls._generic_floatmath('CEIL', sock1)
+        return cls._floatmath('CEIL', sock1)
 
     @classmethod
     def trunc(cls, sock1):
-        return cls._generic_floatmath('TRUNC', sock1)
+        return cls._floatmath('TRUNC', sock1)
 
     @classmethod
     def modulo(cls, sock1, sock2):
-        return cls._generic_floatmath('MODULO', sock1, sock2)
+        return cls._floatmath('MODULO', sock1, sock2)
     
     @classmethod
     def wrap(cls, sock1, sock2, sock3):
-        return cls._generic_floatmath('WRAP', sock1, sock2, sock3)
+        return cls._floatmath('WRAP', sock1, sock2, sock3)
     
     @classmethod
     def snap(cls, sock1, sock2):
-        return cls._generic_floatmath('SNAP', sock1, sock2)
+        return cls._floatmath('SNAP', sock1, sock2)
     
     @classmethod
     def floordiv(cls, sock1, sock2): #Custom
@@ -209,95 +226,95 @@ class NodeSetter():
     
     @classmethod
     def sin(cls, sock1):
-        return cls._generic_floatmath('SINE', sock1)
+        return cls._floatmath('SINE', sock1)
 
     @classmethod
     def cos(cls, sock1):
-        return cls._generic_floatmath('COSINE', sock1)
+        return cls._floatmath('COSINE', sock1)
     
     @classmethod
     def tan(cls, sock1):
-        return cls._generic_floatmath('TANGENT', sock1)
+        return cls._floatmath('TANGENT', sock1)
 
     @classmethod
     def asin(cls, sock1):
-        return cls._generic_floatmath('ARCSINE', sock1)
+        return cls._floatmath('ARCSINE', sock1)
 
     @classmethod
     def acos(cls, sock1):
-        return cls._generic_floatmath('ARCCOSINE', sock1)
+        return cls._floatmath('ARCCOSINE', sock1)
     
     @classmethod
     def atan(cls, sock1):
-        return cls._generic_floatmath('ARCTANGENT', sock1)
+        return cls._floatmath('ARCTANGENT', sock1)
     
     @classmethod
     def hsin(cls, sock1):
-        return cls._generic_floatmath('SINH', sock1)
+        return cls._floatmath('SINH', sock1)
 
     @classmethod
     def hcos(cls, sock1):
-        return cls._generic_floatmath('COSH', sock1)
+        return cls._floatmath('COSH', sock1)
     
     @classmethod
     def htan(cls, sock1):
-        return cls._generic_floatmath('TANH', sock1)
+        return cls._floatmath('TANH', sock1)
     
     @classmethod
     def rad(cls, sock1):
-        return cls._generic_floatmath('RADIANS', sock1)
+        return cls._floatmath('RADIANS', sock1)
     
     @classmethod
     def deg(cls, sock1):
-        return cls._generic_floatmath('DEGREES', sock1)
+        return cls._floatmath('DEGREES', sock1)
 
 
 class FunctionTransformer(ast.NodeTransformer):
-    """ast Transformer class for 'mathexpression_to_fctexpression'"""
+    """AST Transformer for converting math expressions into function-call expressions."""
     
     def __init__(self):
         super().__init__()
         self.functions_used = set()
-        
+    
     def visit_BinOp(self, node):
-        
-        # Process the children nodes first
+        # First, process child nodes.
         self.generic_visit(node)
         
-        # Map operators to your function names
-        if isinstance(node.op, ast.Add):
-            func_name = 'add'
-        elif isinstance(node.op, ast.Sub):
-            func_name = 'subtract'
-        elif isinstance(node.op, ast.Mult):
-            func_name = 'mult'
-        elif isinstance(node.op, ast.Div):
-            func_name = 'div'
-        elif isinstance(node.op, ast.Pow):
-            func_name = 'exp'
-        elif isinstance(node.op, ast.Mod):
-            func_name = 'modulo'
-        elif isinstance(node.op, ast.FloorDiv):
-            func_name = 'floordiv'
-        else:
-            raise NotImplementedError(f"Operator {node.op} not supported")
-
+        # Map ast operators and transform to supported function names
+        match node.op:
+            case ast.Add():
+                func_name = 'add'
+            case ast.Sub():
+                func_name = 'subtract'
+            case ast.Mult():
+                func_name = 'mult'
+            case ast.Div():
+                func_name = 'div'
+            case ast.Pow():
+                func_name = 'exp'
+            case ast.Mod():
+                func_name = 'modulo'
+            case ast.FloorDiv():
+                func_name = 'floordiv'
+            case _:
+                raise NotImplementedError(f"Operator {node.op} not supported")
+        
         self.functions_used.add(func_name)
         
+        # Replace binary op with a function call.
         return ast.Call(
             func=ast.Name(id=func_name, ctx=ast.Load()),
             args=[node.left, node.right],
-            keywords=[]
+            keywords=[],
         )
-
+    
     def visit_Call(self, node):
-        # If the function is a Name, record it.
+        # Record called function names.
         if isinstance(node.func, ast.Name):
             self.functions_used.add(node.func.id)
-        # Process any arguments (in case they include binary operations, etc.)
         self.generic_visit(node)
         return node
-    
+
     def visit_Name(self, node):
         return node
 
@@ -307,53 +324,27 @@ class FunctionTransformer(ast.NodeTransformer):
     def visit_Constant(self, node):
         return node
 
-
-def mathexpression_to_fctexpression(mathexp:str) -> str | Exception:
-    """transform a math algebric expression into a funciton expression
-    ex: 'x*2 + (3 - 4/5)/3 + (x+y)**2' will become 'add(mult(x,2),div(subtract(3,div(4,5)),3),exp(add(x,y),2))'"""
-
-    # Parse the expression.
-    try:
-        tree = ast.parse(mathexp, mode='eval')
-    except Exception as e:
-        print(e)
-        return Exception("Math Expression Not Recognized")
-
-    # Transform the AST.
-    transformer = FunctionTransformer()
-    try:
-        astvisited = transformer.visit(tree.body)
-    except Exception as e:
-        print(e)
-        return Exception("Math Expression Not Recognized")
-    
-    # Convert the transformed AST back to source code.
-    fctexp = str(ast.unparse(astvisited))
-    
-    # Return both the transformed expression and the sorted list of functions used.
-    functions_available = NodeSetter.get_functions(get_names=True)
-    for fname in transformer.functions_used:
-        if (fname not in functions_available):
-            return Exception(f"'{fname}' Function Not Recognized")
-    
-    return fctexp
-
-
-def get_socket_python_api(node, identifier) -> str:
-    
-    idx = None
-    in_out_api = "inputs"
-    for sockets in (node.inputs, node.outputs):
-        for i,s in enumerate(sockets):
-            if (hasattr(s,'identifier') and (s.identifier==identifier)):
-                idx = i
-                if (s.is_output):
-                    in_out_api = "outputs"
-                break
-    
-    assert idx is not None, 'ERROR: get_socket_python_api(): Did not find socket idx..'
-    
-    return f"ng.nodes['{node.name}'].{in_out_api}[{idx}]"
+    def transform_expression(self, math_express: str) -> str | Exception:
+        """Transforms a math expression into a function-call expression.
+        Example: 'x*2 + (3-4/5)/3 + (x+y)**2' becomes 'add(mult(x,2),div(subtract(3,div(4,5)),3),exp(add(x,y),2))'"""
+        
+        # Use the ast module to visit our equation
+        try:
+            tree = ast.parse(math_express, mode='eval')
+            transformed_node = self.visit(tree.body)
+        except Exception as e:
+            print(e)
+            return Exception("Math Expression Not Recognized")
+        
+        # Ensure all functions used are available valid
+        functions_available = NodeSetter.get_functions(get_names=True)
+        for fname in self.functions_used:
+            if fname not in functions_available:
+                return Exception(f"'{fname}' Function Not Recognized")
+        
+        # Then transform the ast into a function call sequence
+        func_express = str(ast.unparse(transformed_node))
+        return func_express
 
 
 class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
@@ -554,7 +545,10 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             return None
         
         # Transform user expression into pure function expression
-        fctexp = mathexpression_to_fctexpression(sanatized_expr)
+        
+        transformer = FunctionTransformer()
+        fctexp = transformer.transform_expression(sanatized_expr)
+
         if (type(fctexp) is Exception):
             self.error_message = str(fctexp)
             self.debug_fctexp = 'Failed'
