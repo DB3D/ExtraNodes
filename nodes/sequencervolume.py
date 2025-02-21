@@ -139,8 +139,9 @@ class EXTRANODES_NG_sequencervolume(bpy.types.GeometryNodeCustomGroup):
         #layout.prop(self,"frame_delay",text="Frame Delay")
 
         if (get_addon_prefs().debug):
-            box = layout.column()
-            box.active = False
+            box = layout.box()
+            box.label(text='Debug')
+            box.separator(type='LINE', factor=0.5,)
             box.template_ID(self, "node_tree")
 
         return None 

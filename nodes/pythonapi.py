@@ -239,8 +239,9 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         row.prop(self,"user_expression",text="",)
 
         if (get_addon_prefs().debug):
-            box = layout.column()
-            box.active = False
+            box = layout.box()
+            box.label(text='Debug')
+            box.separator(type='LINE', factor=0.5,)
             box.template_ID(self, "node_tree")
             box.prop(self, "debug_update_counter", text="update count")
 

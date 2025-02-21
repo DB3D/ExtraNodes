@@ -18,7 +18,7 @@ def extranodes_handler_depspost(scene,desp):
     
     sett_plugin = get_addon_prefs()
     
-    if (sett_plugin.debug):
+    if (sett_plugin.debug_depsgraph):
         print("extranodes_handler_depspost(): depsgraph signal")
 
     #automatic update for Python Api Node?
@@ -37,7 +37,7 @@ def extranodes_handler_framepre(scene,desp):
     
     sett_plugin = get_addon_prefs()
 
-    if (sett_plugin.debug):
+    if (sett_plugin.debug_depsgraph):
         print("extranodes_handler_framepre(): frame_pre signal")
 
     #automatic update for Python Api Node?
@@ -84,7 +84,7 @@ def msgbus_viewportshading_callback(*args):
     
     sett_plugin = get_addon_prefs()
     
-    if (sett_plugin.debug):
+    if (sett_plugin.debug_depsgraph):
         print("msgbus_viewportshading_callback(): msgbus signal")
 
     ng = bpy.data.node_groups.get(".GeometryNodeExtraNodesIsRenderedView")

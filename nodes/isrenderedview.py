@@ -48,8 +48,9 @@ class EXTRANODES_NG_isrenderedview(bpy.types.GeometryNodeCustomGroup):
         """node interface drawing"""
         
         if (get_addon_prefs().debug):
-            box = layout.column()
-            box.active = False
+            box = layout.box()
+            box.label(text='Debug')
+            box.separator(type='LINE', factor=0.5,)
             box.template_ID(self, "node_tree")
         
         return None 

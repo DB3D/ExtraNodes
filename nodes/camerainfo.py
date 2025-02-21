@@ -73,16 +73,16 @@ class EXTRANODES_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
 
         scene = bpy.context.scene
         cam_obj = scene.camera if (self.use_scene_cam) else self.camera_obj
-        set_socket_defvalue(self.node_tree, 0, cam_obj)
+        set_socket_defvalue(self.node_tree, 0, value=cam_obj)
         
         if (cam_obj and cam_obj.data):
-            set_socket_defvalue(self.node_tree, 1, cam_obj.data.angle)
-            set_socket_defvalue(self.node_tree, 2, cam_obj.data.shift_x)
-            set_socket_defvalue(self.node_tree, 3, cam_obj.data.shift_y)
-            set_socket_defvalue(self.node_tree, 4, cam_obj.data.clip_start)
-            set_socket_defvalue(self.node_tree, 5, cam_obj.data.clip_end)
-            set_socket_defvalue(self.node_tree, 6, scene.render.resolution_x)
-            set_socket_defvalue(self.node_tree, 7, scene.render.resolution_y)
+            set_socket_defvalue(self.node_tree, 1, value=cam_obj.data.angle)
+            set_socket_defvalue(self.node_tree, 2, value=cam_obj.data.shift_x)
+            set_socket_defvalue(self.node_tree, 3, value=cam_obj.data.shift_y)
+            set_socket_defvalue(self.node_tree, 4, value=cam_obj.data.clip_start)
+            set_socket_defvalue(self.node_tree, 5, value=cam_obj.data.clip_end)
+            set_socket_defvalue(self.node_tree, 6, value=scene.render.resolution_x)
+            set_socket_defvalue(self.node_tree, 7, value=scene.render.resolution_y)
 
         return None
 
@@ -108,8 +108,9 @@ class EXTRANODES_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
         row.prop(self, "use_scene_cam", text="", icon="SCENE_DATA")
 
         if (get_addon_prefs().debug):
-            box = layout.column()
-            box.active = False
+            box = layout.box()
+            box.label(text='Debug')
+            box.separator(type='LINE', factor=0.5,)
             box.template_ID(self, "node_tree")
 
         return None

@@ -15,6 +15,10 @@ class EXTRANODES_AddonPref(bpy.types.AddonPreferences):
         name="Debug Mode",
         default=False,
         )
+    debug_depsgraph : bpy.props.BoolProperty(
+        name="Depsgraph Debug",
+        default=False,
+        )
     pynode_depseval : bpy.props.BoolProperty(
         name="Auto Evaluate",
         description="Automatically evaluate these nodes python expression on every depsgraph update signal",
@@ -59,6 +63,7 @@ class EXTRANODES_AddonPref(bpy.types.AddonPreferences):
         layout.box().label(text="Developers:")
         
         layout.prop(self,"debug",)
+        layout.prop(self,"debug_depsgraph",)
         
         return None
 
