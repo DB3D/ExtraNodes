@@ -233,9 +233,7 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
 
     def draw_buttons(self, context, layout,):
         """node interface drawing"""
-        
-        from . __init__ import get_addon_prefs
-        
+                
         row = layout.row()
         row.alert = self.evaluation_error
         row.prop(self,"user_expression",text="",)

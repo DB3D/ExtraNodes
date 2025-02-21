@@ -5,9 +5,10 @@
 import bpy 
 
 import re, ast
+from functools import partial
 
 from ..__init__ import get_addon_prefs
-from .boiler import create_new_nodegroup, create_socket, remove_socket
+from .boiler import create_new_nodegroup, create_socket, remove_socket, link_sockets
 
 
 def build_token_pattern(tokens):
@@ -22,6 +23,7 @@ def build_token_pattern(tokens):
     # Build the overall pattern by joining each token pattern with '|'
     return '|'.join(boundary(token) for token in tokens)
 
+
 def replace_exact_tokens(expr, tokens_mapping):
     # Build a regex pattern that matches any of the tokens with the proper boundaries.
     pattern = build_token_pattern(tokens_mapping.keys())
@@ -35,110 +37,155 @@ def replace_exact_tokens(expr, tokens_mapping):
 
 class NodeSetter():
     """Set the nodes depending on a given function expression"""
-
+    
     @classmethod
-    def all_functions_names(cls):
+    def all_functions(cls, get_names=False,):
         """get a list of all available functions"""
+
         r = set()
+        
         for v in cls.__dict__.values():
-            if isinstance(v, staticmethod):
-                fname = v.__func__.__name__
-                if fname.startswith('_'): #ignore internal functions
-                    continue
-                r.add(fname)
+            
+            if (not isinstance(v, classmethod)):
+                continue
+            
+            fname = v.__func__.__name__
+            
+            #ignore internal functions
+            if fname.startswith('_'): 
+                continue
+            if fname in ('all_functions', 'execute_function_expression'):
+                continue
+            
+            if (get_names):
+                    r.add(fname)
+            else: r.add(v.__func__)
+                        
         return r
     
     @classmethod
-    def execute_functions(cls, _self, expression=None, node_tree=None, varsockets=None, constsockets=None,):
+    def execute_function_expression(cls, expression, node_tree=None, varsapi=None, constapi=None,) -> None | Exception:
         """try to execute the functions to arrange the node_tree"""
         
         # Replace the constants or variable with sockets API
+        api_expression = replace_exact_tokens(expression, {**varsapi, **constapi},)
         
-        # Replace function names to fit namespace
-        for fname in cls.all_functions_names():
-            if fname in expression:
-                expression = expression.replace(fname,f'cls.{fname}')        
+        # Define the namespace of the execution, and include our functions
+        namespace = {}
+        namespace["ng"] = node_tree
+        for f in cls.all_functions():
+            namespace[f.__name__] = partial(f, cls)
         
         # Try to execute the functions:
         try:
-            exec(expression)
-        except Exception as e:
-            _self.error_message = "Error on Execution"
-            print(e)
+            exec(api_expression, namespace)
             
+        except TypeError as e:
+            print(f"TypeError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
+            return Exception("Wrong Arguments Given")
+        
+        except Exception as e:
+            print(f"ExecutionError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
+            return Exception("Error on Execution")
+        
         return None            
     
-    @staticmethod
-    def add(sock1, sock2):
-        return None
-
-    @staticmethod
-    def subtract(sock1, sock2):
-        return None
-
-    @staticmethod
-    def mult(sock1, sock2):
-        return None
-
-    @staticmethod
-    def div(sock1, sock2):
-        return None
-
-    @staticmethod
-    def exp(sock1, sock2):
-        return None
-
-    @staticmethod
-    def log(sock1, sock2):
-        return None
-
-    @staticmethod
-    def sqrt(sock1, sock2):
-        return None
+    @classmethod
+    def _generic_floatmath(cls, operation_type, sock1, sock2=None, sock3=None,):
+        """generic operation for adding a float math node and linking"""
+        
+        ng = sock1.id_data
+        node = ng.nodes.new('ShaderNodeMath')
+        node.operation = operation_type
+        
+        print("--->",ng, operation_type, sock1, sock2, sock3)
+        
+        if (sock1):
+            link_sockets(sock1, node.inputs[0])
+            
+        if (sock2):
+            link_sockets(sock2, node.inputs[1])
+            
+        if (sock3):
+            link_sockets(sock3, node.inputs[2])
+            
+        return node.outputs[0]
     
-    @staticmethod
-    def invsqrt(sock1, sock2):
-        return None
-    
-    @staticmethod
-    def abs(sock1):
-        return None
-    
-    @staticmethod
-    def min(sock1, sock2):
-        return None
-    
-    @staticmethod
-    def max(sock1, sock2):
-        return None
-    
-    @staticmethod
-    def round(sock1):
-        return None
+    @classmethod
+    def add(cls, sock1, sock2):
+        return cls._generic_floatmath('ADD', sock1, sock2)
 
-    @staticmethod
-    def floor(sock1):
-        return None
+    @classmethod
+    def subtract(cls, sock1, sock2):
+        return cls._generic_floatmath('SUBTRACT', sock1, sock2)
 
-    @staticmethod
-    def ceil(sock1):
-        return None
+    @classmethod
+    def mult(cls, sock1, sock2):
+        return cls._generic_floatmath('MULTIPLY', sock1, sock2)
 
-    @staticmethod
-    def trunc(sock1):
-        return None
+    @classmethod
+    def div(cls, sock1, sock2):
+        return cls._generic_floatmath('DIVIDE', sock1, sock2)
 
-    @staticmethod
-    def sin(sock1):
-        return None
+    @classmethod
+    def exp(cls, sock1, sock2):
+        return cls._generic_floatmath('POWER', sock1, sock2)
 
-    @staticmethod
-    def cos(sock1):
-        return None
+    @classmethod
+    def power(cls, sock1, sock2): #Synonym of 'exp'
+        return cls.exp(sock1, sock2)
     
-    @staticmethod
-    def tan(sock1):
-        return None
+    @classmethod
+    def log(cls, sock1, sock2):
+        return cls._generic_floatmath('LOGARITHM', sock1, sock2)
+
+    @classmethod
+    def sqrt(cls, sock1):
+        return cls._generic_floatmath('SQRT', sock1)
+    
+    @classmethod
+    def invsqrt(cls, sock1):
+        return cls._generic_floatmath('INVERSE_SQRT', sock1)
+
+    @classmethod
+    def abs(cls, sock1):
+        return cls._generic_floatmath('ABSOLUTE', sock1)
+    
+    @classmethod
+    def min(cls, sock1, sock2):
+        return cls._generic_floatmath('MINIMUM', sock1, sock2)
+    
+    @classmethod
+    def max(cls, sock1, sock2):
+        return cls._generic_floatmath('MAXIMUM', sock1, sock2)
+    
+    @classmethod
+    def round(cls, sock1):
+        return cls._generic_floatmath('ROUND', sock1)
+
+    @classmethod
+    def floor(cls, sock1):
+        return cls._generic_floatmath('FLOOR', sock1)
+
+    @classmethod
+    def ceil(cls, sock1):
+        return cls._generic_floatmath('CEIL', sock1)
+
+    @classmethod
+    def trunc(cls, sock1):
+        return cls._generic_floatmath('TRUNC', sock1)
+
+    @classmethod
+    def sin(cls, sock1):
+        return cls._generic_floatmath('SINE', sock1)
+
+    @classmethod
+    def cos(cls, sock1):
+        return cls._generic_floatmath('COSINE', sock1)
+    
+    @classmethod
+    def tan(cls, sock1):
+        return cls._generic_floatmath('TANGENT', sock1)
 
 
 class FunctionTransformer(ast.NodeTransformer):
@@ -222,12 +269,29 @@ def mathexpression_to_fctexpression(mathexp:str) -> str | Exception:
     fctexp = str(ast.unparse(astvisited))
     
     # Return both the transformed expression and the sorted list of functions used.
-    functions_available = NodeSetter.all_functions_names()
+    functions_available = NodeSetter.all_functions(get_names=True)
     for fname in transformer.functions_used:
         if (fname not in functions_available):
             return Exception(f"'{fname}' Function Not Recognized")
     
     return fctexp
+
+
+def get_socket_python_api(node, identifier) -> str:
+    
+    idx = None
+    in_out_api = "inputs"
+    for sockets in (node.inputs, node.outputs):
+        for i,s in enumerate(sockets):
+            if (hasattr(s,'identifier') and (s.identifier==identifier)):
+                idx = i
+                if (s.is_output):
+                    in_out_api = "outputs"
+                break
+    
+    assert idx is not None, 'ERROR: get_socket_python_api(): Did not find socket idx..'
+    
+    return f"ng.nodes['{node.name}'].{in_out_api}[{idx}]"
 
 
 class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
@@ -311,15 +375,15 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         
         ng = self.node_tree 
         in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
-        variables, constants = set(), set()
-        vareq, consteq = dict(), dict()
+        variables, constants = set(), set() #List of variable or constant represented as str
+        vareq, consteq = dict(), dict() #Equivalence from the str collected above to python API
         
         # Extract variable and constants from the expression.
         if (self.user_mathexp):
             variables = sorted(set(re.findall(r"\b[a-zA-Z]+\b(?!\s*\()", self.user_mathexp))) #any single letter not followed by '('
             constants = set(re.findall(r"\b\d+(?:\.\d+)?\b", self.user_mathexp)) #any floats or ints
         print("Extracted variables:", variables)
-        print("Extracted variables:", constants)
+        print("Extracted constants:", constants)
         
         # Clear node tree
         for node in list(ng.nodes):
@@ -344,7 +408,8 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         # Fill equivalence dict with it's socket eq
         if (variables):
             for s in in_nod.outputs:
-                vareq[s.name] = s.identifier
+                if (s.name in variables):
+                    vareq[s.name] = get_socket_python_api(in_nod, s.identifier)
                 
         # Add input for constant right below the vars group input
         if (constants):
@@ -359,7 +424,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 con_nod.location.y = yloc
                 yloc -= 90
                 # Also fill const to socket equivalence dict
-                consteq[const] = con_nod.outputs[0].identifier
+                consteq[const] = get_socket_python_api(con_nod, con_nod.outputs[0].identifier)
         
         # Give it a refresh signal, when we remove/create a lot of sockets, the customnode inputs/outputs needs a kick
         self.update_all()
@@ -369,7 +434,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         
         # Transform user expression into pure function expression
         fctexp = mathexpression_to_fctexpression(self.user_mathexp)
-        if type(fctexp) is Exception:
+        if (type(fctexp) is Exception):
             self.error_message = str(fctexp)
             self.debug_fctexp = 'Failed'
             return None
@@ -377,13 +442,13 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         self.debug_fctexp = fctexp
         
         # Execute the function expression to arrange the user nodetree
-        NodeSetter.execute_functions(self,
-            expression=fctexp,
-            node_tree=ng,
-            varsockets=vareq,
-            constsockets=consteq,
-        )
-
+        rval = NodeSetter.execute_function_expression(fctexp,
+            node_tree=ng, varsapi=vareq, constapi=consteq,
+            )
+        if (type(rval) is Exception):
+            self.error_message = str(rval)
+            return None
+        
         return None
 
     def draw_label(self,):

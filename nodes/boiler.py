@@ -116,3 +116,9 @@ def create_new_nodegroup(name, in_sockets={}, out_sockets={},):
         create_socket(ng, in_out='OUTPUT', socket_type=socket_type, socket_name=socket_name,)
         
     return ng
+
+def link_sockets(socket1, socket2):
+    """link two nodes together in a nodetree"""
+
+    ng = socket1.id_data
+    return ng.links.new(socket1, socket2)
