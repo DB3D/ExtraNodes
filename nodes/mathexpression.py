@@ -21,11 +21,36 @@ from .boiler import create_new_nodegroup, create_socket, remove_socket, link_soc
 
 NODE_Y_OFFSET = 120
 NODE_X_OFFSET = 70
-IRRATIONALS = {'Pi':'3.1415927', 'e':'2.7182818', 'Gold':'1.6180339'}
+IRRATIONALS = {
+    'Pi':   {'unicode':'π', 'value':'3.1415927'},
+    'eNum': {'unicode':'𝑒', 'value':'2.7182818'},
+    'Gold': {'unicode':'φ', 'value':'1.6180339'},
+}
+
+def match_exact_tokens(string:str, tokenlist:list):
+    """
+    Get a list of matching token, if any token in our token list match in our string list
+
+    A token is matched exactly:
+      - For numbers (integer/float), it won't match if the token is part of a larger number.
+      - For alphabetic tokens, word boundaries are used.
+    """
+    def build_token_pattern(tokens):
+        def boundary(token):
+            # For numbers, ensure the token isn't part of a larger number.
+            if re.fullmatch(r'\d+(?:\.\d+)?', token):
+                return r'(?<![\d.])' + re.escape(token) + r'(?![\d.])'
+            else:
+                # For alphabetic tokens, use word boundaries.
+                return r'\b' + re.escape(token) + r'\b'
+        return '|'.join(boundary(token) for token in tokens)
+    
+    pattern = build_token_pattern(tokenlist)
+    return re.findall(pattern, string)
 
 
-def replace_exact_tokens(string, tokens_mapping):
-    """replace any token of a given strings with the new values from a given dict mapping"""
+def replace_exact_tokens(string:str, tokens_mapping:dict):
+    """Replace any token in the given string with new values as defined by the tokens_mapping dictionary."""
     
     def build_token_pattern(tokens):
         def boundary(token):
@@ -94,7 +119,7 @@ class NodeSetter():
         return r
     
     @classmethod
-    def execute_function_expression(cls, expression, node_tree=None, varsapi=None, constapi=None,) -> None | Exception:
+    def execute_function_expression(cls, customnode=None, expression:str=None, node_tree=None, varsapi:dict=None, constapi:dict=None,) -> None | Exception:
         """Execute the functions to arrange the node_tree"""
         
         # Replace the constants or variable with sockets API
@@ -127,6 +152,11 @@ class NodeSetter():
             return Exception("Wrong Arguments Given")
         
         except Exception as e:
+            
+            #Cook better error message to end user
+            if ("'tuple' object" in str(e)):
+                return Exception(f"Wrong use of '( , )' Synthax")
+            
             print(f"ExecutionError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
             return Exception("Error on Execution")
         
@@ -134,8 +164,16 @@ class NodeSetter():
         # We still need to connect it to the ng output
         try:
             last = node_tree.nodes.active
+            
+            #this can only mean one thing, the user only inputed one single variable or constant
             if (last is None):
-                last = node_tree.nodes['Group Input']
+                if (customnode.elemVar):
+                    last = node_tree.nodes['Group Input']
+                elif (customnode.elemConst):
+                    for n in node_tree.nodes:
+                        if (n.type=='VALUE'):
+                            last = n
+                            break
                 
             out_node = node_tree.nodes['Group Output']
             out_node.location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
@@ -477,9 +515,9 @@ class FunctionTransformer(ast.NodeTransformer):
             return Exception("Math Expression Not Recognized")
         
         # Ensure all functions used are available valid
-        functions_available = NodeSetter.get_functions(get_names=True)
+        funct_namespace = NodeSetter.get_functions(get_names=True)
         for fname in self.functions_used:
-            if fname not in functions_available:
+            if fname not in funct_namespace:
                 return Exception(f"'{fname}' Function Not Recognized")
         
         # Then transform the ast into a function call sequence
@@ -521,11 +559,17 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         update=update_user_mathexp,
         description="type your math expression right here",
     )
-    use_irrational_symbols : bpy.props.BoolProperty(
+    implicit_mult : bpy.props.BoolProperty(
+        default=False,
+        name="Implicit Multiplication",
+        update=update_user_mathexp,
+        description="Automatically consider notation such as '2ab' as '2*a*b'",
+    )
+    auto_symbols : bpy.props.BoolProperty(
         default=False,
         name="Recognize Irrationals",
         update=update_user_mathexp,
-        description="Automatically recognize the irrational 'π' 'e' 'φ' symbols as 'Pi' 'e' 'Gold'.\nThe value will be set in float, up to 7 decimals.",
+        description="Automatically recognize the irrational constants 'π' '𝑒' 'φ' from the macros 'Pi' 'eNum' 'Gold'.\nThe constant will be set in float, up to 7 decimals",
     )
 
     @classmethod
@@ -570,45 +614,113 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         return None
     
     def sanatize_expression(self, expression) -> str | Exception:
-        """ensure the user expression is correct, sanatized it"""
+        """ensure the user expression is correct, sanatized it, and collect its element"""
         
+        synthax, operand, expons = '.,()', '/*-+%', '⁰¹²³⁴⁵⁶⁷⁸⁹'
+        funct_namespace = NodeSetter.get_functions(get_names=True)
+
         # First we format some symbols
         expression = expression.replace(' ','')
-        expression = expression.replace('^','**')
-        expression = expression.replace('²','**2')
-        expression = expression.replace('³','**3')
+                
+        # Support for Irrational numbers (Pi ect.., we need to replace their tokens)
+        mached = match_exact_tokens(expression, [v['unicode'] for v in IRRATIONALS.values()])
+        if any(mached):
+            expression = replace_exact_tokens(
+                expression,
+                {v['unicode']:v['value'] for v in IRRATIONALS.values() if (v['unicode'] in mached)}
+            )
         
         # Make a list of authorized symbols
-        authorized_symbols = '/*-+.,()%'
+        authorized_symbols = ''
+        authorized_symbols += synthax
+        authorized_symbols += operand
         authorized_symbols += ''.join(chr(c) for c in range(ord('a'), ord('z') + 1)) #alphabet
         authorized_symbols += ''.join(chr(c).upper() for c in range(ord('a'), ord('z') + 1)) #alphabet upper
         authorized_symbols += ''.join(chr(c) for c in range(ord('0'), ord('9') + 1)) #numbers
+        
+        # Gather lists of expression component outside of operand and some synthax elements
+        elemTotal = expression
+        for char in operand + ',()':
+            elemTotal = elemTotal.replace(char,'|')
+        self.elemTotal = set(e for e in elemTotal.split('|') if e!='')
+        
+        # Sort elements, they can be either variables, constants, functions, or unrecognized
+        self.elemFct = set()
+        self.elemConst = set()
+        self.elemVar = set()
+        self.elemCmplx = set()
+        
+        match self.implicit_mult:
+            
+            case True:
+                for e in self.elemTotal:
+                    
+                    #we have a function
+                    if (e in funct_namespace):
+                        if f'{e}(' in expression:
+                            self.elemFct.add(e)
+                            continue
+                    
+                    #we have float or int
+                    if (e.replace('.','').isdigit()):
+                        self.elemConst.add(e)
+                        continue
+                    
+                    #we have a variable (ex 'ab' or 'x')
+                    if e.isalpha():
+                        self.elemVar.add(e)
+                        continue
+                    
+                    #We have a composite (ex 2ab²)
+                    if any(c.isdigit() or (c in expons) for c in e):
+                        self.elemCmplx.add(e) #We have a composite (ex 2ab²)
+                        continue
+                    
+                    #We have an urecognized element
+                    return Exception(f"Unrecorgnized Variable '{e}'")
+                
+            case False:
+                for e in self.elemTotal:
+                    
+                    #we have a function
+                    if (e in funct_namespace):
+                        self.elemFct.add(e)
+                        continue
+                    
+                    #we have float or int
+                    if (e.replace('.','').isdigit()):
+                        # if (f'{e}(' in expression):
+                        #     return Exception(f"'{e}(' Expression Not Supported")
+                        self.elemConst.add(e)
+                        continue
+                    
+                    #we have a variable (ex 'ab' or 'x')
+                    if e.isalpha():
+                        if (e in funct_namespace):
+                            return Exception(f"Variable '{e}' is Taken")
+                        self.elemVar.add(e)
+                        continue
+                    
+                    #We have an urecognized element
+                    return Exception(f"Unrecorgnized Variable '{e}'")
+            
+        print('')
+        print('funct_namespace:',funct_namespace)
+        print('elemTotal:',self.elemTotal)
+        print('elemFct:',self.elemFct)
+        print('elemConst:',self.elemConst)
+        print('elemVar:',self.elemVar)
+        print('elemCmplx:',self.elemCmplx)
+        
+        # Convert some synthax
+        # expression = expression.replace('^','**')
+        # expression = expression.replace('²','**2')
+        # expression = expression.replace('³','**3')
         
         # Ensure user is using correct symbols
         for char in expression:
             if (char not in authorized_symbols):
                 return Exception(f"Unrecorgnized Symbol '{char}'")
-        
-        # Ensure user is using correct functions
-        functions_available = NodeSetter.get_functions(get_names=True)
-        user_functions = set(re.findall(r"\b[a-zA-Z]+(?=\()", expression))
-        for fname in user_functions:
-            if (fname not in functions_available):
-                return Exception(f"Unrecorgnized Function '{fname}'")
-        
-        # # Support for implicit math operation on variables (ex 2a, 0.5a) ?
-        # # expression = re.sub(r"(\d+(?:\.\d+)?)([A-Za-z])", r"\1*\2", expression)
-        # NOTE feature currently broken, needs to respect priority of operation.. 
-        #      (a+2)/2ab need to be transformed into (a+2)/(2*ab), currently is (a+2)/2*ab which will lead to errors..
-        # NOTE the notation above notation is ambiguous, what about 2ab² then?.. should be 2*a*(b**2).
-        #      then only way to support this notation is to consider a variable as a single letter, 
-        #      which is not the case right now. Not worth it... ? 
-        
-        # Disregard user variable that are mixing numbers and alphabets (ex 2a a1)
-        invalid_args = re.findall(r"\b(?=[A-Za-z0-9]*[A-Za-z])(?=[A-Za-z0-9]*\d)[A-Za-z0-9]+\b", expression)
-        if (invalid_args):
-            for inva in invalid_args:
-                return Exception(f"Invalid Variable '{inva}'")
         
         # Support for implicit math operation on parentheses (ex 2(a+b) or 2.59(c²))
         expression = re.sub(r"(\d+(?:\.\d+)?)(\()", r"\1*\2", expression)
@@ -618,9 +730,23 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     def apply_expression(self) -> None:
         """transform the math expression into sockets and nodes arrangements"""
         
+        ng = self.node_tree 
+        in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
+        
         # Reset error message
         self.error_message = self.debug_sanatized = self.debug_fctexp = ""
         
+        # Support for automatically replacing some symbols
+        if (self.auto_symbols):
+            mached = match_exact_tokens(self.user_mathexp, IRRATIONALS.keys())
+            if any(mached):
+                self.user_mathexp = replace_exact_tokens(
+                    self.user_mathexp,
+                    {k:v['unicode'] for k,v in IRRATIONALS.items() if (k in mached)}
+                )
+                #We just sent an update signal to "user_mathexp", the function will restart shortly..
+                return None
+            
         # First we make sure the user expression is correct
         rval = self.sanatize_expression(self.user_mathexp)
         if (type(rval) is Exception):
@@ -628,35 +754,9 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             self.debug_sanatized = 'Failed'
             return None
         
+        # Define the result of sanatize_expression
         sanatized_expr = self.debug_sanatized = rval
-    
-        ng = self.node_tree 
-        in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
-        variables, constants = set(), set() #List of variable or constant represented as str
-        vareq, consteq = dict(), dict() #Equivalence from the str collected above to python API
-        
-        # Extract variable and constants from the expression.
-        if (sanatized_expr):
-            variables = sorted(set(re.findall(r"\b[a-zA-Z]+\b(?!\s*\()", sanatized_expr))) #any series of letter not followed by '('
-            constants = set(re.findall(r"\b\d+(?:\.\d+)?\b", sanatized_expr)) #any floats or ints
-        
-        # Support for Irrational numbers (Pi ect..)
-        if (self.use_irrational_symbols):
-            for var in variables.copy():
-                irrvalue = IRRATIONALS.get(var)
-                if (irrvalue):
-                    variables.remove(var)
-                    constants.add(irrvalue)
-                    sanatized_expr = replace_exact_tokens(sanatized_expr, IRRATIONALS,)
-                    self.debug_sanatized = sanatized_expr
-        
-        # Make sure the user variables aren't function names.
-        functions_available = NodeSetter.get_functions(get_names=True)
-        for var in variables:
-            if (var in functions_available):
-                self.error_message = f"Variable '{var}' is Taken"
-                self.debug_fctexp = 'Failed'
-                return None
+        elemVar, elemConst = self.elemVar, self.elemConst
         
         # Clear node tree
         for node in list(ng.nodes):
@@ -664,30 +764,33 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 ng.nodes.remove(node)
                 
         # Create new sockets depending on vars
-        if (variables):
+        if (elemVar):
             current_vars = [s.name for s in in_nod.outputs]
-            for var in variables:
+            for var in elemVar:
                 if (var not in current_vars):
                     create_socket(ng, in_out='INPUT', socket_type="NodeSocketFloat", socket_name=var,)
         
         # Remove unused vars sockets
         idx_to_del = []
         for idx,socket in enumerate(in_nod.outputs):
-            if ((socket.type!='CUSTOM') and (socket.name not in variables)):
+            if ((socket.type!='CUSTOM') and (socket.name not in elemVar)):
                 idx_to_del.append(idx)
         for idx in reversed(idx_to_del):
             remove_socket(ng, idx, in_out='INPUT')
         
+        # Let's collect equivalence between varnames/const and the pythonAPI
+        vareq, consteq = dict(), dict()
+        
         # Fill equivalence dict with it's socket eq
-        if (variables):
+        if (elemVar):
             for s in in_nod.outputs:
-                if (s.name in variables):
+                if (s.name in elemVar):
                     vareq[s.name] = get_socket_python_api(in_nod, s.identifier)
                 
         # Add input for constant right below the vars group input
-        if (constants):
+        if (elemConst):
             xloc, yloc = in_nod.location.x, in_nod.location.y-330
-            for const in constants:
+            for const in elemConst:
                 con_nod = ng.nodes.new('ShaderNodeValue')
                 con_nod.outputs[0].default_value = float(const)
                 con_nod.name = const
@@ -701,11 +804,11 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         # Give it a refresh signal, when we remove/create a lot of sockets, the customnode inputs/outputs needs a kick
         self.update_all()
         
-        if not (variables or constants):
+        # if we don't have any elements to work with, quit
+        if not (elemVar or elemConst):
             return None
         
         # Transform user expression into pure function expression
-        
         transformer = FunctionTransformer()
         fctexp = transformer.transform_expression(sanatized_expr)
 
@@ -717,9 +820,10 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         self.debug_fctexp = fctexp
         
         # Execute the function expression to arrange the user nodetree
-        rval = NodeSetter.execute_function_expression(fctexp,
-            node_tree=ng, varsapi=vareq, constapi=consteq,
+        rval = NodeSetter.execute_function_expression(
+            customnode=self, expression=fctexp, node_tree=ng, varsapi=vareq, constapi=consteq,
             )
+        
         if (type(rval) is Exception):
             self.error_message = str(rval)
             return None
@@ -740,9 +844,13 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         row.alert = bool(self.error_message)
         row.prop(self,"user_mathexp", text="",)
         
-        symb = row.row(align=True)
-        symb.scale_x = 0.3
-        symb.prop(self, "use_irrational_symbols", text="π", toggle=True, )
+        # opt = row.row(align=True)
+        # opt.scale_x = 0.35
+        # opt.prop(self, "implicit_mult", text="ab", toggle=True, )
+        
+        opt = row.row(align=True)
+        opt.scale_x = 0.3
+        opt.prop(self, "auto_symbols", text="π", toggle=True, )
         
         if (self.error_message):
             lbl = col.row()
@@ -762,7 +870,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         row.alert = bool(self.error_message)
         row.prop(self,"user_mathexp", text="",)
         
-        layout.prop(self, "use_irrational_symbols",)
+        layout.prop(self, "auto_symbols",)
         
         if (self.error_message):
             lbl = col.row()
