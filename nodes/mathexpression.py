@@ -34,6 +34,8 @@ SUPERSCRIPTS = {
     '⁸': '8',
     '⁹': '9',
 }
+ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+DIGITS = '0123456789'        
 IRRATIONALS = {
     'Pi':   {'unicode':'π', 'value':'3.1415927'},
     'eNum': {'unicode':'𝑒', 'value':'2.7182818'},
@@ -54,14 +56,17 @@ DOCSYMBOLS = {
 }
 
 
-def replace_superscript_exponents(expr: str) -> str:
+def replace_superscript_exponents(expr: str, algebric_notation:bool=False,) -> str:
     """convert exponent to ** notation
-    Example: "2a²b" becomes "2(a**2)b"
+    Example: "2ab²" becomes "2(ab**2) or "2ab²" becomes "2a(b**2)" if alrebric_notation
     """
     
     # Pattern for alphanumeric base followed by superscripts.
-    pattern_base = r'([A-Za-z0-9π𝑒φ]+)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)'
     
+    if (algebric_notation):
+          pattern_base = r'([A-Za-z0-9π𝑒φ])([⁰¹²³⁴⁵⁶⁷⁸⁹]+)'
+    else: pattern_base = r'([A-Za-z0-9π𝑒φ]+)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)'
+        
     def repl_base(match):
         base = match.group(1)
         superscripts = match.group(2)
@@ -73,7 +78,7 @@ def replace_superscript_exponents(expr: str) -> str:
     # Pattern for a closing parenthesis immediately followed by superscripts.
     pattern_paren = r'(\))([⁰¹²³⁴⁵⁶⁷⁸⁹]+)'
     
-    def repl_paren(match):
+    def repl_parenthesis(match):
         closing = match.group(1)
         superscripts = match.group(2)
         exponent = "".join(SUPERSCRIPTS.get(ch, '') for ch in superscripts)
@@ -81,7 +86,7 @@ def replace_superscript_exponents(expr: str) -> str:
         return f"){f'**{exponent}'}"
     
     expr = re.sub(pattern_base, repl_base, expr)
-    expr = re.sub(pattern_paren, repl_paren, expr)
+    expr = re.sub(pattern_paren, repl_parenthesis, expr)
     return expr
 
 
@@ -592,13 +597,13 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         update=update_user_mathexp,
         description="type your math expression right here",
     )
-    implicit_mult : bpy.props.BoolProperty(
+    use_algrebric_multiplication : bpy.props.BoolProperty(
         default=False,
         name="Algebric Notation",
         update=update_user_mathexp,
         description="Algebric Notation.\nAutomatically consider notation such as '2ab' as '2*a*b'",
     )
-    auto_symbols : bpy.props.BoolProperty(
+    use_auto_symbols : bpy.props.BoolProperty(
         default=False,
         name="Auto Symbols",
         update=update_user_mathexp,
@@ -649,7 +654,6 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     def sanatize_expression(self, expression) -> str | Exception:
         """ensure the user expression is correct, sanatized it, and collect its element"""
         
-        synthax, operand = '.,()', '/*-+%'
         funct_namespace = NodeSetter.all_functions(get_names=True)
 
         # First we format some symbols
@@ -658,8 +662,9 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         # Sanatize ² Notations
         for char in expression:
             if char in SUPERSCRIPTS.keys():
-                #NOTE once 'self.implicit_mult' is implemented, parentheses behavior will need to change
-                expression = replace_superscript_exponents(expression)
+                expression = replace_superscript_exponents(expression,
+                    algebric_notation=self.use_algrebric_multiplication,
+                    )
                 break 
         
         # Support for Irrational numbers (Pi ect.., we need to replace their tokens)
@@ -670,27 +675,36 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 {v['unicode']:v['value'] for v in IRRATIONALS.values() if (v['unicode'] in mached)}
             )
         
-        # Make a list of authorized symbols
-        authorized_symbols = ''
-        authorized_symbols += synthax
-        authorized_symbols += operand
-        authorized_symbols += ''.join(chr(c) for c in range(ord('a'), ord('z') + 1)) #alphabet
-        authorized_symbols += ''.join(chr(c).upper() for c in range(ord('a'), ord('z') + 1)) #alphabet upper
-        authorized_symbols += ''.join(chr(c) for c in range(ord('0'), ord('9') + 1)) #numbers
-        
         # Gather lists of expression component outside of operand and some synthax elements
         elemTotal = expression
-        for char in operand + ',()':
+        for char in '/*-+%,()':
             elemTotal = elemTotal.replace(char,'|')
         self.elemTotal = set(e for e in elemTotal.split('|') if e!='')
         
-        # Sort elements, they can be either variables, constants, functions, or unrecognized
+        # Implicit multiplication on parentheses? Need to add '*(' or ')*' then
+        match self.use_algrebric_multiplication:
+            
+            # Is any vars right next to any parentheses? ex: a(ab)²c
+            case True:
+                for e in self.elemTotal:
+                    if (e not in funct_namespace):
+                        if match_exact_tokens(expression,f'{e}('):
+                            expression = replace_exact_tokens(expression,{f'{e}(':f'{e}*('})
+                        if match_exact_tokens(expression,f'){e}'):
+                            expression = replace_exact_tokens(expression,{f'){e}':f')*{e}'})
+            
+            # At least Support for implicit math operation on parentheses (ex: '*(' '2(a+b)' or '2.59(c²)')
+            case False:
+                expression = re.sub(r"(\d+(?:\.\d+)?)(\()", r"\1*\2", expression)
+        
+        # Gather and sort our expression elements
+        # they can be either variables, constants, functions, or unrecognized
         self.elemFct = set()
         self.elemConst = set()
         self.elemVar = set()
-        self.elemCmplx = set()
+        self.elemComp = set()
         
-        match self.implicit_mult:
+        match self.use_algrebric_multiplication:
             
             case True:
                 for e in self.elemTotal:
@@ -706,18 +720,30 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                         self.elemConst.add(e)
                         continue
                     
-                    #we have a variable (ex 'ab' or 'x')
-                    if e.isalpha():
+                    #we have a single char alphabetical variable a,x,E ect..
+                    if (e.isalpha() and len(e)==1):
                         self.elemVar.add(e)
                         continue
+                        
+                    # Then it means we have a composite element (ex 2ab)
+                    self.elemComp.add(e)
                     
-                    #We have a composite (ex 2ab)
-                    if any(c.isdigit() for c in e):
-                        self.elemCmplx.add(e) #We have a composite (ex 2ab²)
-                        continue
-                    
-                    #We have an urecognized element
-                    return Exception(f"Unrecorgnized Variable '{e}'")
+                    # Separate our composite into a list of int/float with single alphabetical char
+                    # ex 24abc1.5 to [24,a,b,c,1.5]
+                    esplit = [m for match in re.finditer(r'(\d+\.\d+|\d+)|([a-zA-Z])', e) for m in match.groups() if m]
+
+                    # Store the float or int const elems of the composite
+                    for esub in esplit:
+                        if (esub.replace('.','').isdigit()):
+                            self.elemConst.add(esub)
+                        elif (esub.isalpha() and len(esub)==1):
+                            self.elemVar.add(esub)
+                        else:
+                            raise Exception(f"Unknown Element '{esub}' of Composite '{e}'")
+                            
+                    # Insert inplicit multiplications
+                    expression = replace_exact_tokens(expression,{e:'*'.join(esplit)})
+                    continue
                 
             case False:
                 for e in self.elemTotal:
@@ -729,8 +755,6 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                     
                     #we have float or int
                     if (e.replace('.','').isdigit()):
-                        # if (f'{e}(' in expression):
-                        #     return Exception(f"'{e}(' Expression Not Supported")
                         self.elemConst.add(e)
                         continue
                     
@@ -744,13 +768,14 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                     #We have an urecognized element
                     return Exception(f"Unrecorgnized Variable '{e}'")
         
+        #Order our variable alphabetically
+        self.elemVar = sorted(self.elemVar)
+        
         # Ensure user is using correct symbols
+        authorized_symbols = ALPHABET + DIGITS + '/*-+%.,()'
         for char in expression:
             if (char not in authorized_symbols):
                 return Exception(f"Unrecorgnized Symbol '{char}'")
-        
-        # Support for implicit math operation on parentheses (ex 2(a+b) or 2.59(c²))
-        expression = re.sub(r"(\d+(?:\.\d+)?)(\()", r"\1*\2", expression)
         
         return expression
     
@@ -764,7 +789,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         self.error_message = self.debug_sanatized = self.debug_fctexp = ""
         
         # Support for automatically replacing some symbols
-        if (self.auto_symbols):
+        if (self.use_auto_symbols):
             mached = match_exact_tokens(self.user_mathexp, IRRATIONALS.keys())
             if any(mached):
                 self.user_mathexp = replace_exact_tokens(
@@ -873,11 +898,11 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         
         opt = row.row(align=True)
         opt.scale_x = 0.35
-        opt.prop(self, "implicit_mult", text="ab", toggle=True, )
+        opt.prop(self, "use_algrebric_multiplication", text="ab", toggle=True, )
         
         opt = row.row(align=True)
         opt.scale_x = 0.3
-        opt.prop(self, "auto_symbols", text="π", toggle=True, )
+        opt.prop(self, "use_auto_symbols", text="π", toggle=True, )
         
         if (self.error_message):
             lbl = col.row()
@@ -896,8 +921,8 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         row.alert = bool(self.error_message)
         row.prop(self,"user_mathexp", text="",)
         
-        layout.prop(self, "auto_symbols",)
-        layout.prop(self, "implicit_mult",)
+        layout.prop(self, "use_auto_symbols",)
+        layout.prop(self, "use_algrebric_multiplication",)
         
         if (self.error_message):
             lbl = col.row()
@@ -952,23 +977,23 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         header.label(text="Development",)
         if (panel):
             panel.active = False
-            
+
             col = panel.column(align=True)
             col.label(text="SanatizedExp:")
             row = col.row()
             row.enabled = False
             row.prop(self, "debug_sanatized", text="",)
-            
+
             col = panel.column(align=True)
             col.label(text="FunctionExp:")
             row = col.row()
             row.enabled = False
             row.prop(self, "debug_fctexp", text="",)
-                            
+
             col = panel.column(align=True)
             col.label(text="NodeTree:")
             col.template_ID(self, "node_tree")
-                
+
         col = layout.column(align=True)
         op = col.operator("extranode.bake_mathexpression", text="Convert to Group",)
         op.nodegroup_name = self.node_tree.name
