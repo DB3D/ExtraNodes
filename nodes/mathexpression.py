@@ -17,7 +17,7 @@ from functools import partial
 
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, word_wrap
-from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, replace_node
+from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, replace_node, frame_nodes
 
 
 NODE_Y_OFFSET = 120
@@ -150,13 +150,13 @@ class NodeSetter():
             #Cook better error message to end user
             e = str(e)
             if e.startswith("NodeSetter."):
-                fctname = str(e).split('NodeSetter.')[1].split('()')[0]
+                fname = str(e).split('NodeSetter.')[1].split('()')[0]
 
                 if ('() missing' in e):
                     nbr = e.split('() missing ')[1][0]
-                    return Exception(f"Function '{fctname}' needs {nbr} more Params")                    
+                    return Exception(f"Function '{fname}' needs {nbr} more Params")                    
                 elif ('() takes' in e):
-                    return Exception(f"Function '{fctname}' recieved Extra Params")
+                    return Exception(f"Function '{fname}' recieved Extra Params")
             
             return Exception("Wrong Arguments Given")
         
@@ -223,12 +223,36 @@ class NodeSetter():
         return node.outputs[0]
     
     @classmethod
-    def _floatmath_nroot(cls, sock1, sock2):
-        """special operation to calculate custom root x**(1/n)"""
-        
+    def _floatmath_neg(cls, sock1,):
+        """special operation for negative -1 -x ect"""
+
         ng = sock1.id_data
         last = ng.nodes.active
+
+        location = (0,200,)
+        if (last):
+            location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
+
+        node = ng.nodes.new('ShaderNodeMath')
+        node.operation = 'SUBTRACT'
+        node.use_clamp = False
+        node.label = 'Negate'
+
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+
+        node.inputs[0].default_value = 0.0
+        link_sockets(sock1, node.inputs[1])
         
+        return node.outputs[0]
+    
+    @classmethod
+    def _floatmath_nroot(cls, sock1, sock2):
+        """special operation to calculate custom root x**(1/n)"""
+
+        ng = sock1.id_data
+        last = ng.nodes.active
+
         location = (0,200,)
         if (last):
             location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
@@ -236,35 +260,36 @@ class NodeSetter():
         divnode = ng.nodes.new('ShaderNodeMath')
         divnode.operation = 'DIVIDE'
         divnode.use_clamp = False
-        
+
         divnode.location = location
         ng.nodes.active = divnode #Always set the last node active for the final link
-                
+
         divnode.inputs[0].default_value = 1.0
         link_sockets(sock2, divnode.inputs[1])
-        
+
         pnode = ng.nodes.new('ShaderNodeMath')
         pnode.operation = 'POWER'
         pnode.use_clamp = False
-        
+
         last = divnode
         location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
-        
+
         pnode.location = location
         ng.nodes.active = pnode #Always set the last node active for the final link
-                
+
         link_sockets(sock1, pnode.inputs[0])
         link_sockets(divnode.outputs[0], pnode.inputs[1])
-            
-        return pnode.outputs[0]
+        frame_nodes(ng, divnode, pnode, label='nRoot')
         
+        return pnode.outputs[0]
+
     @classmethod
     def _mix(cls, data_type, sock1, sock2, sock3,):
         """generic operation for adding a mix node and linking"""
-        
+
         ng = sock1.id_data
         last = ng.nodes.active
-        
+
         location = (0,200,)
         if (last):
             location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
@@ -272,12 +297,12 @@ class NodeSetter():
         node = ng.nodes.new('ShaderNodeMix')
         node.data_type = data_type
         node.clamp_factor = False
-        
+
         node.location = location
         ng.nodes.active = node #Always set the last node active for the final link
-        
+
         link_sockets(sock1, node.inputs[0])
-        
+
         # Need to choose socket depending on node data_type (hidden sockets)
         match data_type:
             case 'FLOAT':
@@ -285,9 +310,9 @@ class NodeSetter():
                 link_sockets(sock3, node.inputs[3])
             case _:
                 raise Exception("Integration Needed")
-            
+
         return node.outputs[0]
-    
+
     @classmethod
     def _floatclamp(cls, clamp_type, sock1, sock2, sock3,):
         """generic operation for adding a mix node and linking"""
@@ -335,7 +360,7 @@ class NodeSetter():
     def pow(cls,a,n):
         """A Power n. Or use the 'a**n' or '²' symbol"""
         return cls._floatmath('POWER',a,n)
-    
+
     @taguser
     def log(cls,a,b):
         """Logarithm A base B."""
@@ -360,7 +385,12 @@ class NodeSetter():
     def abs(cls,a):
         """Absolute of A."""
         return cls._floatmath('ABSOLUTE',a)
-    
+
+    @taguser
+    def neg(cls, a):
+        """Negate the value of A."""
+        return cls._floatmath_neg(a)
+
     @taguser
     def min(cls,a,b):
         """Minimum between A & B."""
@@ -409,7 +439,10 @@ class NodeSetter():
     @taguser
     def floordiv(cls,a,b): #Custom
         """Floor Division. Or use the '//' symbol"""
-        return cls.floor(cls.div(a,b),)
+        _r = cls.div(a,b)
+        r = cls.floor(_r)
+        frame_nodes(a.id_data, _r.node, r.node, label='FloorDiv')
+        return r
     
     @taguser
     def sin(cls,a):
@@ -525,7 +558,22 @@ class FunctionTransformer(ast.NodeTransformer):
             args=[node.left, node.right],
             keywords=[],
         )
-    
+
+    def visit_UnaryOp(self, node):
+        # Process child nodes first.
+        self.generic_visit(node)
+        # Detect unary minus.
+        if isinstance(node.op, ast.USub):
+            self.functions_used.add('neg')
+            # Replace -X with neg(X)
+            return ast.Call(
+                func=ast.Name(id='neg', ctx=ast.Load()),
+                args=[node.operand],
+                keywords=[]
+            )
+        # Otherwise, just return the node unchanged.
+        return node
+
     def visit_Call(self, node):
         # Record called function names.
         if isinstance(node.func, ast.Name):
@@ -656,8 +704,9 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         
         funct_namespace = NodeSetter.all_functions(get_names=True)
 
-        # First we format some symbols
+        # Remove white spaces
         expression = expression.replace(' ','')
+        expression = expression.replace('	','')
                 
         # Sanatize ² Notations
         for char in expression:
@@ -703,7 +752,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         self.elemConst = set()
         self.elemVar = set()
         self.elemComp = set()
-        
+
         match self.use_algrebric_multiplication:
             
             case True:
@@ -770,7 +819,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         
         #Order our variable alphabetically
         self.elemVar = sorted(self.elemVar)
-        
+
         # Ensure user is using correct symbols
         authorized_symbols = ALPHABET + DIGITS + '/*-+%.,()'
         for char in expression:
@@ -893,8 +942,10 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         col = layout.column(align=True)
         
         row = col.row(align=True)
-        row.alert = bool(self.error_message)
-        row.prop(self,"user_mathexp", text="",)
+        
+        field = row.row(align=True)
+        field.alert = bool(self.error_message)
+        field.prop(self,"user_mathexp", text="",)
         
         opt = row.row(align=True)
         opt.scale_x = 0.35
@@ -921,8 +972,8 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         row.alert = bool(self.error_message)
         row.prop(self,"user_mathexp", text="",)
         
-        layout.prop(self, "use_auto_symbols",)
         layout.prop(self, "use_algrebric_multiplication",)
+        layout.prop(self, "use_auto_symbols",)
         
         if (self.error_message):
             lbl = col.row()

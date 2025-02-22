@@ -184,3 +184,15 @@ def replace_node(node_tree, old_node, node_group):
                 print(f"Warning: Could not re-link output '{sock.name}': {e}")
     
     return new_node
+
+
+def frame_nodes(node_tree, *nodes, label="Frame",):
+    """Create a Frame node in the given node_tree and parent the specified nodes to it."""
+
+    frame = node_tree.nodes.new("NodeFrame")
+    frame.label = label
+    
+    for node in nodes:
+        node.parent = frame
+    
+    return frame
