@@ -21,6 +21,18 @@ from .boiler import create_new_nodegroup, create_socket, remove_socket, link_soc
 
 NODE_Y_OFFSET = 120
 NODE_X_OFFSET = 70
+SUPERSCRIPTS = {
+    '⁰': '0',
+    '¹': '1',
+    '²': '2',
+    '³': '3',
+    '⁴': '4',
+    '⁵': '5',
+    '⁶': '6',
+    '⁷': '7',
+    '⁸': '8',
+    '⁹': '9',
+}
 IRRATIONALS = {
     'Pi':   {'unicode':'π', 'value':'3.1415927'},
     'eNum': {'unicode':'𝑒', 'value':'2.7182818'},
@@ -73,7 +85,39 @@ def replace_exact_tokens(string:str, tokens_mapping:dict):
     return re.sub(pattern, repl, string)
 
 
+def replace_superscript_exponents(expr: str) -> str:
+    """convert exponent to ** notation
+    Example: "2a²b" becomes "2(a**2)b"
+    """
+    
+    # Pattern for alphanumeric base followed by superscripts.
+    pattern_base = r'([A-Za-z0-9]+)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)'
+    
+    def repl_base(match):
+        base = match.group(1)
+        superscripts = match.group(2)
+        # Convert each superscript character to its digit equivalent.
+        exponent = "".join(SUPERSCRIPTS.get(ch, '') for ch in superscripts)
+        # Wrap the base in parentheses and apply the power operator.
+        return f"({base}**{exponent})"
+    
+    # Pattern for a closing parenthesis immediately followed by superscripts.
+    pattern_paren = r'(\))([⁰¹²³⁴⁵⁶⁷⁸⁹]+)'
+    
+    def repl_paren(match):
+        closing = match.group(1)
+        superscripts = match.group(2)
+        exponent = "".join(SUPERSCRIPTS.get(ch, '') for ch in superscripts)
+        # Just insert ** before the exponent after the parenthesis.
+        return f"){f'**{exponent}'}"
+    
+    expr = re.sub(pattern_base, repl_base, expr)
+    expr = re.sub(pattern_paren, repl_paren, expr)
+    return expr
+
+
 def get_socket_python_api(node, identifier) -> str:
+    """return a python api string that can be executed from a given node and socket identifier"""
     
     idx = None
     in_out_api = "inputs"
@@ -616,12 +660,19 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     def sanatize_expression(self, expression) -> str | Exception:
         """ensure the user expression is correct, sanatized it, and collect its element"""
         
-        synthax, operand, expons = '.,()', '/*-+%', '⁰¹²³⁴⁵⁶⁷⁸⁹'
+        synthax, operand = '.,()', '/*-+%'
         funct_namespace = NodeSetter.get_functions(get_names=True)
 
         # First we format some symbols
         expression = expression.replace(' ','')
                 
+        # Sanatize ² Notations
+        for char in expression:
+            if char in SUPERSCRIPTS.keys():
+                #NOTE once 'self.implicit_mult' is implemented, parentheses behavior will need to change
+                expression = replace_superscript_exponents(expression)
+                break 
+        
         # Support for Irrational numbers (Pi ect.., we need to replace their tokens)
         mached = match_exact_tokens(expression, [v['unicode'] for v in IRRATIONALS.values()])
         if any(mached):
@@ -671,8 +722,8 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                         self.elemVar.add(e)
                         continue
                     
-                    #We have a composite (ex 2ab²)
-                    if any(c.isdigit() or (c in expons) for c in e):
+                    #We have a composite (ex 2ab)
+                    if any(c.isdigit() for c in e):
                         self.elemCmplx.add(e) #We have a composite (ex 2ab²)
                         continue
                     
@@ -703,19 +754,6 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                     
                     #We have an urecognized element
                     return Exception(f"Unrecorgnized Variable '{e}'")
-            
-        print('')
-        print('funct_namespace:',funct_namespace)
-        print('elemTotal:',self.elemTotal)
-        print('elemFct:',self.elemFct)
-        print('elemConst:',self.elemConst)
-        print('elemVar:',self.elemVar)
-        print('elemCmplx:',self.elemCmplx)
-        
-        # Convert some synthax
-        # expression = expression.replace('^','**')
-        # expression = expression.replace('²','**2')
-        # expression = expression.replace('³','**3')
         
         # Ensure user is using correct symbols
         for char in expression:
