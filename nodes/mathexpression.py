@@ -175,6 +175,42 @@ class NodeSetter():
         return node.outputs[0]
     
     @classmethod
+    def _floatmath_nroot(cls, sock1, sock2):
+        """special operation to calculate custom root x^(1/n)"""
+        
+        ng = sock1.id_data
+        last = ng.nodes.active
+        
+        location = (0,200,)
+        if (last):
+            location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
+
+        divnode = ng.nodes.new('ShaderNodeMath')
+        divnode.operation = 'DIVIDE'
+        divnode.use_clamp = False
+        
+        divnode.location = location
+        ng.nodes.active = divnode #Always set the last node active for the final link
+                
+        divnode.inputs[0].default_value = 1.0
+        link_sockets(sock2, divnode.inputs[1])
+        
+        pnode = ng.nodes.new('ShaderNodeMath')
+        pnode.operation = 'POWER'
+        pnode.use_clamp = False
+        
+        last = divnode
+        location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
+        
+        pnode.location = location
+        ng.nodes.active = pnode #Always set the last node active for the final link
+                
+        link_sockets(sock1, pnode.inputs[0])
+        link_sockets(divnode.outputs[0], pnode.inputs[1])
+            
+        return pnode.outputs[0]
+        
+    @classmethod
     def _mix(cls, data_type, sock1, sock2, sock3,):
         """generic operation for adding a mix node and linking"""
         
@@ -262,6 +298,10 @@ class NodeSetter():
     @classmethod
     def invsqrt(cls, sock1):
         return cls._floatmath('INVERSE_SQRT', sock1)
+    
+    @classmethod
+    def nroot(cls, sock1, sock2):
+        return cls._floatmath_nroot(sock1, sock2,)
 
     @classmethod
     def abs(cls, sock1):
