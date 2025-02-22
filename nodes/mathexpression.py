@@ -631,9 +631,9 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     )
     use_auto_symbols : bpy.props.BoolProperty(
         default=False,
-        name="Auto Symbols",
+        name="Recognize Macros",
         update=update_user_mathexp,
-        description="Auto Symbols\nAutomatically recognize the irrational constants 'π' '𝑒' 'φ' from the macros 'Pi' 'eNum' 'Gold'.\nThe constant will be set in float, up to 7 decimals",
+        description="Recognize Macros.\nAutomatically recognize the irrational constants 'π' '𝑒' 'φ' from the macros 'Pi' 'eNum' 'Gold'.\nThe constant will be set in float, up to 7 decimals",
     )
 
     @classmethod
