@@ -21,6 +21,7 @@ from .boiler import create_new_nodegroup, create_socket, remove_socket, link_soc
 
 NODE_Y_OFFSET = 120
 NODE_X_OFFSET = 70
+IRRATIONALS = {'Pi':'3.1415927', 'e':'2.7182818', 'Gold':'1.6180339'}
 
 
 def replace_exact_tokens(string, tokens_mapping):
@@ -519,7 +520,13 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         name="Expression",
         update=update_user_mathexp,
         description="type your math expression right here",
-        )
+    )
+    use_irrational_symbols : bpy.props.BoolProperty(
+        default=False,
+        name="Recognize Irrationals",
+        update=update_user_mathexp,
+        description="Automatically recognize the irrational 'π' 'e' 'φ' symbols as 'Pi' 'e' 'Gold'.\nThe value will be set in float, up to 7 decimals.",
+    )
 
     @classmethod
     def poll(cls, context):
@@ -633,6 +640,16 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             variables = sorted(set(re.findall(r"\b[a-zA-Z]+\b(?!\s*\()", sanatized_expr))) #any series of letter not followed by '('
             constants = set(re.findall(r"\b\d+(?:\.\d+)?\b", sanatized_expr)) #any floats or ints
         
+        # Support for Irrational numbers (Pi ect..)
+        if (self.use_irrational_symbols):
+            for var in variables.copy():
+                irrvalue = IRRATIONALS.get(var)
+                if (irrvalue):
+                    variables.remove(var)
+                    constants.add(irrvalue)
+                    sanatized_expr = replace_exact_tokens(sanatized_expr, IRRATIONALS,)
+                    self.debug_sanatized = sanatized_expr
+        
         # Make sure the user variables aren't function names.
         functions_available = NodeSetter.get_functions(get_names=True)
         for var in variables:
@@ -718,16 +735,24 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         """node interface drawing"""
                 
         col = layout.column(align=True)
-        col.alert = bool(self.error_message)
         
         row = col.row(align=True)
         row.prop(self,"user_mathexp", text="",)
-        op = row.operator("extranode.bake_mathexpression", text="", icon="CURRENT_FILE",)
+        row.alert = bool(self.error_message)
+        
+        symb = row.row(align=True)
+        symb.scale_x = 0.3
+        symb.prop(self, "use_irrational_symbols", text="π", toggle=True, )
+        
+        op = row.operator("extranode.bake_mathexpression", text="", icon='CURRENT_FILE',)
         op.nodegroup_name = self.node_tree.name
         op.node_name = self.name
         
+        
         if (self.error_message):
-            col.label(text=self.error_message)
+            lbl = col.row()
+            lbl.alert = bool(self.error_message)
+            lbl.label(text=self.error_message)
 
         if (get_addon_prefs().debug):
             box = layout.box()
