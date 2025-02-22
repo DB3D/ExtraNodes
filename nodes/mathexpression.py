@@ -111,6 +111,18 @@ class NodeSetter():
             
         except TypeError as e:
             print(f"TypeError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
+            
+            #Cook better error message to end user
+            e = str(e)
+            if e.startswith("NodeSetter."):
+                fctname = str(e).split('NodeSetter.')[1].split('()')[0]
+
+                if ('() missing' in e):
+                    nbr = e.split('() missing ')[1][0]
+                    return Exception(f"Function '{fctname}' needs {nbr} more Params")                    
+                elif ('() takes' in e):
+                    return Exception(f"Function '{fctname}' recieved Extra Params")
+            
             return Exception("Wrong Arguments Given")
         
         except Exception as e:
@@ -663,9 +675,9 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         """node interface drawing"""
                 
         col = layout.column(align=True)
+        col.alert = bool(self.error_message)
         
         row = col.row(align=True)
-        row.alert = bool(self.error_message)
         row.prop(self,"user_mathexp", text="",)
         op = row.operator("extranode.bake_mathexpression", text="", icon="CURRENT_FILE",)
         op.nodegroup_name = self.node_tree.name
