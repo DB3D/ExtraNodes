@@ -133,6 +133,9 @@ class NodeSetter():
         # We still need to connect it to the ng output
         try:
             last = node_tree.nodes.active
+            if (last is None):
+                last = node_tree.nodes['Group Input']
+                
             out_node = node_tree.nodes['Group Output']
             out_node.location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
             
