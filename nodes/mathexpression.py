@@ -16,7 +16,8 @@ import re, ast
 from functools import partial
 
 from ..__init__ import get_addon_prefs
-from .boiler import create_new_nodegroup, create_socket, remove_socket, link_sockets, replace_node
+from ..utils.string_utils import match_exact_tokens, replace_exact_tokens
+from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, replace_node
 
 
 NODE_Y_OFFSET = 120
@@ -38,51 +39,6 @@ IRRATIONALS = {
     'eNum': {'unicode':'𝑒', 'value':'2.7182818'},
     'Gold': {'unicode':'φ', 'value':'1.6180339'},
 }
-
-def match_exact_tokens(string:str, tokenlist:list):
-    """
-    Get a list of matching token, if any token in our token list match in our string list
-
-    A token is matched exactly:
-      - For numbers (integer/float), it won't match if the token is part of a larger number.
-      - For alphabetic tokens, word boundaries are used.
-    """
-    def build_token_pattern(tokens):
-        def boundary(token):
-            # For numbers, ensure the token isn't part of a larger number.
-            if re.fullmatch(r'\d+(?:\.\d+)?', token):
-                return r'(?<![\d.])' + re.escape(token) + r'(?![\d.])'
-            else:
-                # For alphabetic tokens, use word boundaries.
-                return r'\b' + re.escape(token) + r'\b'
-        return '|'.join(boundary(token) for token in tokens)
-    
-    pattern = build_token_pattern(tokenlist)
-    return re.findall(pattern, string)
-
-
-def replace_exact_tokens(string:str, tokens_mapping:dict):
-    """Replace any token in the given string with new values as defined by the tokens_mapping dictionary."""
-    
-    def build_token_pattern(tokens):
-        def boundary(token):
-            # If token is a number (integer or float)
-            if re.fullmatch(r'\d+(?:\.\d+)?', token):
-                # Use negative lookbehind and lookahead to ensure the token isn't part of a larger number.
-                return r'(?<![\d.])' + re.escape(token) + r'(?![\d.])'
-            else:
-                # For alphabetic tokens, use word boundaries.
-                return r'\b' + re.escape(token) + r'\b'
-        # Build the overall pattern by joining each token pattern with '|'
-        return '|'.join(boundary(token) for token in tokens)
-
-    pattern = build_token_pattern(tokens_mapping.keys())
-    
-    def repl(match):
-        token = match.group(0)
-        return tokens_mapping.get(token, token)
-    
-    return re.sub(pattern, repl, string)
 
 
 def replace_superscript_exponents(expr: str) -> str:
@@ -138,27 +94,25 @@ class NodeSetter():
     """Set the nodes depending on a given function expression"""
     
     @classmethod
-    def get_functions(cls, get_names=False,):
+    def all_functions(cls, get_names=False,):
         """get a list of all available functions"""
 
         r = set()
         
         for v in cls.__dict__.values():
-            
-            if (not isinstance(v, classmethod)):
-                continue
-            
-            fname = v.__func__.__name__
-            
-            #ignore internal functions
-            if fname.startswith('_'): 
-                continue
-            if fname in ('get_functions', 'execute_function_expression'):
-                continue
-            
-            if (get_names):
-                    r.add(fname)
-            else: r.add(v.__func__)
+            if (isinstance(v, classmethod)):
+                fname = v.__func__.__name__
+                
+                #ignore internal functions
+                if fname.startswith('_'): 
+                    continue
+                if fname in ('all_functions', 'execute_function_expression'):
+                    continue
+                
+                #get the function or function name
+                if (get_names):
+                      r.add(fname)
+                else: r.add(v.__func__)
                         
         return r
     
@@ -172,7 +126,7 @@ class NodeSetter():
         # Define the namespace of the execution, and include our functions
         namespace = {}
         namespace["ng"] = node_tree
-        for f in cls.get_functions():
+        for f in cls.all_functions():
             namespace[f.__name__] = partial(f, cls)
         
         # Try to execute the functions:
@@ -259,7 +213,7 @@ class NodeSetter():
     
     @classmethod
     def _floatmath_nroot(cls, sock1, sock2):
-        """special operation to calculate custom root x^(1/n)"""
+        """special operation to calculate custom root x**(1/n)"""
         
         ng = sock1.id_data
         last = ng.nodes.active
@@ -367,7 +321,7 @@ class NodeSetter():
         return cls._floatmath('POWER', sock1, sock2)
 
     @classmethod
-    def power(cls, sock1, sock2): #Synonym of 'exp'
+    def pow(cls, sock1, sock2): #Synonym of 'exp'
         return cls.exp(sock1, sock2)
     
     @classmethod
@@ -559,7 +513,7 @@ class FunctionTransformer(ast.NodeTransformer):
             return Exception("Math Expression Not Recognized")
         
         # Ensure all functions used are available valid
-        funct_namespace = NodeSetter.get_functions(get_names=True)
+        funct_namespace = NodeSetter.all_functions(get_names=True)
         for fname in self.functions_used:
             if fname not in funct_namespace:
                 return Exception(f"'{fname}' Function Not Recognized")
@@ -661,7 +615,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         """ensure the user expression is correct, sanatized it, and collect its element"""
         
         synthax, operand = '.,()', '/*-+%'
-        funct_namespace = NodeSetter.get_functions(get_names=True)
+        funct_namespace = NodeSetter.all_functions(get_names=True)
 
         # First we format some symbols
         expression = expression.replace(' ','')

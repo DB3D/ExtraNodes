@@ -5,7 +5,7 @@
 import bpy 
 
 from ..__init__ import get_addon_prefs
-from .boiler import create_new_nodegroup, set_socket_defvalue
+from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue
 
 
 class EXTRANODES_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):

@@ -5,7 +5,7 @@
 import bpy 
 
 from ..__init__ import get_addon_prefs
-from .boiler import create_new_nodegroup, set_socket_defvalue, get_socket_type, set_socket_type, set_socket_label, get_socket_defvalue
+from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue, get_socket_type, set_socket_type, set_socket_label, get_socket_defvalue
 
 from mathutils import * # Conveniences vars for 'GeometryNodeExtraNodesPythonApi' 
 from math import *      # Needed to eval user python expression (cannot import a wildcard within the class).

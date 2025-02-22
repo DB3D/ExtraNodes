@@ -5,7 +5,7 @@
 import bpy 
 
 from ..__init__ import get_addon_prefs
-from .boiler import create_new_nodegroup
+from ..utils.node_utils import create_new_nodegroup
 
 
 class EXTRANODES_NG_isrenderedview(bpy.types.GeometryNodeCustomGroup):

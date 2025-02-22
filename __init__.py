@@ -10,6 +10,9 @@
 #  - Sequencer volume could use some options for sampling a specific time. Perhaps sampling other elements of the sound?
 #  - Other node ideas from user feedback?
 
+#NOTE You might stumble into this crash when hot-reloading (enable/disable) the plugin on blender 4.2/4.2
+#     https://projects.blender.org/blender/blender/issues/134669 Has been fixed in 4.4. Only impacts developers hotreloading.
+
 
 import bpy, sys
 
