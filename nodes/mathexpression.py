@@ -91,7 +91,7 @@ def replace_superscript_exponents(expr: str) -> str:
     """
     
     # Pattern for alphanumeric base followed by superscripts.
-    pattern_base = r'([A-Za-z0-9]+)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)'
+    pattern_base = r'([A-Za-z0-9π𝑒φ]+)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)'
     
     def repl_base(match):
         base = match.group(1)
