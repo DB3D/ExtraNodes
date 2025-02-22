@@ -811,10 +811,13 @@ class EXTRANODES_OT_bake_mathexpression(bpy.types.Operator):
             self.report({'ERROR'}, "Node group with given name not found")
             return {'CANCELLED'}
 
+        old_exp = str(old_node.user_mathexp)
         node_group = node_group.copy()
         node_group.name = f'{node_group.name}.Baked'
         
-        replace_node(node_tree, old_node, node_group,)
+        new_node = replace_node(node_tree, old_node, node_group,)
+        new_node.label = old_exp
+        
         self.report({'INFO'}, f"Replaced node '{self.node_name}' with node group '{self.node_name}'")
         
         return {'FINISHED'}
