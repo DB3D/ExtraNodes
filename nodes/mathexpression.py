@@ -19,6 +19,9 @@ from ..__init__ import get_addon_prefs
 from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, word_wrap
 from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, replace_node
 
+makeclassmethod = classmethod
+
+
 
 NODE_Y_OFFSET = 120
 NODE_X_OFFSET = 70
@@ -39,7 +42,19 @@ IRRATIONALS = {
     'eNum': {'unicode':'𝑒', 'value':'2.7182818'},
     'Gold': {'unicode':'φ', 'value':'1.6180339'},
 }
-
+DOCSYMBOLS = {
+    '+':{'name':"Addition",'desc':""},
+    '-':{'name':"Subtract",'desc':""},
+    '*':{'name':"Multiply",'desc':""},
+    '**':{'name':"Power",'desc':""},
+    '²':{'name':"Power Notation",'desc':"Please note that 2ab² will either be transformed into (ab)**2 or a*((b)**2) depending on your settings."}, #Supported during sanatization
+    '/':{'name':"Division",'desc':""},
+    '//':{'name':"FloorDiv",'desc':""},
+    '%':{'name':"Modulo",'desc':""},
+    'π':{'name':"Pi",'desc':"This symbol will automatically be translated to 3.1415927 float value"}, #Supported during sanatization
+    '𝑒':{'name':"EulerNumber (eNum)",'desc':"This symbol will automatically be translated to 2.7182818 float value"}, #Supported during sanatization
+    'φ':{'name':"GoldenRation (Gold)",'desc':"This symbol will automatically be translated to 1.6180339 float value"}, #Supported during sanatization
+}
 
 def replace_superscript_exponents(expr: str) -> str:
     """convert exponent to ** notation
@@ -90,31 +105,24 @@ def get_socket_python_api(node, identifier) -> str:
     return f"ng.nodes['{node.name}'].{in_out_api}[{idx}]"
 
 
+
+USERFUNCTIONS = []
+def taguser(func):
+    """decorator to easily store NodeSetter on an orderly manner at runtime"""
+    USERFUNCTIONS.append(func)
+    return classmethod(func)
+
+
 class NodeSetter():
-    """Set the nodes depending on a given function expression"""
-    
+    """Set the nodes depending on a given function expression."""
+    #NOTE this class is never initialized
+        
     @classmethod
     def all_functions(cls, get_names=False,):
         """get a list of all available functions"""
-
-        r = set()
-        
-        for v in cls.__dict__.values():
-            if (isinstance(v, classmethod)):
-                fname = v.__func__.__name__
-                
-                #ignore internal functions
-                if fname.startswith('_'): 
-                    continue
-                if fname in ('all_functions', 'execute_function_expression'):
-                    continue
-                
-                #get the function or function name
-                if (get_names):
-                      r.add(fname)
-                else: r.add(v.__func__)
-                        
-        return r
+        if (get_names):
+            return [f.__name__ for f in USERFUNCTIONS]
+        return USERFUNCTIONS
     
     @classmethod
     def execute_function_expression(cls, customnode=None, expression:str=None, node_tree=None, varsapi:dict=None, constapi:dict=None,) -> None | Exception:
@@ -299,155 +307,186 @@ class NodeSetter():
         link_sockets(sock3, node.inputs[2])
         
         return node.outputs[0]
-    
-    @classmethod
-    def add(cls, sock1, sock2):
-        return cls._floatmath('ADD', sock1, sock2)
 
-    @classmethod
-    def subtract(cls, sock1, sock2):
-        return cls._floatmath('SUBTRACT', sock1, sock2)
+    @taguser
+    def add(cls,a,b):
+        """Addition. Or use the '+' symbol"""
+        return cls._floatmath('ADD',a,b)
 
-    @classmethod
-    def mult(cls, sock1, sock2):
-        return cls._floatmath('MULTIPLY', sock1, sock2)
+    @taguser
+    def subtract(cls,a,b):
+        """Subtraction. Or use the '-' symbol"""
+        return cls._floatmath('SUBTRACT',a,b)
 
-    @classmethod
-    def div(cls, sock1, sock2):
-        return cls._floatmath('DIVIDE', sock1, sock2)
+    @taguser
+    def mult(cls,a,b):
+        """Multiplications. Or use the '*' symbol"""
+        return cls._floatmath('MULTIPLY',a,b)
 
-    @classmethod
-    def exp(cls, sock1, sock2):
-        return cls._floatmath('POWER', sock1, sock2)
+    @taguser
+    def div(cls,a,b):
+        """Division. Or use the '/' symbol"""
+        return cls._floatmath('DIVIDE',a,b)
 
-    @classmethod
-    def pow(cls, sock1, sock2): #Synonym of 'exp'
-        return cls.exp(sock1, sock2)
+    @taguser
+    def pow(cls,a,n):
+        """A Power n. Or use the 'a**n' or '²' symbol"""
+        return cls._floatmath('POWER',a,n)
     
-    @classmethod
-    def log(cls, sock1, sock2):
-        return cls._floatmath('LOGARITHM', sock1, sock2)
+    @taguser
+    def log(cls,a,b):
+        """Logarithm A base B."""
+        return cls._floatmath('LOGARITHM',a,b)
 
-    @classmethod
-    def sqrt(cls, sock1):
-        return cls._floatmath('SQRT', sock1)
-    
-    @classmethod
-    def invsqrt(cls, sock1):
-        return cls._floatmath('INVERSE_SQRT', sock1)
-    
-    @classmethod
-    def nroot(cls, sock1, sock2):
-        return cls._floatmath_nroot(sock1, sock2,)
+    @taguser
+    def sqrt(cls,a):
+        """Square Root of A."""
+        return cls._floatmath('SQRT',a)
 
-    @classmethod
-    def abs(cls, sock1):
-        return cls._floatmath('ABSOLUTE', sock1)
-    
-    @classmethod
-    def min(cls, sock1, sock2):
-        return cls._floatmath('MINIMUM', sock1, sock2)
-    
-    @classmethod
-    def max(cls, sock1, sock2):
-        return cls._floatmath('MAXIMUM', sock1, sock2)
-    
-    @classmethod
-    def round(cls, sock1):
-        return cls._floatmath('ROUND', sock1)
+    @taguser
+    def invsqrt(cls,a):
+        """1/ Square Root of A."""
+        return cls._floatmath('INVERSE_SQRT',a)
 
-    @classmethod
-    def floor(cls, sock1):
-        return cls._floatmath('FLOOR', sock1)
+    @taguser
+    def nroot(cls,a,n):
+        """A Root N. a**(1/n)."""
+        return cls._floatmath_nroot(a,n,)
 
-    @classmethod
-    def ceil(cls, sock1):
-        return cls._floatmath('CEIL', sock1)
+    @taguser
+    def abs(cls,a):
+        """Absolute of A."""
+        return cls._floatmath('ABSOLUTE',a)
+    
+    @taguser
+    def min(cls,a,b):
+        """Minimum between A & B."""
+        return cls._floatmath('MINIMUM',a,b)
+    
+    @taguser
+    def max(cls,a,b):
+        """Maximum between A & B."""
+        return cls._floatmath('MAXIMUM',a,b)
+    
+    @taguser
+    def round(cls,a):
+        """Round a Float to an Integer."""
+        return cls._floatmath('ROUND',a)
 
-    @classmethod
-    def trunc(cls, sock1):
-        return cls._floatmath('TRUNC', sock1)
+    @taguser
+    def floor(cls,a):
+        """Floor a Float to an Integer."""
+        return cls._floatmath('FLOOR',a)
 
-    @classmethod
-    def modulo(cls, sock1, sock2):
-        return cls._floatmath('MODULO', sock1, sock2)
-    
-    @classmethod
-    def wrap(cls, sock1, sock2, sock3):
-        return cls._floatmath('WRAP', sock1, sock2, sock3)
-    
-    @classmethod
-    def snap(cls, sock1, sock2):
-        return cls._floatmath('SNAP', sock1, sock2)
-    
-    @classmethod
-    def floordiv(cls, sock1, sock2): #Custom
-        return cls.floor(cls.div(sock1,sock2),)
-    
-    @classmethod
-    def sin(cls, sock1):
-        return cls._floatmath('SINE', sock1)
+    @taguser
+    def ceil(cls,a):
+        """Ceil a Float to an Integer."""
+        return cls._floatmath('CEIL',a)
 
-    @classmethod
-    def cos(cls, sock1):
-        return cls._floatmath('COSINE', sock1)
-    
-    @classmethod
-    def tan(cls, sock1):
-        return cls._floatmath('TANGENT', sock1)
+    @taguser
+    def trunc(cls,a):
+        """Trunc a Float to an Integer."""
+        return cls._floatmath('TRUNC',a)
 
-    @classmethod
-    def asin(cls, sock1):
-        return cls._floatmath('ARCSINE', sock1)
+    @taguser
+    def modulo(cls,a,b):
+        """Modulo. Or use the '%' symbol"""
+        return cls._floatmath('MODULO',a,b)
+    
+    @taguser
+    def wrap(cls,v,a,b):
+        """Wrap value to Range A B."""
+        return cls._floatmath('WRAP',v,a,b)
+    
+    @taguser
+    def snap(cls,v,i):
+        """Snap to Increment."""
+        return cls._floatmath('SNAP',v,i)
+    
+    @taguser
+    def floordiv(cls,a,b): #Custom
+        """Floor Division. Or use the '//' symbol"""
+        return cls.floor(cls.div(a,b),)
+    
+    @taguser
+    def sin(cls,a):
+        """The Sine of A."""
+        return cls._floatmath('SINE',a)
 
-    @classmethod
-    def acos(cls, sock1):
-        return cls._floatmath('ARCCOSINE', sock1)
+    @taguser
+    def cos(cls,a):
+        """The Cosine of A."""
+        return cls._floatmath('COSINE',a)
     
-    @classmethod
-    def atan(cls, sock1):
-        return cls._floatmath('ARCTANGENT', sock1)
-    
-    @classmethod
-    def hsin(cls, sock1):
-        return cls._floatmath('SINH', sock1)
+    @taguser
+    def tan(cls,a):
+        """The Tangent of A."""
+        return cls._floatmath('TANGENT',a)
 
-    @classmethod
-    def hcos(cls, sock1):
-        return cls._floatmath('COSH', sock1)
+    @taguser
+    def asin(cls,a):
+        """The Arcsine of A."""
+        return cls._floatmath('ARCSINE',a)
+
+    @taguser
+    def acos(cls,a):
+        """The Arccosine of A."""
+        return cls._floatmath('ARCCOSINE',a)
     
-    @classmethod
-    def htan(cls, sock1):
-        return cls._floatmath('TANH', sock1)
+    @taguser
+    def atan(cls,a):
+        """The Arctangent of A."""
+        return cls._floatmath('ARCTANGENT',a)
     
-    @classmethod
-    def rad(cls, sock1):
-        return cls._floatmath('RADIANS', sock1)
+    @taguser
+    def hsin(cls,a):
+        """The Hyperbolic Sine of A."""
+        return cls._floatmath('SINH',a)
+
+    @taguser
+    def hcos(cls,a):
+        """The Hyperbolic Cosine of A."""
+        return cls._floatmath('COSH',a)
     
-    @classmethod
-    def deg(cls, sock1):
-        return cls._floatmath('DEGREES', sock1)
+    @taguser
+    def htan(cls,a):
+        """The Hyperbolic Tangent of A."""
+        return cls._floatmath('TANH',a)
     
-    @classmethod
-    def lerp(cls, sock1, sock2, sock3):
-        return cls._mix('FLOAT', sock1, sock2, sock3)
+    @taguser
+    def rad(cls,a):
+        """Convert from Degrees to Radians."""
+        return cls._floatmath('RADIANS',a)
     
-    @classmethod
-    def mix(cls, sock1, sock2, sock3): #Synonym of 'lerp'
-        return cls.lerp(sock1, sock2, sock3)
+    @taguser
+    def deg(cls,a):
+        """Convert from Radians to Degrees."""
+        return cls._floatmath('DEGREES',a)
     
-    @classmethod
-    def clamp(cls, sock1, sock2, sock3):
-        return cls._floatclamp('MINMAX', sock1, sock2, sock3)
+    @taguser
+    def lerp(cls,f,a,b):
+        """Linear Interpolation of value A and B from given factor."""
+        return cls._mix('FLOAT',f,a,b)
     
-    @classmethod
-    def clampr(cls, sock1, sock2, sock3):
-        return cls._floatclamp('RANGE', sock1, sock2, sock3)
+    @taguser
+    def mix(cls,f,a,b): #Synonym of 'lerp'
+        """Linear Interpolation of value A and B from given factor."""
+        return cls.lerp(f,a,b)
+    
+    @taguser
+    def clamp(cls,v,a,b):
+        """Clamp value between min an max."""
+        return cls._floatclamp('MINMAX',v,a,b)
+    
+    @taguser
+    def clampr(cls,v,a,b):
+        """Clamp value between auto-defined min/max."""
+        return cls._floatclamp('RANGE',v,a,b)
 
 
 class FunctionTransformer(ast.NodeTransformer):
     """AST Transformer for converting math expressions into function-call expressions."""
-    
+
     def __init__(self):
         super().__init__()
         self.functions_used = set()
@@ -467,7 +506,7 @@ class FunctionTransformer(ast.NodeTransformer):
             case ast.Div():
                 func_name = 'div'
             case ast.Pow():
-                func_name = 'exp'
+                func_name = 'pow'
             case ast.Mod():
                 func_name = 'modulo'
             case ast.FloorDiv():
@@ -876,6 +915,42 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 )
             panel.operator("wm.url_open", text="Documentation",).url = "www.todo.com"
 
+        header, panel = layout.panel("doc_glossid", default_closed=True,)
+        header.label(text="Glossary",)
+        if (panel):
+            
+            col = panel.column()
+            
+            for symbol,v in DOCSYMBOLS.items():
+                
+                desc = v['name']+'.\n'+v['desc'] if v['desc'] else v['name']
+                row = col.row()
+                row.scale_y = 0.65
+                row.box().label(text=symbol,)
+                
+                col.separator(factor=0.5)
+                
+                word_wrap(layout=col, alert=False, active=True, max_char='auto',
+                    char_auto_sidepadding=1, context=context, string=desc, alignment='LEFT',
+                    )
+                col.separator()
+            
+            for f in NodeSetter.all_functions():
+                
+                fargs = [name for name in f.__code__.co_varnames if name!='cls']
+                fstr = f'{f.__name__}({", ".join(fargs)})'
+                
+                row = col.row()
+                row.scale_y = 0.65
+                row.box().label(text=fstr,)
+                
+                col.separator(factor=0.5)
+                
+                word_wrap(layout=col, alert=False, active=True, max_char='auto',
+                    char_auto_sidepadding=1, context=context, string=f.__doc__, alignment='LEFT',
+                    )
+                col.separator()
+                
         header, panel = layout.panel("dev_panelid", default_closed=True,)
         header.label(text="Development",)
         if (panel):
