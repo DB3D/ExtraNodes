@@ -19,9 +19,6 @@ from ..__init__ import get_addon_prefs
 from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, word_wrap
 from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, replace_node
 
-makeclassmethod = classmethod
-
-
 
 NODE_Y_OFFSET = 120
 NODE_X_OFFSET = 70
@@ -55,6 +52,7 @@ DOCSYMBOLS = {
     '𝑒':{'name':"EulerNumber (eNum)",'desc':"This symbol will automatically be translated to 2.7182818 float value"}, #Supported during sanatization
     'φ':{'name':"GoldenRation (Gold)",'desc':"This symbol will automatically be translated to 1.6180339 float value"}, #Supported during sanatization
 }
+
 
 def replace_superscript_exponents(expr: str) -> str:
     """convert exponent to ** notation
@@ -574,8 +572,6 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     #     - however, there will be a lot of checks required to see if the user is using valid types.. quite annoying. Perhaps could be done by checking 'is_valid'
     #     Or maybe create a separate 'ComplexMath' node and keep this simple one?
     
-    #TODO what if user use a function with wrong number of arguments?
-    #TODO support more math symbols? https://en.wikipedia.org/wiki/Glossary_of_mathematical_symbols
     #TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
     
     bl_idname = "GeometryNodeExtraMathExpression"
@@ -598,15 +594,15 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     )
     implicit_mult : bpy.props.BoolProperty(
         default=False,
-        name="Implicit Multiplication",
+        name="Algebric Notation",
         update=update_user_mathexp,
-        description="Automatically consider notation such as '2ab' as '2*a*b'",
+        description="Algebric Notation.\nAutomatically consider notation such as '2ab' as '2*a*b'",
     )
     auto_symbols : bpy.props.BoolProperty(
         default=False,
-        name="Recognize Irrationals",
+        name="Auto Symbols",
         update=update_user_mathexp,
-        description="Automatically recognize the irrational constants 'π' '𝑒' 'φ' from the macros 'Pi' 'eNum' 'Gold'.\nThe constant will be set in float, up to 7 decimals",
+        description="Auto Symbols\nAutomatically recognize the irrational constants 'π' '𝑒' 'φ' from the macros 'Pi' 'eNum' 'Gold'.\nThe constant will be set in float, up to 7 decimals",
     )
 
     @classmethod
@@ -875,9 +871,9 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         row.alert = bool(self.error_message)
         row.prop(self,"user_mathexp", text="",)
         
-        # opt = row.row(align=True)
-        # opt.scale_x = 0.35
-        # opt.prop(self, "implicit_mult", text="ab", toggle=True, )
+        opt = row.row(align=True)
+        opt.scale_x = 0.35
+        opt.prop(self, "implicit_mult", text="ab", toggle=True, )
         
         opt = row.row(align=True)
         opt.scale_x = 0.3
@@ -901,6 +897,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         row.prop(self,"user_mathexp", text="",)
         
         layout.prop(self, "auto_symbols",)
+        layout.prop(self, "implicit_mult",)
         
         if (self.error_message):
             lbl = col.row()
