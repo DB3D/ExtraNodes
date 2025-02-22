@@ -35,32 +35,23 @@ class EXTRANODES_AddonPref(bpy.types.AddonPreferences):
     pynode_convenience_exec3 : bpy.props.StringProperty(
         default="",
         )
-
+    #not exposed
+    ui_word_wrap_max_char_factor : bpy.props.FloatProperty(
+        default=1.0,
+        soft_min=0.3,
+        soft_max=3,
+        description="ui 'word_wrap' layout funciton, max characters per lines",
+        )
+    ui_word_wrap_y : bpy.props.FloatProperty(
+        default=0.8,
+        soft_min=0.1,
+        soft_max=3,
+        description="ui 'word_wrap' layout funciton, max height of the lines",
+        )
+    
     def draw(self,context):
         
         layout = self.layout
-
-        layout.box().label(text="Python Api Node:")
-        
-        layout.prop(self,"pynode_depseval",)
-
-        col = layout.column(align=True)
-        col.label(text="Convenience Variables")
-        col.separator()
-        
-        row = col.row(align=True)
-        row.enabled = False
-        row.prop(self,"pynode_convenience_exec1",text="",)
-        
-        row = col.row(align=True)
-        row.enabled = False
-        row.prop(self,"pynode_convenience_exec2",text="",)
-        
-        row = col.row(align=True)
-        row.active = False
-        row.prop(self,"pynode_convenience_exec3",text="",)
-
-        layout.box().label(text="Developers:")
         
         layout.prop(self,"debug",)
         layout.prop(self,"debug_depsgraph",)

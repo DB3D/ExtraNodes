@@ -16,7 +16,7 @@ import re, ast
 from functools import partial
 
 from ..__init__ import get_addon_prefs
-from ..utils.string_utils import match_exact_tokens, replace_exact_tokens
+from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, word_wrap
 from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, replace_node
 
 
@@ -857,7 +857,6 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         """draw in the N panel when the node is selected"""
         
         col = layout.column(align=True)
-        col.label(text="Expression:")
         row = col.row(align=True)
         row.alert = bool(self.error_message)
         row.prop(self,"user_mathexp", text="",)
@@ -869,38 +868,40 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             lbl.alert = bool(self.error_message)
             lbl.label(text=self.error_message)
         
-        layout.separator(factor=1.2,type='LINE')
-        
-        col = layout.column(align=True)
-        col.label(text="SanatizedExp:")
-        row = col.row()
-        row.enabled = False
-        row.prop(self, "debug_sanatized", text="",)
+        header, panel = layout.panel("doc_panelid", default_closed=True,)
+        header.label(text="Documentation",)
+        if (panel):
+            word_wrap(layout=panel, alert=False, active=True, max_char='auto',
+                char_auto_sidepadding=0.9, context=context, string=self.bl_description,
+                )
+            panel.operator("wm.url_open", text="Documentation",).url = "www.todo.com"
 
-        layout.separator(factor=1.2,type='LINE')
-        
+        header, panel = layout.panel("dev_panelid", default_closed=True,)
+        header.label(text="Development",)
+        if (panel):
+            panel.active = False
+            
+            col = panel.column(align=True)
+            col.label(text="SanatizedExp:")
+            row = col.row()
+            row.enabled = False
+            row.prop(self, "debug_sanatized", text="",)
+            
+            col = panel.column(align=True)
+            col.label(text="FunctionExp:")
+            row = col.row()
+            row.enabled = False
+            row.prop(self, "debug_fctexp", text="",)
+                            
+            col = panel.column(align=True)
+            col.label(text="NodeTree:")
+            col.template_ID(self, "node_tree")
+                
         col = layout.column(align=True)
-        col.label(text="FunctionExp:")
-        row = col.row()
-        row.enabled = False
-        row.prop(self, "debug_fctexp", text="",)
-        
-        layout.separator(factor=1.2,type='LINE')
-        
-        col = layout.column(align=True)
-        col.label(text="Operators:")
         op = col.operator("extranode.bake_mathexpression", text="Convert to Group",)
         op.nodegroup_name = self.node_tree.name
         op.node_name = self.name
-        
-        layout.separator(factor=1.2,type='LINE')
-            
-        col = layout.column(align=True)
-        col.label(text="NodeTree:")
-        col.template_ID(self, "node_tree")
-        
-        layout.separator(factor=1.2,type='LINE')
-        
+                
         col = layout.column(align=True)
         col.label(text="Variables:")
         #... groups inputs will be drawn below

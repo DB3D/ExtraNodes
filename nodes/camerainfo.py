@@ -5,6 +5,7 @@
 import bpy 
 
 from ..__init__ import get_addon_prefs
+from ..utils.str_utils import word_wrap
 from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue
 
 
@@ -120,11 +121,24 @@ class EXTRANODES_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
         
         layout.prop(self, "use_scene_cam",)
     
-        layout.separator(factor=1.2,type='LINE')
+        header, panel = layout.panel("doc_panelid", default_closed=True,)
+        header.label(text="Documentation",)
+        if (panel):
+            word_wrap(layout=panel, alert=False, active=True, max_char='auto',
+                char_auto_sidepadding=0.9, context=context, string=self.bl_description,
+                )
+            panel.operator("wm.url_open", text="Documentation",).url = "www.todo.com"
             
-        col = layout.column(align=True)
-        col.label(text="NodeTree:")
-        col.template_ID(self, "node_tree")
+        header, panel = layout.panel("dev_panelid", default_closed=True,)
+        header.label(text="Development",)
+        if (panel):
+            panel.active = False
+                            
+            col = panel.column(align=True)
+            col.label(text="NodeTree:")
+            col.template_ID(self, "node_tree")
+        
+        return None
         
     @classmethod
     def update_all(cls):

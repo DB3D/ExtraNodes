@@ -5,6 +5,7 @@
 import bpy 
 
 from ..__init__ import get_addon_prefs
+from ..utils.str_utils import word_wrap
 from ..utils.node_utils import create_new_nodegroup
 
 
@@ -52,8 +53,21 @@ class EXTRANODES_NG_isrenderedview(bpy.types.GeometryNodeCustomGroup):
     def draw_buttons_ext(self, context, layout):
         """draw in the N panel when the node is selected"""
         
-        col = layout.column(align=True)
-        col.label(text="NodeTree:")
-        col.template_ID(self, "node_tree")
+        header, panel = layout.panel("doc_panelid", default_closed=True,)
+        header.label(text="Documentation",)
+        if (panel):
+            word_wrap(layout=panel, alert=False, active=True, max_char='auto',
+                char_auto_sidepadding=0.9, context=context, string=self.bl_description,
+                )
+            panel.operator("wm.url_open", text="Documentation",).url = "www.todo.com"
+            
+        header, panel = layout.panel("dev_panelid", default_closed=True,)
+        header.label(text="Development",)
+        if (panel):
+            panel.active = False
+                            
+            col = panel.column(align=True)
+            col.label(text="NodeTree:")
+            col.template_ID(self, "node_tree")
         
         return None
