@@ -744,10 +744,9 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         symb.scale_x = 0.3
         symb.prop(self, "use_irrational_symbols", text="π", toggle=True, )
         
-        op = row.operator("extranode.bake_mathexpression", text="", icon='CURRENT_FILE',)
+        op = row.operator("extranode.bake_mathexpression", text="", icon='UV_SYNC_SELECT',)
         op.nodegroup_name = self.node_tree.name
         op.node_name = self.name
-        
         
         if (self.error_message):
             lbl = col.row()
@@ -770,6 +769,8 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             col.label(text="FunctionExp:")
             col.prop(self, "debug_fctexp", text="",)
 
+        layout.separator(factor=0.75)
+        
         return None
 
     @classmethod
