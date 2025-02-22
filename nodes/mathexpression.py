@@ -19,41 +19,29 @@ from ..__init__ import get_addon_prefs
 from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, word_wrap
 from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, replace_node, frame_nodes
 
-
-NODE_Y_OFFSET = 120
-NODE_X_OFFSET = 70
-SUPERSCRIPTS = {
-    '⁰': '0',
-    '¹': '1',
-    '²': '2',
-    '³': '3',
-    '⁴': '4',
-    '⁵': '5',
-    '⁶': '6',
-    '⁷': '7',
-    '⁸': '8',
-    '⁹': '9',
-}
+NODE_YOFF, NODE_XOFF = 120, 70
+DIGITS = '0123456789'
 ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
-DIGITS = '0123456789'        
 IRRATIONALS = {
     'Pi':   {'unicode':'π', 'value':'3.1415927'},
     'eNum': {'unicode':'𝑒', 'value':'2.7182818'},
     'Gold': {'unicode':'φ', 'value':'1.6180339'},
 }
+SUPERSCRIPTS = {'⁰':'0', '¹':'1', '²':'2', '³':'3', '⁴':'4', '⁵':'5', '⁶':'6', '⁷':'7', '⁸':'8', '⁹':'9',}
 DOCSYMBOLS = {
     '+':{'name':"Addition",'desc':""},
-    '-':{'name':"Subtract",'desc':""},
-    '*':{'name':"Multiply",'desc':""},
-    '**':{'name':"Power",'desc':""},
-    '²':{'name':"Power Notation",'desc':"Please note that 2ab² will either be transformed into (ab)**2 or a*((b)**2) depending on your settings."}, #Supported during sanatization
-    '/':{'name':"Division",'desc':""},
-    '//':{'name':"FloorDiv",'desc':""},
-    '%':{'name':"Modulo",'desc':""},
-    'π':{'name':"Pi",'desc':"This symbol will automatically be translated to 3.1415927 float value"}, #Supported during sanatization
-    '𝑒':{'name':"EulerNumber (eNum)",'desc':"This symbol will automatically be translated to 2.7182818 float value"}, #Supported during sanatization
-    'φ':{'name':"GoldenRation (Gold)",'desc':"This symbol will automatically be translated to 1.6180339 float value"}, #Supported during sanatization
+    '-':{'name':"Subtraction.",'desc':"Can be used to negate as well ex: -x"},
+    '*':{'name':"Multiplication.",'desc':""},
+    '**':{'name':"Power.",'desc':""},
+    '²':{'name':"Power Notation.",'desc':"Please note that 2ab² will either be transformed into (ab)**2 or a*((b)**2) depending if you use 'Algebric Notations'."}, #Supported during sanatization
+    '/':{'name':"Division.",'desc':""},
+    '//':{'name':"FloorDiv.",'desc':""},
+    '%':{'name':"Modulo.",'desc':""},
+    'π':{'name':"Pi",'desc':"Represented as 3.1415927 float value.\nInvoked using the 'Pi' Macro."}, #Supported during sanatization
+    '𝑒':{'name':"EulerNumber.",'desc':"Represented as 2.7182818 float value.\nInvoked using the 'eNum' Macro."}, #Supported during sanatization
+    'φ':{'name':"GoldenRation.",'desc':"Represented as 1.6180339 float value.\nInvoked using the 'Gold' Macro."}, #Supported during sanatization
 }
+USER_FUNCTIONS, USER_FNAMES = [], [] #Store the math function used by NodeSetter, will be all funcs available for user. Will be stored at regtime.
 
 
 def replace_superscript_exponents(expr: str, algebric_notation:bool=False,) -> str:
@@ -108,25 +96,16 @@ def get_socket_python_api(node, identifier) -> str:
     return f"ng.nodes['{node.name}'].{in_out_api}[{idx}]"
 
 
-
-USERFUNCTIONS = []
-def taguser(func):
-    """decorator to easily store NodeSetter on an orderly manner at runtime"""
-    USERFUNCTIONS.append(func)
-    return classmethod(func)
-
-
 class NodeSetter():
     """Set the nodes depending on a given function expression."""
     #NOTE this class is never initialized
         
-    @classmethod
-    def all_functions(cls, get_names=False,):
-        """get a list of all available functions"""
-        if (get_names):
-            return [f.__name__ for f in USERFUNCTIONS]
-        return USERFUNCTIONS
-    
+    def taguser(func):
+        """decorator to easily store NodeSetter on an orderly manner at runtime"""
+        USER_FUNCTIONS.append(func)
+        USER_FNAMES.append(func.__name__)
+        return classmethod(func)
+
     @classmethod
     def execute_function_expression(cls, customnode=None, expression:str=None, node_tree=None, varsapi:dict=None, constapi:dict=None,) -> None | Exception:
         """Execute the functions to arrange the node_tree"""
@@ -137,7 +116,7 @@ class NodeSetter():
         # Define the namespace of the execution, and include our functions
         namespace = {}
         namespace["ng"] = node_tree
-        for f in cls.all_functions():
+        for f in USER_FUNCTIONS:
             namespace[f.__name__] = partial(f, cls)
         
         # Try to execute the functions:
@@ -185,7 +164,7 @@ class NodeSetter():
                             break
                 
             out_node = node_tree.nodes['Group Output']
-            out_node.location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
+            out_node.location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
             
             sock1, sock2 = last.outputs[0], out_node.inputs[0]
             link_sockets(sock1, sock2)
@@ -205,7 +184,7 @@ class NodeSetter():
         
         location = (0,200,)
         if (last):
-            location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
+            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
 
         node = ng.nodes.new('ShaderNodeMath')
         node.operation = operation_type
@@ -231,7 +210,7 @@ class NodeSetter():
 
         location = (0,200,)
         if (last):
-            location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
+            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
 
         node = ng.nodes.new('ShaderNodeMath')
         node.operation = 'SUBTRACT'
@@ -255,7 +234,7 @@ class NodeSetter():
 
         location = (0,200,)
         if (last):
-            location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
+            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
 
         divnode = ng.nodes.new('ShaderNodeMath')
         divnode.operation = 'DIVIDE'
@@ -272,7 +251,7 @@ class NodeSetter():
         pnode.use_clamp = False
 
         last = divnode
-        location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
+        location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
 
         pnode.location = location
         ng.nodes.active = pnode #Always set the last node active for the final link
@@ -292,7 +271,7 @@ class NodeSetter():
 
         location = (0,200,)
         if (last):
-            location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
+            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
 
         node = ng.nodes.new('ShaderNodeMix')
         node.data_type = data_type
@@ -322,7 +301,7 @@ class NodeSetter():
         
         location = (0,200,)
         if (last):
-            location = (last.location.x+last.width+NODE_X_OFFSET, last.location.y-NODE_Y_OFFSET,)
+            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
 
         node = ng.nodes.new('ShaderNodeClamp')
         node.clamp_type = clamp_type
@@ -338,27 +317,27 @@ class NodeSetter():
 
     @taguser
     def add(cls,a,b):
-        """Addition. Or use the '+' symbol"""
+        """Addition.\nEquivalent to the '+' symbol."""
         return cls._floatmath('ADD',a,b)
 
     @taguser
     def subtract(cls,a,b):
-        """Subtraction. Or use the '-' symbol"""
+        """Subtraction.\nEquivalent to the '-' symbol."""
         return cls._floatmath('SUBTRACT',a,b)
 
     @taguser
     def mult(cls,a,b):
-        """Multiplications. Or use the '*' symbol"""
+        """Multiplications.\nEquivalent to the '*' symbol."""
         return cls._floatmath('MULTIPLY',a,b)
 
     @taguser
     def div(cls,a,b):
-        """Division. Or use the '/' symbol"""
+        """Division.\nEquivalent to the '/' symbol."""
         return cls._floatmath('DIVIDE',a,b)
 
     @taguser
     def pow(cls,a,n):
-        """A Power n. Or use the 'a**n' or '²' symbol"""
+        """A Power n.\nEquivalent to the 'a**n' and '²' symbol."""
         return cls._floatmath('POWER',a,n)
 
     @taguser
@@ -378,7 +357,7 @@ class NodeSetter():
 
     @taguser
     def nroot(cls,a,n):
-        """A Root N. a**(1/n)."""
+        """A Root N. a**(1/n.)"""
         return cls._floatmath_nroot(a,n,)
 
     @taguser
@@ -388,7 +367,7 @@ class NodeSetter():
 
     @taguser
     def neg(cls, a):
-        """Negate the value of A."""
+        """Negate the value of A.\nEquivalent to the symbol '-x.'"""
         return cls._floatmath_neg(a)
 
     @taguser
@@ -423,7 +402,7 @@ class NodeSetter():
 
     @taguser
     def modulo(cls,a,b):
-        """Modulo. Or use the '%' symbol"""
+        """Modulo.\nEquivalent to the '%' symbol."""
         return cls._floatmath('MODULO',a,b)
     
     @taguser
@@ -438,7 +417,7 @@ class NodeSetter():
     
     @taguser
     def floordiv(cls,a,b): #Custom
-        """Floor Division. Or use the '//' symbol"""
+        """Floor Division.\nEquivalent to the '//' symbol."""
         _r = cls.div(a,b)
         r = cls.floor(_r)
         frame_nodes(a.id_data, _r.node, r.node, label='FloorDiv')
@@ -505,8 +484,8 @@ class NodeSetter():
         return cls._mix('FLOAT',f,a,b)
     
     @taguser
-    def mix(cls,f,a,b): #Synonym of 'lerp'
-        """Linear Interpolation of value A and B from given factor."""
+    def mix(cls,f,a,b): 
+        """Same as 'lerp' function."""
         return cls.lerp(f,a,b)
     
     @taguser
@@ -603,9 +582,8 @@ class FunctionTransformer(ast.NodeTransformer):
             return Exception("Math Expression Not Recognized")
         
         # Ensure all functions used are available valid
-        funct_namespace = NodeSetter.all_functions(get_names=True)
         for fname in self.functions_used:
-            if fname not in funct_namespace:
+            if fname not in USER_FNAMES:
                 return Exception(f"'{fname}' Function Not Recognized")
         
         # Then transform the ast into a function call sequence
@@ -701,8 +679,6 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     
     def sanatize_expression(self, expression) -> str | Exception:
         """ensure the user expression is correct, sanatized it, and collect its element"""
-        
-        funct_namespace = NodeSetter.all_functions(get_names=True)
 
         # Remove white spaces
         expression = expression.replace(' ','')
@@ -736,7 +712,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             # Is any vars right next to any parentheses? ex: a(ab)²c
             case True:
                 for e in self.elemTotal:
-                    if (e not in funct_namespace):
+                    if (e not in USER_FNAMES):
                         if match_exact_tokens(expression,f'{e}('):
                             expression = replace_exact_tokens(expression,{f'{e}(':f'{e}*('})
                         if match_exact_tokens(expression,f'){e}'):
@@ -759,7 +735,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 for e in self.elemTotal:
                     
                     #we have a function
-                    if (e in funct_namespace):
+                    if (e in USER_FNAMES):
                         if f'{e}(' in expression:
                             self.elemFct.add(e)
                             continue
@@ -798,7 +774,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 for e in self.elemTotal:
                     
                     #we have a function
-                    if (e in funct_namespace):
+                    if (e in USER_FNAMES):
                         self.elemFct.add(e)
                         continue
                     
@@ -809,7 +785,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                     
                     #we have a variable (ex 'ab' or 'x')
                     if e.isalpha():
-                        if (e in funct_namespace):
+                        if (e in USER_FNAMES):
                             return Exception(f"Variable '{e}' is Taken")
                         self.elemVar.add(e)
                         continue
@@ -996,7 +972,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             
             for symbol,v in DOCSYMBOLS.items():
                 
-                desc = v['name']+'.\n'+v['desc'] if v['desc'] else v['name']
+                desc = v['name']+'\n'+v['desc'] if v['desc'] else v['name']
                 row = col.row()
                 row.scale_y = 0.65
                 row.box().label(text=symbol,)
@@ -1004,13 +980,16 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 col.separator(factor=0.5)
                 
                 word_wrap(layout=col, alert=False, active=True, max_char='auto',
-                    char_auto_sidepadding=1, context=context, string=desc, alignment='LEFT',
+                    char_auto_sidepadding=0.95, context=context, string=desc, alignment='LEFT',
                     )
                 col.separator()
             
-            for f in NodeSetter.all_functions():
+            for f in USER_FUNCTIONS:
                 
-                fargs = [name for name in f.__code__.co_varnames if name!='cls']
+                #collect functiona arguments for user
+                fargs = list(f.__code__.co_varnames[:f.__code__.co_argcount])
+                if 'cls' in fargs:
+                    fargs.remove('cls')
                 fstr = f'{f.__name__}({", ".join(fargs)})'
                 
                 row = col.row()
@@ -1020,7 +999,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 col.separator(factor=0.5)
                 
                 word_wrap(layout=col, alert=False, active=True, max_char='auto',
-                    char_auto_sidepadding=1, context=context, string=f.__doc__, alignment='LEFT',
+                    char_auto_sidepadding=0.95, context=context, string=f.__doc__, alignment='LEFT',
                     )
                 col.separator()
                 
