@@ -140,14 +140,17 @@ class EXTRANODES_NG_sequencervolume(bpy.types.GeometryNodeCustomGroup):
         #for later?
         #layout.prop(self,"frame_delay",text="Frame Delay")
 
-        if (get_addon_prefs().debug):
-            box = layout.box()
-            box.label(text='Debug')
-            box.separator(type='LINE', factor=0.5,)
-            box.template_ID(self, "node_tree")
-
         return None 
 
+    def draw_buttons_ext(self, context, layout):
+        """draw in the N panel when the node is selected"""
+        
+        col = layout.column(align=True)
+        col.label(text="NodeTree:")
+        col.template_ID(self, "node_tree")
+        
+        return None
+    
     @classmethod
     def update_all(cls):
         """search for all nodes of this type and update them"""

@@ -47,10 +47,13 @@ class EXTRANODES_NG_isrenderedview(bpy.types.GeometryNodeCustomGroup):
     def draw_buttons(self, context, layout,):
         """node interface drawing"""
         
-        if (get_addon_prefs().debug):
-            box = layout.box()
-            box.label(text='Debug')
-            box.separator(type='LINE', factor=0.5,)
-            box.template_ID(self, "node_tree")
-        
         return None 
+
+    def draw_buttons_ext(self, context, layout):
+        """draw in the N panel when the node is selected"""
+        
+        col = layout.column(align=True)
+        col.label(text="NodeTree:")
+        col.template_ID(self, "node_tree")
+        
+        return None

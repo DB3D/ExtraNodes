@@ -18,6 +18,8 @@ class EXTRANODES_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
 
     use_scene_cam: bpy.props.BoolProperty(
         default=True,
+        name="Use Active Camera",
+        description="Automatically update the pointer to the active scene camera",
         )
 
     def camera_obj_poll(self, obj):
@@ -28,12 +30,10 @@ class EXTRANODES_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
         poll=camera_obj_poll,
         )
 
-
     @classmethod
     def poll(cls, context):
         """mandatory poll"""
         return True
-
 
     def init(self, context):
         """this fct run when appending the node for the first time"""
@@ -62,14 +62,12 @@ class EXTRANODES_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
-
     def copy(self, node):
         """fct run when dupplicating the node"""
         
         self.node_tree = node.node_tree.copy()
         
         return None
-
 
     def update(self):
         """generic update function"""
@@ -89,12 +87,10 @@ class EXTRANODES_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
-
     def draw_label(self,):
         """node label"""
         
         return self.bl_label
-
 
     def draw_buttons(self, context, layout):
         """node interface drawing"""
@@ -104,21 +100,32 @@ class EXTRANODES_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
         sub.active = not self.use_scene_cam
         
         if (self.use_scene_cam):
-            sub.prop(bpy.context.scene, "camera", text="", icon="CAMERA_DATA")
-        else:
-            sub.prop(self, "camera_obj", text="", icon="CAMERA_DATA")
+              sub.prop(bpy.context.scene, "camera", text="", icon="CAMERA_DATA")
+        else: sub.prop(self, "camera_obj", text="", icon="CAMERA_DATA")
         
         row.prop(self, "use_scene_cam", text="", icon="SCENE_DATA")
 
-        if (get_addon_prefs().debug):
-            box = layout.box()
-            box.label(text='Debug')
-            box.separator(type='LINE', factor=0.5,)
-            box.template_ID(self, "node_tree")
-
         return None
 
-
+    def draw_buttons_ext(self, context, layout):
+        """draw in the N panel when the node is selected"""
+        
+        row = layout.row(align=True)
+        sub = row.row(align=True)
+        sub.active = not self.use_scene_cam
+        
+        if (self.use_scene_cam):
+              sub.prop(bpy.context.scene, "camera", text="", icon="CAMERA_DATA")
+        else: sub.prop(self, "camera_obj", text="", icon="CAMERA_DATA")
+        
+        layout.prop(self, "use_scene_cam",)
+    
+        layout.separator(factor=1.2,type='LINE')
+            
+        col = layout.column(align=True)
+        col.label(text="NodeTree:")
+        col.template_ID(self, "node_tree")
+        
     @classmethod
     def update_all(cls):
         """search for all nodes of this type and update them"""

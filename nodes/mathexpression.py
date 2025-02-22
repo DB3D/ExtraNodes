@@ -737,42 +737,76 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         col = layout.column(align=True)
         
         row = col.row(align=True)
-        row.prop(self,"user_mathexp", text="",)
         row.alert = bool(self.error_message)
+        row.prop(self,"user_mathexp", text="",)
         
         symb = row.row(align=True)
         symb.scale_x = 0.3
         symb.prop(self, "use_irrational_symbols", text="π", toggle=True, )
         
-        op = row.operator("extranode.bake_mathexpression", text="", icon='UV_SYNC_SELECT',)
-        op.nodegroup_name = self.node_tree.name
-        op.node_name = self.name
+        if (self.error_message):
+            lbl = col.row()
+            lbl.alert = bool(self.error_message)
+            lbl.label(text=self.error_message)
+        
+        layout.separator(factor=0.75)
+        
+        return None
+
+    def draw_buttons_ext(self, context, layout):
+        """draw in the N panel when the node is selected"""
+        
+        col = layout.column(align=True)
+        col.label(text="Expression:")
+        row = col.row(align=True)
+        row.alert = bool(self.error_message)
+        row.prop(self,"user_mathexp", text="",)
+        
+        layout.prop(self, "use_irrational_symbols",)
         
         if (self.error_message):
             lbl = col.row()
             lbl.alert = bool(self.error_message)
             lbl.label(text=self.error_message)
+        
+        layout.separator(factor=1.2,type='LINE')
+        
+        col = layout.column(align=True)
+        col.label(text="SanatizedExp:")
+        row = col.row()
+        row.enabled = False
+        row.prop(self, "debug_sanatized", text="",)
 
-        if (get_addon_prefs().debug):
-            box = layout.box()
-            box.label(text='Debug')
-            box.separator(type='LINE', factor=0.5,)
-            box.template_ID(self, "node_tree")
+        layout.separator(factor=1.2,type='LINE')
+        
+        col = layout.column(align=True)
+        col.label(text="FunctionExp:")
+        row = col.row()
+        row.enabled = False
+        row.prop(self, "debug_fctexp", text="",)
+        
+        layout.separator(factor=1.2,type='LINE')
+        
+        col = layout.column(align=True)
+        col.label(text="Operators:")
+        op = col.operator("extranode.bake_mathexpression", text="Convert to Group",)
+        op.nodegroup_name = self.node_tree.name
+        op.node_name = self.name
+        
+        layout.separator(factor=1.2,type='LINE')
             
-            col = box.column(align=True)
-            col.scale_y = 0.9
-            col.label(text="SanatizedExp:")
-            col.prop(self, "debug_sanatized", text="",)
-
-            col = box.column(align=True)
-            col.scale_y = 0.9
-            col.label(text="FunctionExp:")
-            col.prop(self, "debug_fctexp", text="",)
-
-        layout.separator(factor=0.75)
+        col = layout.column(align=True)
+        col.label(text="NodeTree:")
+        col.template_ID(self, "node_tree")
+        
+        layout.separator(factor=1.2,type='LINE')
+        
+        col = layout.column(align=True)
+        col.label(text="Variables:")
+        #... groups inputs will be drawn below
         
         return None
-
+    
     @classmethod
     def update_all(cls):
         """search for all nodes of this type and update them"""

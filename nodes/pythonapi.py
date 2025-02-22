@@ -239,13 +239,33 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         row.alert = self.evaluation_error
         row.prop(self,"user_expression",text="",)
 
-        if (get_addon_prefs().debug):
-            box = layout.box()
-            box.label(text='Debug')
-            box.separator(type='LINE', factor=0.5,)
-            box.template_ID(self, "node_tree")
-            box.prop(self, "debug_update_counter", text="update count")
+        return None
 
+    def draw_buttons_ext(self, context, layout):
+        """draw in the N panel when the node is selected"""
+        
+        col = layout.column(align=True)
+        col.label(text="Expression:")
+        row = col.row(align=True)
+        row.alert = self.evaluation_error
+        row.prop(self,"user_expression", text="",)
+
+        layout.separator(factor=1.2,type='LINE')
+
+        col = layout.column(align=True)
+        col.label(text="NodeTree:")
+        col.template_ID(self, "node_tree")
+
+        if (get_addon_prefs().debug):
+
+            layout.separator(factor=1.2,type='LINE')
+            
+            col = layout.column(align=True)
+            col.label(text="Debugging:")
+            row = col.row()
+            row.enabled = False
+            row.prop(self, "debug_update_counter",)
+        
         return None
 
     @classmethod
