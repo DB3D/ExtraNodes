@@ -109,7 +109,7 @@ class NOODLER_OT_node_purge_unused(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
+        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
     def execute(self, context):
         node_group = context.space_data.node_tree

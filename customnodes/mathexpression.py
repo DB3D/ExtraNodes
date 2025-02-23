@@ -629,7 +629,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     error_message : bpy.props.StringProperty()
     debug_sanatized : bpy.props.StringProperty()
     debug_fctexp : bpy.props.StringProperty()
-    
+
     def update_signal(self,context):
         """evaluate user expression and change the sockets implicitly"""
         self.apply_expression()

@@ -8,7 +8,7 @@ import bpy
 
 class NODEBOOSTER_AddonPref(bpy.types.AddonPreferences):
     
-    from . import __package__ as base_package
+    from .. import __package__ as base_package
     bl_idname = base_package
     
     debug : bpy.props.BoolProperty(
@@ -57,10 +57,3 @@ class NODEBOOSTER_AddonPref(bpy.types.AddonPreferences):
         layout.prop(self,"debug_depsgraph",)
         
         return None
-
-
-classes = (
-    
-    NODEBOOSTER_AddonPref,
-    
-    )

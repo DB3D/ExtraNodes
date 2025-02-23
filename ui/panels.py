@@ -21,7 +21,7 @@ class NODEBOOSTER_PT_tool_search(bpy.types.Panel):
     
     @classmethod
     def poll(cls, context):
-        return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
+        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
     def draw(self, context):
 
@@ -44,7 +44,7 @@ class NODEBOOSTER_PT_tool_search(bpy.types.Panel):
         # layout.prop(noodle_scn,"search_input_only")
         # layout.prop(noodle_scn,"search_frame_only")
 
-        s = layout.column()
+        # s = layout.column()
         # s.label(text=f"Found {noodle_scn.search_found} Element(s)")
     
         return None
@@ -62,7 +62,7 @@ class NODEBOOSTER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
 
     @classmethod
     def poll(cls, context):
-        return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
+        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
     def draw(self, context):
 
@@ -80,7 +80,7 @@ class NODEBOOSTER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
                 string="Please go in vertex-paint to initiate the palette API.",
                 )
             return None 
-        
+
         layout.template_ID(settings, "palette", new="palette.new")
 
         if settings.palette:
@@ -105,7 +105,7 @@ class NODEBOOSTER_PT_tool_frame(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
+        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
     
     def draw(self, context):
 
@@ -136,14 +136,14 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
+        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
     def draw(self, context):
 
         layout = self.layout
-        
+
         lbl = layout.column()
-            
+
         row = lbl.row()
         row.separator(factor=0.5)
         rol = row.column()
@@ -152,37 +152,37 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
         ro = rol.column(align=True)
         ro.label(text="Loop Favorites:")
         ro.box().label(text="Y")
-        
+
         rol.separator()
 
         ro = rol.column(align=True)
         ro.label(text="Add Favorite:")
         ro.box().label(text="CTRL+Y")
-            
+
         rol.separator()
 
         ro = rol.column(align=True)
         ro.label(text="Draw Reroute:")
         ro.box().label(text="V")
-        
+
         rol.separator()
 
         ro = rol.column(align=True)
         ro.label(text="Draw Frame:")
         ro.box().label(text="PRESS J")
-        
+
         rol.separator()
 
         ro = rol.column(align=True)
         ro.label(text="Reroute Chamfer:")
         ro.box().label(text="CTRL+B")
-        
+
         rol.separator()
 
         ro = rol.column(align=True)
         ro.label(text="Select Downstream:")
         ro.box().label(text="CTRL+LEFTMOUSE")
-        
+
         rol.separator()
 
         ro = rol.column(align=True)

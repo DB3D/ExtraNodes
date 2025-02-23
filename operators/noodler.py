@@ -131,7 +131,7 @@ def ensure_mouse_cursor(context, event,):
           space.cursor_location_from_region(event.mouse_region_x, event.mouse_region_y)
     else: space.cursor_location = tree.view_center
 
-    return None 
+    return None
 
 
 def get_node_location(node, nodes,):
@@ -356,7 +356,7 @@ class NOODLER_OT_draw_frame(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
+        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
     def invoke(self, context, event):
 
@@ -514,7 +514,7 @@ class NOODLER_OT_draw_route(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
+        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
     def bfl_message(self, mode="add"):
 
@@ -938,7 +938,7 @@ class NOODLER_OT_chamfer(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
+        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
     def chamfer_setup(self, n):
 
@@ -1124,7 +1124,7 @@ class NOODLER_OT_dependency_select(bpy.types.Operator):
 
     @classmethod
     def poll(cls, context):
-        return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
+        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
     def invoke(self, context, event):
 
@@ -1648,116 +1648,116 @@ def noodler_load_post(scene,desp):
 #\u2605=★
 
 
-def get_favorites(nodes, index=None):
+# def get_favorites(nodes, index=None):
 
-    favs = []
+#     favs = []
 
-    for n in nodes:
-        if n.name.startswith("★"):
-            favs.append(n)
-        continue
+#     for n in nodes:
+#         if n.name.startswith("★"):
+#             favs.append(n)
+#         continue
 
-    def namesort(elem):
-        return elem.name
-    favs.sort(key=namesort)
+#     def namesort(elem):
+#         return elem.name
+#     favs.sort(key=namesort)
 
-    if (index is not None):
-        for i,n in enumerate(favs):
-            if (i==index):
-                return n
-        return None 
+#     if (index is not None):
+#         for i,n in enumerate(favs):
+#             if (i==index):
+#                 return n
+#         return None 
 
-    return favs
+#     return favs
 
 
-def favorite_index_upd(self, context):
+# def favorite_index_upd(self, context):
 
-    ng , _ = get_active_tree(context)
+#     ng , _ = get_active_tree(context)
 
-    n = get_favorites(ng.nodes, index=self.favorite_index)
-    if n is None:
-        return None 
+#     n = get_favorites(ng.nodes, index=self.favorite_index)
+#     if n is None:
+#         return None 
 
-    set_all_node_select(ng.nodes, False,)
-    n.select = True 
+#     set_all_node_select(ng.nodes, False,)
+#     n.select = True 
 
-    override = bpy.context.copy()
-    override["area"] = context.area
-    override["space"] = context.area.spaces[0]
-    override["region"] = context.area.regions[3]
-    bpy.ops.node.view_selected((override))
+#     override = bpy.context.copy()
+#     override["area"] = context.area
+#     override["space"] = context.area.spaces[0]
+#     override["region"] = context.area.regions[3]
+#     bpy.ops.node.view_selected((override))
         
-    return None
+#     return None
 
 
-class NOODLER_OT_favorite_add(bpy.types.Operator):
+# class NOODLER_OT_favorite_add(bpy.types.Operator):
 
-    bl_idname      = "noodler.favorite_add"
-    bl_label       = "Add favorites reroute"
-    bl_description = "Add favorites reroute"
+#     bl_idname      = "noodler.favorite_add"
+#     bl_label       = "Add favorites reroute"
+#     bl_description = "Add favorites reroute"
 
-    def invoke(self, context, event):
+#     def invoke(self, context, event):
 
-        ng = context.space_data.node_tree
-        noodle_scn = context.scene.noodler
+#         ng = context.space_data.node_tree
+#         noodle_scn = context.scene.noodler
 
-        idx = 1
-        name = f"★{idx:02}"
-        while name in [n.name for n in ng.nodes]:
-            idx +=1
-            name = f"★{idx:02}"
+#         idx = 1
+#         name = f"★{idx:02}"
+#         while name in [n.name for n in ng.nodes]:
+#             idx +=1
+#             name = f"★{idx:02}"
 
-        if (idx>50):
-            popup_menu([f"You reached {idx-1} favorites.","Sorry mate. It's for your own good.",],"Congratulation!","FUND")
-            return {"FINISHED"}
+#         if (idx>50):
+#             popup_menu([f"You reached {idx-1} favorites.","Sorry mate. It's for your own good.",],"Congratulation!","FUND")
+#             return {"FINISHED"}
 
-        sh = ng.nodes.new("NodeReroute")
-        sh.name = sh.label = name
-        sh.inputs[0].display_shape = "SQUARE"
-        #hide? 
-        #sh.inputs[0].enabled = False 
-        ensure_mouse_cursor(context, event)
-        sh.location = context.space_data.cursor_location
+#         sh = ng.nodes.new("NodeReroute")
+#         sh.name = sh.label = name
+#         sh.inputs[0].display_shape = "SQUARE"
+#         #hide? 
+#         #sh.inputs[0].enabled = False 
+#         ensure_mouse_cursor(context, event)
+#         sh.location = context.space_data.cursor_location
 
-        blf_temporary_msg(text=f"Added Favorite '{sh.label}'", size=[25,45], position=[20,20], origin="BOTTOM LEFT", color=[0.9,0.9,0.9,0.9], shadow={"blur":3,"color":[0,0,0,0.4],"offset":[2,-2],})
-        context.area.tag_redraw()
+#         blf_temporary_msg(text=f"Added Favorite '{sh.label}'", size=[25,45], position=[20,20], origin="BOTTOM LEFT", color=[0.9,0.9,0.9,0.9], shadow={"blur":3,"color":[0,0,0,0.4],"offset":[2,-2],})
+#         context.area.tag_redraw()
 
-        return {"FINISHED"}
+#         return {"FINISHED"}
 
 
-class NOODLER_OT_favorite_loop(bpy.types.Operator):
+# class NOODLER_OT_favorite_loop(bpy.types.Operator):
 
-    bl_idname      = "short.favorite_loop"
-    bl_label       = "Loop over favorites"
-    bl_description = "Loop over favorites"
+#     bl_idname      = "short.favorite_loop"
+#     bl_label       = "Loop over favorites"
+#     bl_description = "Loop over favorites"
 
-    def execute(self, context):
+#     def execute(self, context):
 
-        ng = context.space_data.node_tree
-        noodle_scn = context.scene.noodler
+#         ng = context.space_data.node_tree
+#         noodle_scn = context.scene.noodler
 
-        favs = get_favorites(ng.nodes)
-        favs_len = len(favs)
+#         favs = get_favorites(ng.nodes)
+#         favs_len = len(favs)
 
-        if (favs_len==0):
+#         if (favs_len==0):
 
-            blf_temporary_msg(text=f"No Favorites Found", size=[25,45], position=[20,20], origin="BOTTOM LEFT", color=[0.9,0.9,0.9,0.9], shadow={"blur":3,"color":[0,0,0,0.4],"offset":[2,-2],})
-            context.area.tag_redraw()
+#             blf_temporary_msg(text=f"No Favorites Found", size=[25,45], position=[20,20], origin="BOTTOM LEFT", color=[0.9,0.9,0.9,0.9], shadow={"blur":3,"color":[0,0,0,0.4],"offset":[2,-2],})
+#             context.area.tag_redraw()
 
-            return {"FINISHED"}
+#             return {"FINISHED"}
 
-        index = noodle_scn.favorite_index
-        if noodle_scn.favorite_index>=(favs_len-1):
-              noodle_scn.favorite_index = 0
-        else: noodle_scn.favorite_index += 1
+#         index = noodle_scn.favorite_index
+#         if noodle_scn.favorite_index>=(favs_len-1):
+#               noodle_scn.favorite_index = 0
+#         else: noodle_scn.favorite_index += 1
 
-        sh = get_favorites(ng.nodes, index=noodle_scn.favorite_index)
-        ng.nodes.active = sh 
+#         sh = get_favorites(ng.nodes, index=noodle_scn.favorite_index)
+#         ng.nodes.active = sh 
 
-        blf_temporary_msg(text=f"Looping to Favorite '{sh.label}'", size=[25,45], position=[20,20], origin="BOTTOM LEFT", color=[0.9,0.9,0.9,0.9], shadow={"blur":3,"color":[0,0,0,0.4],"offset":[2,-2],})
-        context.area.tag_redraw()
+#         blf_temporary_msg(text=f"Looping to Favorite '{sh.label}'", size=[25,45], position=[20,20], origin="BOTTOM LEFT", color=[0.9,0.9,0.9,0.9], shadow={"blur":3,"color":[0,0,0,0.4],"offset":[2,-2],})
+#         context.area.tag_redraw()
 
-        return {"FINISHED"}
+#         return {"FINISHED"}
 
 
 #  .oooooo..o                                        oooo
@@ -1866,29 +1866,29 @@ def search_upd(self, context):
 #                                 o888o
 
 
-class NOODLER_PR_scene(bpy.types.PropertyGroup): 
-    """noodle_scn = bpy.context.scene.noodler"""
+# class NOODLER_PR_scene(bpy.types.PropertyGroup): 
+#     """noodle_scn = bpy.context.scene.noodler"""
 
-    frame_use_custom_color: bpy.props.BoolProperty(default=False,name="Frame Color")
-    frame_color: bpy.props.FloatVectorProperty(default=(0,0,0),subtype="COLOR",name="Color")
-    frame_sync_color: bpy.props.BoolProperty(default=True,name="Sync Color",description="Synchronize with palette") 
-    frame_label: bpy.props.StringProperty(default=" ",name="Label")
-    frame_label_size: bpy.props.IntProperty(default=16,min=0,name="Label Size")
+#     frame_use_custom_color: bpy.props.BoolProperty(default=False,name="Frame Color")
+#     frame_color: bpy.props.FloatVectorProperty(default=(0,0,0),subtype="COLOR",name="Color")
+#     frame_sync_color: bpy.props.BoolProperty(default=True,name="Sync Color",description="Synchronize with palette") 
+#     frame_label: bpy.props.StringProperty(default=" ",name="Label")
+#     frame_label_size: bpy.props.IntProperty(default=16,min=0,name="Label Size")
 
-    palette_prop: bpy.props.FloatVectorProperty(default=(0,0,0),subtype="COLOR",name="Color",update=palette_prop_upd)
+#     palette_prop: bpy.props.FloatVectorProperty(default=(0,0,0),subtype="COLOR",name="Color",update=palette_prop_upd)
 
-    search_keywords: bpy.props.StringProperty(default=" ",name="Keywords",update=search_upd)
-    search_center: bpy.props.BoolProperty(default=True,name="Recenter View",update=search_upd) 
-    search_labels: bpy.props.BoolProperty(default=True,name="Label",update=search_upd)
-    search_types: bpy.props.BoolProperty(default=True,name="Type",update=search_upd)
-    search_names: bpy.props.BoolProperty(default=False,name="Internal Name",update=search_upd)
-    search_socket_names: bpy.props.BoolProperty(default=False,name="Socket Names",update=search_upd)
-    search_socket_types: bpy.props.BoolProperty(default=False,name="Socket Types",update=search_upd)
-    search_input_only: bpy.props.BoolProperty(default=False,name="Input Only",update=search_upd)
-    search_frame_only: bpy.props.BoolProperty(default=False,name="Frame Only",update=search_upd)
-    search_found: bpy.props.IntProperty(default=0)
+#     search_keywords: bpy.props.StringProperty(default=" ",name="Keywords",update=search_upd)
+#     search_center: bpy.props.BoolProperty(default=True,name="Recenter View",update=search_upd) 
+#     search_labels: bpy.props.BoolProperty(default=True,name="Label",update=search_upd)
+#     search_types: bpy.props.BoolProperty(default=True,name="Type",update=search_upd)
+#     search_names: bpy.props.BoolProperty(default=False,name="Internal Name",update=search_upd)
+#     search_socket_names: bpy.props.BoolProperty(default=False,name="Socket Names",update=search_upd)
+#     search_socket_types: bpy.props.BoolProperty(default=False,name="Socket Types",update=search_upd)
+#     search_input_only: bpy.props.BoolProperty(default=False,name="Input Only",update=search_upd)
+#     search_frame_only: bpy.props.BoolProperty(default=False,name="Frame Only",update=search_upd)
+#     search_found: bpy.props.IntProperty(default=0)
 
-    favorite_index : bpy.props.IntProperty(default=0,update=favorite_index_upd,)
+#     favorite_index : bpy.props.IntProperty(default=0,update=favorite_index_upd,)
 
 
 # ooooooooo.                         o8o               .
@@ -1946,14 +1946,14 @@ classes = (
     )
 
 
-def node_purge_unused_menu(self, context):
-    """extend menu"""
+# def node_purge_unused_menu(self, context):
+#     """extend menu"""
     
-    layout = self.layout 
-    layout.separator()
-    layout.operator("noodler.node_purge_unused", text="Purge Unused Nodes",)
+#     layout = self.layout 
+#     layout.separator()
+#     layout.operator("noodler.node_purge_unused", text="Purge Unused Nodes",)
 
-    return None
+#     return None
 
 
 def register():
