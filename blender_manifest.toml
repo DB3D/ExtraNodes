@@ -1,8 +1,8 @@
 schema_version = "1.0.0"
 id = "nodebooster"
-name = "NodeBooster"
+name = "Node Booster"
 version = "1.0.0"
-tagline = "NodeBooster, Extra Nodes and Functionalities for NodeEditors"
+tagline = "Extra Nodes and Functionalities for NodeEditors"
 maintainer = "bd3d"
 type = "add-on"
 tags = ["Geometry Nodes","Node"]
