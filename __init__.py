@@ -23,8 +23,8 @@ def get_addon_prefs():
 
 
 def cleanse_modules():
-    """remove all plugin modules from sys.modules for a clean uninstall"""
-    #https://devtalk.blender.org/t/plugin-hot-reload-by-cleaning-sys-modules/20040
+    """remove all plugin modules from sys.modules for a clean uninstall (dev hotreload solution)"""
+    # See https://devtalk.blender.org/t/plugin-hot-reload-by-cleaning-sys-modules/20040 fore more details.
     
     all_modules = sys.modules
     all_modules = dict(sorted(all_modules.items(),key= lambda x:x[0])) #sort them
@@ -36,27 +36,33 @@ def cleanse_modules():
     return None
 
 
-def get_addon_classes():
+def get_addon_classes(revert=False):
     """gather all classes of this plugin that have to be reg/unreg"""
     
     from .addonprefs import classes as addonpref_classes
     from .customnodes import classes as nodes_classes
-    from .menus import classes as menus_classes
+    from .ui import classes as ui_classes
+
+    classes = addonpref_classes + nodes_classes + ui_classes
     
-    return addonpref_classes + nodes_classes + menus_classes
+    if (revert):
+        return reversed(classes)
+    
+    return classes
 
 
 def register():
     """main addon register"""
 
+    #register every single addon classes here
     for cls in get_addon_classes():
         bpy.utils.register_class(cls)
     
-    from .handlers import register_handlers    
-    register_handlers()
+    from .handlers import load_handlers    
+    load_handlers()
     
-    from .menus import append_menus
-    append_menus()
+    from .ui import load_ui
+    load_ui()
     
     return None
 
@@ -64,13 +70,14 @@ def register():
 def unregister():
     """main addon un-register"""
 
-    from .menus import remove_menus
-    remove_menus()
+    from .ui import unload_ui
+    unload_ui()
     
-    from .handlers import unregister_handlers  
-    unregister_handlers()
+    from .handlers import unload_handlers  
+    unload_handlers()
     
-    for cls in reversed(get_addon_classes()):
+    #unregister every single addon classes here
+    for cls in get_addon_classes(revert=True):
         bpy.utils.unregister_class(cls)
     
     cleanse_modules()

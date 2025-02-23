@@ -5,7 +5,7 @@
 
 import bpy 
 
-from .customnodes import classes as nodeclasses
+from ..customnodes import classes as NODECUSTOMCLS
 
 
 class NODEBOOSTER_MT_addmenu_general(bpy.types.Menu):
@@ -19,7 +19,7 @@ class NODEBOOSTER_MT_addmenu_general(bpy.types.Menu):
 
     def draw(self, context):
         
-        for cls in nodeclasses:
+        for cls in NODECUSTOMCLS:
             if ('_NG_' in cls.__name__):
                 op = self.layout.operator("node.add_node", text=cls.bl_label,)
                 op.type = cls.bl_idname
@@ -52,10 +52,3 @@ def remove_menus():
             continue
     
     return None
-
-
-classes = (
-    
-    NODEBOOSTER_MT_addmenu_general,
-    
-    )

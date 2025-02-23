@@ -120,7 +120,7 @@ def all_handlers(name=False):
                 yield h
 
 
-def register_handlers():
+def load_handlers():
     
     handler_names = [h.__name__ for h in all_handlers()]
 
@@ -136,7 +136,7 @@ def register_handlers():
     return None 
 
 
-def unregister_handlers():
+def unload_handlers():
 
     for h in all_handlers():
 
