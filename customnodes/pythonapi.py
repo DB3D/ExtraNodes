@@ -8,8 +8,7 @@ from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue, get_socket_type, set_socket_type, set_socket_label, get_socket_defvalue
 
-from mathutils import * # Conveniences vars for 'GeometryNodeNodeBoosterPythonApi' 
-from math import *      # Needed to eval user python expression (cannot import a wildcard within the class).
+from mathutils import * ; from math import * # Conveniences vars! Needed for user python expression (cannot import a wildcard within the class).
 
 
 class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
@@ -101,17 +100,24 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
             return None
         
         #catch any exception, and report error to node
-        try:    
+        try:
             #convenience variable for user
             D = bpy.data ; C = context = bpy.context ; scene = context.scene
 
             #convenience execution for user (he can customize this in plugin preference)
             pynode_convenience_exec3 = get_addon_prefs().pynode_convenience_exec3
             if (pynode_convenience_exec3!=""): 
-                exec(pynode_convenience_exec3)
-            
+                exec(pynode_convenience_exec3) 
+
             #evaluate
             value = eval(self.user_expression)
+            
+            #NOTE, for eval() and exec()
+            # perhaps we could pass namespace instead of evaluating local()?
+            # Perhaps a layer of sanatization is needed? if so, what exactly?
+            
+            #NOTE, maybe the execution need to check for some sort of blender checks before allowing execution?
+            # a little like the driver python expression, there's a global setting for that. Unsure if it's needed.
 
             #translate to list when possible
             if type(value) in (Vector, Euler, bpy.types.bpy_prop_array, tuple,):

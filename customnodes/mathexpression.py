@@ -122,6 +122,7 @@ class NodeSetter():
         # Try to execute the functions:
         try:
             exec(api_expression, namespace)
+            #NOTE: the execution here is sanatized, user only have access to the given namespace.
             
         except TypeError as e:
             print(f"TypeError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
