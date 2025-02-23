@@ -147,6 +147,6 @@ def unload_handlers():
             bpy.app.handlers.frame_change_pre.remove(h)
 
         if(h.__name__=='nodebooster_handler_loadpost'):
-            bpy.app.handlers.frame_change_pre.remove(h)
+            bpy.app.handlers.load_post.remove(h)
 
     return None
