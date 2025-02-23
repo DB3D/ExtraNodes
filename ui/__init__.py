@@ -8,8 +8,9 @@ from .menus import NODEBOOSTER_MT_addmenu_general, append_menus, remove_menus
 
 classes = (
     
-    NODEBOOSTER_MT_addmenu_general
-)
+    NODEBOOSTER_MT_addmenu_general,
+
+    )
 
 
 def load_ui():

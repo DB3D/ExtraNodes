@@ -12,12 +12,12 @@ from . pythonapi import NODEBOOSTER_NG_pythonapi
 
 #NOTE order will be order of appearance in addmenu
 classes = (
-    
+
     NODEBOOSTER_NG_camerainfo,
     NODEBOOSTER_NG_isrenderedview,
     NODEBOOSTER_NG_sequencervolume,
     NODEBOOSTER_NG_mathexpression,
     NODEBOOSTER_OT_bake_mathexpression, 
     NODEBOOSTER_NG_pythonapi,
-    
+
     )
