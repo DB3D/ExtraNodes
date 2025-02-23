@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 BD3D DIGITAL DESIGN, Andrew Stevenson
+# SPDX-FileCopyrightText: 2025 BD3D DIGITAL DESIGN
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -15,7 +15,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate a python expression as a single value output.
     The evaluated type can be of type 'float', 'int', 'string', 'object', 'collection', 'material'.
     By default the values will be updated automatically on each on depsgraph post and frame_pre signals"""
-    
+
     bl_idname = "GeometryNodeNodeBoosterPythonApi"
     bl_label = "Python Api"
 
@@ -35,7 +35,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         """evaluate user expression and change the socket output type implicitly"""
         self.evaluate_user_expression(implicit_conversion=True)
         return None 
-    
+
     user_expression : bpy.props.StringProperty(
         update=update_user_expression,
         description="type the expression you wish to evaluate right here",
@@ -50,7 +50,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         """this fct run when appending the node for the first time"""
 
         name = f".{self.bl_idname}"
-        
+
         ng = bpy.data.node_groups.get(name)
         if (ng is None):
             ng = create_new_nodegroup(name,
@@ -59,31 +59,28 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                     "Error" : "NodeSocketBool",
                 },
             )
-         
+
         ng = ng.copy() #always using a copy of the original ng
 
         self.node_tree = ng
         self.width = 250
         self.label = self.bl_label
 
-        #mark an update signal so handler fct do not need to loop every single nodegroups
-        bpy.context.space_data.node_tree["nodebooster_pythonapi_updateflag"] = True
-
         return None 
 
     def copy(self,node,):
         """fct run when dupplicating the node"""
-        
+
         self.node_tree = node.node_tree.copy()
-        
+
         return None 
-    
+
     def update(self):
         """generic update function"""
         
         self.evaluate_user_expression()
         self.debug_update_counter +=1
-        
+
         return None
 
     def evaluate_user_expression(self, implicit_conversion=False,):
@@ -93,12 +90,12 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
 
         #check if string is empty first, perhaps user didn't input anything yet 
         if (self.user_expression==""):
-            
+
             set_socket_label(ng,0, label="Waiting for Input" ,)
             set_socket_defvalue(ng,1, value=True,)
 
             return None
-        
+
         #catch any exception, and report error to node
         try:
             #convenience variable for user
@@ -124,7 +121,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                 value = list(value)
 
             match value:
-                    
+
                 case bool():
 
                     if implicit_conversion and (get_socket_type(ng,0)!="BOOLEAN"):
@@ -233,7 +230,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
             set_socket_label(ng,0, label=e,)
 
         return None
-    
+
     def draw_label(self,):
         """node label"""
         
@@ -250,9 +247,9 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
 
     def draw_buttons_ext(self, context, layout):
         """draw in the N panel when the node is selected"""
-        
+
         sett_plugin = get_addon_prefs()
-        
+
         col = layout.column(align=True)
         row = col.row(align=True)
         row.alert = self.evaluation_error
@@ -269,7 +266,6 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         header, panel = layout.panel("doc_prefs", default_closed=True,)
         header.label(text="Preferences",)
         if (panel):
-
             col = panel.column(align=True)
             col.label(text="Namespace Convenience:")
             
@@ -285,8 +281,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
             row.prop(sett_plugin,"pynode_convenience_exec3",text="",)
         
             panel.prop(sett_plugin,"pynode_depseval",)
-            
-            
+
         header, panel = layout.panel("dev_panelid", default_closed=True,)
         header.label(text="Development",)
         if (panel):
@@ -307,9 +302,8 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     @classmethod
     def update_all(cls):
         """search for all nodes of this type and update them"""
-        
-        for n in [n for ng in bpy.data.node_groups if ('nodebooster_pythonapi_updateflag' in ng) for n in ng.nodes if (n.bl_idname==cls.bl_idname)]:
-            n.update()
-            
-        return None
 
+        for n in [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]:
+            n.update()
+
+        return None

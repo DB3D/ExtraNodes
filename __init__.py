@@ -52,8 +52,8 @@ def register():
     for cls in get_addon_classes():
         bpy.utils.register_class(cls)
     
-    from .handlers import register_handlers_and_msgbus    
-    register_handlers_and_msgbus()
+    from .handlers import register_handlers    
+    register_handlers()
     
     from .menus import append_menus
     append_menus()
@@ -67,8 +67,8 @@ def unregister():
     from .menus import remove_menus
     remove_menus()
     
-    from .handlers import unregister_handlers_and_msgbus  
-    unregister_handlers_and_msgbus()
+    from .handlers import unregister_handlers  
+    unregister_handlers()
     
     for cls in reversed(get_addon_classes()):
         bpy.utils.unregister_class(cls)

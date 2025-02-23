@@ -8,8 +8,48 @@ import bpy
 from collections.abc import Iterable
 
 from .__init__ import get_addon_prefs
-from .customnodes import NODEBOOSTER_NG_camerainfo, NODEBOOSTER_NG_pythonapi, NODEBOOSTER_NG_sequencervolume
-from .utils.node_utils import set_socket_defvalue
+from .customnodes import NODEBOOSTER_NG_camerainfo, NODEBOOSTER_NG_pythonapi, NODEBOOSTER_NG_sequencervolume, NODEBOOSTER_NG_isrenderedview
+
+
+# We start with msgbusses
+
+
+MSGBUSOWNER_VIEWPORT_SHADING = object()
+
+
+def msgbus_viewportshading_callback(*args):
+    
+    sett_plugin = get_addon_prefs()
+    
+    if (sett_plugin.debug_depsgraph):
+        print("msgbus_viewportshading_callback(): msgbus signal")
+
+    NODEBOOSTER_NG_isrenderedview.update_all()
+
+    return None 
+
+
+def register_msgbusses():
+    
+    bpy.msgbus.subscribe_rna(
+        key=(bpy.types.View3DShading, "type"),
+        owner=MSGBUSOWNER_VIEWPORT_SHADING,
+        notify=msgbus_viewportshading_callback,
+        args=(None,),
+        options={"PERSISTENT"},
+        )
+
+    return None
+
+
+def unregister_msgbusses():
+    
+    bpy.msgbus.clear_by_owner(MSGBUSOWNER_VIEWPORT_SHADING)
+    
+    return None
+
+
+# Then we register the handlers
 
 
 @bpy.app.handlers.persistent
@@ -53,45 +93,22 @@ def nodebooster_handler_framepre(scene,desp):
     return None
 
 
-def all_3d_viewports():
-    """return generator of all 3d view space"""
-
-    for window in bpy.context.window_manager.windows:
-        for area in window.screen.areas:
-            if (area.type == 'VIEW_3D'):
-                for space in area.spaces:
-                    if (space.type == 'VIEW_3D'):
-                        yield space
-
-
-def all_3d_viewports_shading_type():
-    """return generator of all shading type str"""
-
-    for space in all_3d_viewports():
-        yield space.shading.type
-
-
-def is_rendered_view():
-    """check if is rendered view in a 3d view somewhere"""
-
-    return 'RENDERED' in all_3d_viewports_shading_type()
-
-
-VIEWPORTSHADING_OWNER = object()
-
-
-def msgbus_viewportshading_callback(*args):
+@bpy.app.handlers.persistent
+def nodebooster_handler_loadpost(scene,desp):
+    """Handler function when user is loading a file"""
     
     sett_plugin = get_addon_prefs()
     
     if (sett_plugin.debug_depsgraph):
-        print("msgbus_viewportshading_callback(): msgbus signal")
+        print("nodebooster_handler_framepre(): frame_pre signal")
 
-    ng = bpy.data.node_groups.get(".GeometryNodeNodeBoosterIsRenderedView")
-    if (ng):
-        set_socket_defvalue(ng, 0, value=is_rendered_view(),)
+    #need to add message bus on each blender load
+    register_msgbusses()
 
-    return None 
+    return None
+
+
+# Registering the handlers
 
 
 def all_handlers(name=False):
@@ -103,29 +120,23 @@ def all_handlers(name=False):
                 yield h
 
 
-def register_handlers_and_msgbus():
+def register_handlers():
     
-    all_handler_names = [h.__name__ for h in all_handlers()]
+    handler_names = [h.__name__ for h in all_handlers()]
 
-    if ('nodebooster_handler_depspost' not in all_handler_names):
+    if ('nodebooster_handler_depspost' not in handler_names):
         bpy.app.handlers.depsgraph_update_post.append(nodebooster_handler_depspost)
 
-    if ('nodebooster_handler_framepre' not in all_handler_names):
+    if ('nodebooster_handler_framepre' not in handler_names):
         bpy.app.handlers.frame_change_pre.append(nodebooster_handler_framepre)
 
-    #add msgbus
-    bpy.msgbus.subscribe_rna(
-        key=(bpy.types.View3DShading, "type"),
-        owner=VIEWPORTSHADING_OWNER,
-        notify=msgbus_viewportshading_callback,
-        args=(None,),
-        options={"PERSISTENT"},
-        )
+    if ('nodebooster_handler_loadpost' not in handler_names):
+        bpy.app.handlers.load_post.append(nodebooster_handler_loadpost)
         
     return None 
 
 
-def unregister_handlers_and_msgbus():
+def unregister_handlers():
 
     for h in all_handlers():
 
@@ -134,8 +145,8 @@ def unregister_handlers_and_msgbus():
 
         if(h.__name__=='nodebooster_handler_framepre'):
             bpy.app.handlers.frame_change_pre.remove(h)
-    
-    #remove msgbus
-    bpy.msgbus.clear_by_owner(VIEWPORTSHADING_OWNER)
-    
+
+        if(h.__name__=='nodebooster_handler_loadpost'):
+            bpy.app.handlers.frame_change_pre.remove(h)
+
     return None
