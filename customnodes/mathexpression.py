@@ -138,12 +138,14 @@ class NodeSetter():
             return Exception("Wrong Arguments Given")
         
         except Exception as e:
+            print(f"ExecutionError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
             
             #Cook better error message to end user
             if ("'tuple' object" in str(e)):
-                return Exception(f"Wrong use of '( , )' Synthax")
+                return Exception("Wrong use of '( , )' Synthax")
+            if ('too many nested parentheses' in str(e)):
+                return Exception("Expression too Large") #User really need to have a VERY LONG expression to reach to that point..
             
-            print(f"ExecutionError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
             return Exception("Error on Execution")
         
         # When executing, the last one created should be the active node, 
