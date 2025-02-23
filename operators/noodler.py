@@ -319,159 +319,159 @@ def get_node_at_pos(nodes, context, event, position=None, allow_reroute=True, fo
 
 
 
-def get_nodes_in_frame_box(boxf, nodes, frame_support=True,):
-    """search node that can potentially be inside this boxframe created box"""
+# def get_nodes_in_frame_box(boxf, nodes, frame_support=True,):
+#     """search node that can potentially be inside this boxframe created box"""
 
-    for n in nodes:
+#     for n in nodes:
 
-        #we do not want information on ourselves
-        if ((n==boxf) or (n.parent==boxf)):
-            continue
+#         #we do not want information on ourselves
+#         if ((n==boxf) or (n.parent==boxf)):
+#             continue
 
-        #for now, completely impossible to get a frame location..
-        if (n.type=="FRAME"):
-            continue
+#         #for now, completely impossible to get a frame location..
+#         if (n.type=="FRAME"):
+#             continue
 
-        locx,locy = get_node_location(n,nodes)
+#         locx,locy = get_node_location(n,nodes)
 
-        if boxf.location.x <= locx <= (boxf.location.x + boxf.dimensions.x) and \
-           boxf.location.y >= locy >= (boxf.location.y - boxf.dimensions.y):
-            yield n
+#         if boxf.location.x <= locx <= (boxf.location.x + boxf.dimensions.x) and \
+#            boxf.location.y >= locy >= (boxf.location.y - boxf.dimensions.y):
+#             yield n
 
 
-class NOODLER_OT_draw_frame(bpy.types.Operator):
+# class NOODLER_OT_draw_frame(bpy.types.Operator):
 
-    bl_idname = "noodler.draw_frame"
-    bl_label = "Draw Frames"
-    bl_options = {'REGISTER'}
+#     bl_idname = "noodler.draw_frame"
+#     bl_label = "Draw Frames"
+#     bl_options = {'REGISTER'}
 
-    def __init__(self): 
+#     def __init__(self): 
 
-        self.node_tree = None
-        self.boxf = None
-        self.old = (0,0)
-        self.timer = None 
-        self.init_time = None
-        self.selframerate = 0.350 #selection refreshrate in s, const
+#         self.node_tree = None
+#         self.boxf = None
+#         self.old = (0,0)
+#         self.timer = None 
+#         self.init_time = None
+#         self.selframerate = 0.350 #selection refreshrate in s, const
 
-    @classmethod
-    def poll(cls, context):
-        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
+#     @classmethod
+#     def poll(cls, context):
+#         return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
-    def invoke(self, context, event):
+#     def invoke(self, context, event):
 
-        ng , _ = get_active_tree(context)
-        self.node_tree = ng
+#         ng , _ = get_active_tree(context)
+#         self.node_tree = ng
 
-        ensure_mouse_cursor(context, event)
-        self.old = context.space_data.cursor_location.copy()  
+#         ensure_mouse_cursor(context, event)
+#         self.old = context.space_data.cursor_location.copy()  
 
-        boxf = ng.nodes.new("NodeFrame")
-        self.boxf = boxf 
-        boxf.bl_width_min = boxf.bl_height_min = 20
-        boxf.width = boxf.height = 0
-        boxf.select = False
-        boxf.location = self.old
+#         boxf = ng.nodes.new("NodeFrame")
+#         self.boxf = boxf 
+#         boxf.bl_width_min = boxf.bl_height_min = 20
+#         boxf.width = boxf.height = 0
+#         boxf.select = False
+#         boxf.location = self.old
 
-        noodle_scn = context.scene.noodler
-        boxf.use_custom_color = noodle_scn.frame_use_custom_color
-        boxf.color = noodle_scn.frame_color
-        boxf.label = noodle_scn.frame_label
-        boxf.label_size = noodle_scn.frame_label_size
+#         noodle_scn = context.scene.noodler
+#         boxf.use_custom_color = noodle_scn.frame_use_custom_color
+#         boxf.color = noodle_scn.frame_color
+#         boxf.label = noodle_scn.frame_label
+#         boxf.label_size = noodle_scn.frame_label_size
 
-        #start timer, needed to regulate a function refresh rate
-        self.timer = context.window_manager.event_timer_add(self.selframerate, window=context.window)
-        self.init_time = datetime.now()
+#         #start timer, needed to regulate a function refresh rate
+#         self.timer = context.window_manager.event_timer_add(self.selframerate, window=context.window)
+#         self.init_time = datetime.now()
 
-        #start modal 
-        context.window_manager.modal_handler_add(self)
+#         #start modal 
+#         context.window_manager.modal_handler_add(self)
 
-        return {'RUNNING_MODAL'}
+#         return {'RUNNING_MODAL'}
 
-    def modal(self, context, event):     
+#     def modal(self, context, event):     
 
-        context.area.tag_redraw()
+#         context.area.tag_redraw()
 
-        #if user confirm:
+#         #if user confirm:
         
-        if ((event.value=="RELEASE") or (event.type=="LEFTMOUSE")):
+#         if ((event.value=="RELEASE") or (event.type=="LEFTMOUSE")):
                     
-            #if box is too small, just cancel
-            if (self.boxf.dimensions.x <30 and self.boxf.dimensions.y <30):
-                self.cancel(context)
-                return {'CANCELLED'}
+#             #if box is too small, just cancel
+#             if (self.boxf.dimensions.x <30 and self.boxf.dimensions.y <30):
+#                 self.cancel(context)
+#                 return {'CANCELLED'}
 
-            nodes = list(get_nodes_in_frame_box(self.boxf,self.node_tree.nodes))
+#             nodes = list(get_nodes_in_frame_box(self.boxf,self.node_tree.nodes))
 
-            if (len(nodes)==0):
-                return {'FINISHED'}
+#             if (len(nodes)==0):
+#                 return {'FINISHED'}
         
-            for n in nodes:
-                n.parent = self.boxf
-                continue
+#             for n in nodes:
+#                 n.parent = self.boxf
+#                 continue
 
-            set_all_node_select(self.node_tree.nodes,False)
-            self.node_tree.nodes.active = self.boxf
-            self.boxf.select = True
+#             set_all_node_select(self.node_tree.nodes,False)
+#             self.node_tree.nodes.active = self.boxf
+#             self.boxf.select = True
 
-            context.area.tag_redraw()
-            context.window_manager.event_timer_remove(self.timer)
+#             context.area.tag_redraw()
+#             context.window_manager.event_timer_remove(self.timer)
 
-            return {'FINISHED'}
+#             return {'FINISHED'}
 
-        #if user cancel:
+#         #if user cancel:
 
-        elif event.type in ("ESC","RIGHTMOUSE"):
-            self.cancel(context)
-            return {'CANCELLED'}
+#         elif event.type in ("ESC","RIGHTMOUSE"):
+#             self.cancel(context)
+#             return {'CANCELLED'}
 
-        #only start if user is pressing a bit longer
-        time_diff = datetime.now()-self.init_time
-        if time_diff.total_seconds()<0.150:
-            return {'RUNNING_MODAL'}
+#         #only start if user is pressing a bit longer
+#         time_diff = datetime.now()-self.init_time
+#         if time_diff.total_seconds()<0.150:
+#             return {'RUNNING_MODAL'}
 
-        #else, adjust frame location/width/height:
+#         #else, adjust frame location/width/height:
     
-        #else recalculate position & frame dimensions
-        ensure_mouse_cursor(context, event)
-        new = context.space_data.cursor_location
-        old = self.old
+#         #else recalculate position & frame dimensions
+#         ensure_mouse_cursor(context, event)
+#         new = context.space_data.cursor_location
+#         old = self.old
 
-        #new y above init y
-        if (old.y<=new.y):
-              self.boxf.location.y = new.y
-              self.boxf.height = (new.y-old.y)
-        else: self.boxf.height = (old.y-new.y)
+#         #new y above init y
+#         if (old.y<=new.y):
+#               self.boxf.location.y = new.y
+#               self.boxf.height = (new.y-old.y)
+#         else: self.boxf.height = (old.y-new.y)
 
-        #same principle as above for width
-        if (old.x>=new.x):
-              self.boxf.location.x = new.x
-              self.boxf.width = (old.x-new.x)
-        else: self.boxf.width = (new.x-old.x)
+#         #same principle as above for width
+#         if (old.x>=new.x):
+#               self.boxf.location.x = new.x
+#               self.boxf.width = (old.x-new.x)
+#         else: self.boxf.width = (new.x-old.x)
 
-        #dybamic selection:
+#         #dybamic selection:
 
-        #enable every 100ms, too slow for python.. 
-        if (event.type != 'TIMER'):
-            return {'RUNNING_MODAL'}
+#         #enable every 100ms, too slow for python.. 
+#         if (event.type != 'TIMER'):
+#             return {'RUNNING_MODAL'}
 
-        #show user a preview off the future node
-        set_all_node_select(self.node_tree.nodes,False)
-        for n in get_nodes_in_frame_box(self.boxf,self.node_tree.nodes):
-            n.select = True
-            continue
+#         #show user a preview off the future node
+#         set_all_node_select(self.node_tree.nodes,False)
+#         for n in get_nodes_in_frame_box(self.boxf,self.node_tree.nodes):
+#             n.select = True
+#             continue
 
-        return {'RUNNING_MODAL'}
+#         return {'RUNNING_MODAL'}
 
-    def cancel(self, context):
+#     def cancel(self, context):
 
-        self.node_tree.nodes.remove(self.boxf)
-        set_all_node_select(self.node_tree.nodes,False)
+#         self.node_tree.nodes.remove(self.boxf)
+#         set_all_node_select(self.node_tree.nodes,False)
 
-        context.area.tag_redraw()
-        context.window_manager.event_timer_remove(self.timer)
+#         context.area.tag_redraw()
+#         context.window_manager.event_timer_remove(self.timer)
 
-        return None 
+#         return None 
 
 
 # oooooooooo.                                            ooooooooo.                             .

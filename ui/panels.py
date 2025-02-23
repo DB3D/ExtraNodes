@@ -27,7 +27,7 @@ class NODEBOOSTER_PT_tool_search(bpy.types.Panel):
     def draw(self, context):
 
         layout = self.layout
-        # noodle_scn = context.scene.noodler
+        # sett_scene = context.scene.nodebooster
             
         # row = layout.row(align=True)
         # row.prop(noodle_scn,"search_keywords",text="",icon="VIEWZOOM")
@@ -68,7 +68,7 @@ class NODEBOOSTER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
     def draw(self, context):
 
         layout = self.layout
-        # noodle_scn = context.scene.noodler
+        # noodle_scn = context.scene.nodebooster
         settings = context.tool_settings.vertex_paint
         unified = context.tool_settings.unified_paint_settings
 
@@ -90,7 +90,7 @@ class NODEBOOSTER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
             colo.prop(unified,"color",text="")
             # colo.prop(noodle_scn,"palette_prop",text="")
 
-            row.operator("noodler.reset_color",text="",icon="LOOP_BACK",)
+            row.operator("nodebooster.reset_color",text="",icon="LOOP_BACK",)
             layout.template_palette(settings, "palette", color=True,)
 
         return None 
@@ -110,19 +110,22 @@ class NODEBOOSTER_PT_tool_frame(bpy.types.Panel):
     
     def draw(self, context):
 
-        layout = self.layout
-        # noodle_scn = context.scene.noodler
+        sett_scene = context.scene.nodebooster
         
-        # layout.use_property_split = True
-
-        # layout.prop(noodle_scn,"frame_label")
-        # layout.prop(noodle_scn,"frame_label_size")
-
-        # layout.prop(noodle_scn,"frame_use_custom_color")
-        # col = layout.column()
-        # col.prop(noodle_scn,"frame_sync_color")
-        # col.active = noodle_scn.frame_use_custom_color
-        # col.prop(noodle_scn,"frame_color")
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        col = layout.column()
+        col.prop(sett_scene,"frame_label")
+        col.prop(sett_scene,"frame_label_size")
+        col.prop(sett_scene,"frame_use_custom_color")
+                
+        col = col.column()
+        col.prop(sett_scene,"frame_sync_color")
+        col.separator(factor=0.25)
+        col.active = sett_scene.frame_use_custom_color
+        col.prop(sett_scene,"frame_color")
         
         return None
 
@@ -200,7 +203,11 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
                         row.label(text='', icon='EVENT_ALT',)
                         row.separator(factor=2.35)
                         row.label(text='', icon='MOUSE_LMB',)
-                
+                    
+                    case "Draw Frame":
+                        row.label(text='', icon='IMPORT',)
+                        row.label(text='', icon='EVENT_J',)
+                    
                     # layout.separator(type='LINE')
 
                     # col = layout.column(align=True)
@@ -210,18 +217,6 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
                     # row = box.row(align=True)
                     # row.label(text='', icon='IMPORT',)
                     # row.label(text='', icon='EVENT_V',)
-
-                    # layout.separator(type='LINE')
-
-                    # col = layout.column(align=True)
-                    # col.label(text="Draw Frame:")
-                    # box = col.box()
-                    # box.scale_y = 0.9
-                    # row = box.row(align=True)
-                    # row.label(text='', icon='IMPORT',)
-                    # row.label(text='', icon='EVENT_J',)
-
-                    # layout.separator(type='LINE')
 
                     # col = layout.column(align=True)
                     # col.label(text="Reroute Chamfer:")

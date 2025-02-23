@@ -9,27 +9,28 @@ import bpy
 class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup): 
     """sett_scene = bpy.context.scene.nodebooster"""
 
-    # frame_use_custom_color: bpy.props.BoolProperty(
-    #     default=False,
-    #     name="Frame Color")
-    # frame_color: bpy.props.FloatVectorProperty(
-    #     default=(0,0,0),
-    #     subtype="COLOR",
-    #     name="Color",
-    #     )
-    # frame_sync_color: bpy.props.BoolProperty(
-    #     default=True,
-    #     name="Sync Color",
-    #     description="Synchronize with palette",
-    #     )
-    # frame_label: bpy.props.StringProperty(
-    #     default=" ",
-    #     name="Label",
-    #     )
-    # frame_label_size: bpy.props.IntProperty(
-    #     default=16,min=0,
-    #     name="Label Size",
-    #     )
+    #custom properties for the frame node operator
+    frame_use_custom_color: bpy.props.BoolProperty(
+        default=False,
+        name="Frame Color")
+    frame_color: bpy.props.FloatVectorProperty(
+        default=(0,0,0),
+        subtype="COLOR",
+        name="Color",
+        )
+    frame_sync_color: bpy.props.BoolProperty(
+        default=True,
+        name="Sync Color",
+        description="Synchronize with palette",
+        )
+    frame_label: bpy.props.StringProperty(
+        default=" ",
+        name="Label",
+        )
+    frame_label_size: bpy.props.IntProperty(
+        default=16,min=0,
+        name="Label Size",
+        )
 
     # palette_prop: bpy.props.FloatVectorProperty(
     #     default=(0,0,0),
