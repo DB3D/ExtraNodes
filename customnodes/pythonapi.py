@@ -8,7 +8,7 @@ from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue, get_socket_type, set_socket_type, set_socket_label, get_socket_defvalue
 
-from mathutils import * # Conveniences vars for 'GeometryNodeExtraNodesPythonApi' 
+from mathutils import * # Conveniences vars for 'GeometryNodeNodeBoosterPythonApi' 
 from math import *      # Needed to eval user python expression (cannot import a wildcard within the class).
 
 
@@ -17,7 +17,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     The evaluated type can be of type 'float', 'int', 'string', 'object', 'collection', 'material'.
     By default the values will be updated automatically on each on depsgraph post and frame_pre signals"""
     
-    bl_idname = "GeometryNodeExtraNodesPythonApi"
+    bl_idname = "GeometryNodeNodeBoosterPythonApi"
     bl_label = "Python Api"
 
     evaluation_error : bpy.props.BoolProperty(

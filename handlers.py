@@ -87,7 +87,7 @@ def msgbus_viewportshading_callback(*args):
     if (sett_plugin.debug_depsgraph):
         print("msgbus_viewportshading_callback(): msgbus signal")
 
-    ng = bpy.data.node_groups.get(".GeometryNodeExtraNodesIsRenderedView")
+    ng = bpy.data.node_groups.get(".GeometryNodeNodeBoosterIsRenderedView")
     if (ng):
         set_socket_defvalue(ng, 0, value=is_rendered_view(),)
 

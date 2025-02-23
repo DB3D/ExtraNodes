@@ -14,7 +14,7 @@ class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
     By default the camera will always use the active camera.
     Expect updates on each depsgraph post and frame_pre update signals"""
 
-    bl_idname = "GeometryNodeExtraNodesCameraInfo"
+    bl_idname = "GeometryNodeNodeBoosterCameraInfo"
     bl_label = "Camera info"
 
     use_scene_cam: bpy.props.BoolProperty(

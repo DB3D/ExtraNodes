@@ -13,7 +13,7 @@ class NODEBOOSTER_NG_sequencervolume(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate the sound level of the VideoSequencer editor.
     Expect the value to be automatically updated on each on depsgraph post signals"""
     
-    bl_idname = "GeometryNodeExtraNodesSequencerVolume"
+    bl_idname = "GeometryNodeNodeBoosterSequencerVolume"
     bl_label = "Sequencer Volume"
 
     # frame_delay : bpy.props.IntProperty()

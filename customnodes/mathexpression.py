@@ -605,7 +605,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     
     #TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
     
-    bl_idname = "GeometryNodeExtraMathExpression"
+    bl_idname = "GeometryNodeNodeBoosterMathExpression"
     bl_label = "Math Expression"
 
     error_message : bpy.props.StringProperty()

@@ -13,7 +13,7 @@ class NODEBOOSTER_NG_isrenderedview(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate if any 3Dviewport is in rendered view mode.
     The value is evaluated from depsgraph post update signals"""
     
-    bl_idname = "GeometryNodeExtraNodesIsRenderedView"
+    bl_idname = "GeometryNodeNodeBoosterIsRenderedView"
     bl_label = "Is Rendered View"
 
     @classmethod
