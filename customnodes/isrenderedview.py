@@ -9,7 +9,7 @@ from ..utils.str_utils import word_wrap
 from ..utils.node_utils import create_new_nodegroup
 
 
-class EXTRANODES_NG_isrenderedview(bpy.types.GeometryNodeCustomGroup):
+class NODEBOOSTER_NG_isrenderedview(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate if any 3Dviewport is in rendered view mode.
     The value is evaluated from depsgraph post update signals"""
     

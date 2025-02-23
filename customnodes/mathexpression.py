@@ -591,7 +591,7 @@ class FunctionTransformer(ast.NodeTransformer):
         return func_express
 
 
-class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
+class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate a math expression using float math nodes.
     Under the hood, the expression will be sanarized, the transformed into functions that will be executed to create a new nodetree.
     The nodetree will be recomposed on each expression keystrokes"""
@@ -1045,7 +1045,7 @@ class EXTRANODES_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         return None
 
 
-class EXTRANODES_OT_bake_mathexpression(bpy.types.Operator):
+class NODEBOOSTER_OT_bake_mathexpression(bpy.types.Operator):
     """Replace the custom node with a nodegroup, preserve values and links"""
     
     bl_idname = "extranode.bake_mathexpression"

@@ -40,7 +40,7 @@ def get_addon_classes():
     """gather all classes of this plugin that have to be reg/unreg"""
     
     from .addonprefs import classes as addonpref_classes
-    from .nodes import classes as nodes_classes
+    from .customnodes import classes as nodes_classes
     from .menus import classes as menus_classes
     
     return addonpref_classes + nodes_classes + menus_classes

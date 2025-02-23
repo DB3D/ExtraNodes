@@ -8,47 +8,47 @@ import bpy
 from collections.abc import Iterable
 
 from .__init__ import get_addon_prefs
-from .nodes import EXTRANODES_NG_camerainfo, EXTRANODES_NG_pythonapi, EXTRANODES_NG_sequencervolume
+from .customnodes import NODEBOOSTER_NG_camerainfo, NODEBOOSTER_NG_pythonapi, NODEBOOSTER_NG_sequencervolume
 from .utils.node_utils import set_socket_defvalue
 
 
 @bpy.app.handlers.persistent
-def extranodes_handler_depspost(scene,desp):
+def nodebooster_handler_depspost(scene,desp):
     """update on depsgraph change"""
     
     sett_plugin = get_addon_prefs()
     
     if (sett_plugin.debug_depsgraph):
-        print("extranodes_handler_depspost(): depsgraph signal")
+        print("nodebooster_handler_depspost(): depsgraph signal")
 
     #automatic update for Python Api Node?
     if (sett_plugin.pynode_depseval):
-        EXTRANODES_NG_pythonapi.update_all()
+        NODEBOOSTER_NG_pythonapi.update_all()
             
     #need to update camera nodes outputs
-    EXTRANODES_NG_camerainfo.update_all()
+    NODEBOOSTER_NG_camerainfo.update_all()
 
     return None
 
 
 @bpy.app.handlers.persistent
-def extranodes_handler_framepre(scene,desp):
+def nodebooster_handler_framepre(scene,desp):
     """update on frame change"""
     
     sett_plugin = get_addon_prefs()
 
     if (sett_plugin.debug_depsgraph):
-        print("extranodes_handler_framepre(): frame_pre signal")
+        print("nodebooster_handler_framepre(): frame_pre signal")
 
     #automatic update for Python Api Node?
     if (sett_plugin.pynode_depseval):
-        EXTRANODES_NG_pythonapi.update_all()
+        NODEBOOSTER_NG_pythonapi.update_all()
 
     #need to update camera nodes outputs
-    EXTRANODES_NG_camerainfo.update_all()
+    NODEBOOSTER_NG_camerainfo.update_all()
     
     #need to update all volume sequencer nodes output value
-    EXTRANODES_NG_sequencervolume.update_all()
+    NODEBOOSTER_NG_sequencervolume.update_all()
 
     return None
 
@@ -107,11 +107,11 @@ def register_handlers_and_msgbus():
     
     all_handler_names = [h.__name__ for h in all_handlers()]
 
-    if ('extranodes_handler_depspost' not in all_handler_names):
-        bpy.app.handlers.depsgraph_update_post.append(extranodes_handler_depspost)
+    if ('nodebooster_handler_depspost' not in all_handler_names):
+        bpy.app.handlers.depsgraph_update_post.append(nodebooster_handler_depspost)
 
-    if ('extranodes_handler_framepre' not in all_handler_names):
-        bpy.app.handlers.frame_change_pre.append(extranodes_handler_framepre)
+    if ('nodebooster_handler_framepre' not in all_handler_names):
+        bpy.app.handlers.frame_change_pre.append(nodebooster_handler_framepre)
 
     #add msgbus
     bpy.msgbus.subscribe_rna(
@@ -129,10 +129,10 @@ def unregister_handlers_and_msgbus():
 
     for h in all_handlers():
 
-        if(h.__name__=='extranodes_handler_depspost'):
+        if(h.__name__=='nodebooster_handler_depspost'):
             bpy.app.handlers.depsgraph_update_post.remove(h)
 
-        if(h.__name__=='extranodes_handler_framepre'):
+        if(h.__name__=='nodebooster_handler_framepre'):
             bpy.app.handlers.frame_change_pre.remove(h)
     
     #remove msgbus

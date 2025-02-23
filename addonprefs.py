@@ -6,7 +6,7 @@
 import bpy 
 
 
-class EXTRANODES_AddonPref(bpy.types.AddonPreferences):
+class NODEBOOSTER_AddonPref(bpy.types.AddonPreferences):
     
     from . import __package__ as base_package
     bl_idname = base_package
@@ -61,6 +61,6 @@ class EXTRANODES_AddonPref(bpy.types.AddonPreferences):
 
 classes = (
     
-    EXTRANODES_AddonPref,
+    NODEBOOSTER_AddonPref,
     
     )

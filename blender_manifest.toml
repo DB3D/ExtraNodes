@@ -1,12 +1,12 @@
 schema_version = "1.0.0"
-id = "extranodes"
-name = "ExtraNodes"
+id = "nodebooster"
+name = "NodeBooster"
 version = "1.0.0"
-tagline = "ExtraNodes, Exciting New Nodes (for GeometryNodes)"
+tagline = "NodeBooster, Extra Nodes and Functionalities for NodeEditors"
 maintainer = "bd3d"
 type = "add-on"
 tags = ["Geometry Nodes","Node"]
 blender_version_min = "4.2.0"
 license = ["SPDX:GPL-2.0-or-later"]
-website = "https://blenderartists.org/t/bd3d-free-tools-and-products"
+website = "https://blenderartists.org/t/nodebooster-extra-nodes-and-functionalities-for-nodeeditors"
 copyright = ["2025 BD3D DIGITAL DESIGN"]

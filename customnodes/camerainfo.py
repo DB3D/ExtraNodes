@@ -9,7 +9,7 @@ from ..utils.str_utils import word_wrap
 from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue
 
 
-class EXTRANODES_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
+class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Gather informations about any camera.
     By default the camera will always use the active camera.
     Expect updates on each depsgraph post and frame_pre update signals"""

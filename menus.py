@@ -5,13 +5,13 @@
 
 import bpy 
 
-from .nodes import classes as nodeclasses
+from .customnodes import classes as nodeclasses
 
 
-class EXTRANODES_MT_addmenu_general(bpy.types.Menu):
+class NODEBOOSTER_MT_addmenu_general(bpy.types.Menu):
 
-    bl_idname = "EXTRANODES_MT_addmenu_general"
-    bl_label  = "Extra Nodes"
+    bl_idname = "NODEBOOSTER_MT_addmenu_general"
+    bl_label  = "Booster Nodes"
 
     @classmethod
     def poll(cls, context):
@@ -28,9 +28,9 @@ class EXTRANODES_MT_addmenu_general(bpy.types.Menu):
         return None
 
 
-def extranodes_addmenu_append(self, context,):
+def nodebooster_addmenu_append(self, context,):
     
-    self.layout.menu("EXTRANODES_MT_addmenu_general", text="Extra Nodes",)
+    self.layout.menu("NODEBOOSTER_MT_addmenu_general", text="Booster Nodes",)
     
     return None 
 
@@ -38,7 +38,7 @@ def extranodes_addmenu_append(self, context,):
 def append_menus():
 
     menu = bpy.types.NODE_MT_add
-    menu.append(extranodes_addmenu_append)
+    menu.append(nodebooster_addmenu_append)
 
     return None 
 
@@ -47,7 +47,7 @@ def remove_menus():
 
     menu = bpy.types.NODE_MT_add
     for f in menu._dyn_ui_initialize().copy():
-        if (f.__name__=='extranodes_addmenu_append'):
+        if (f.__name__=='nodebooster_addmenu_append'):
             menu.remove(f)
             continue
     
@@ -56,6 +56,6 @@ def remove_menus():
 
 classes = (
     
-    EXTRANODES_MT_addmenu_general,
+    NODEBOOSTER_MT_addmenu_general,
     
     )

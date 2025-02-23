@@ -12,7 +12,7 @@ from mathutils import * # Conveniences vars for 'GeometryNodeExtraNodesPythonApi
 from math import *      # Needed to eval user python expression (cannot import a wildcard within the class).
 
 
-class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
+class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate a python expression as a single value output.
     The evaluated type can be of type 'float', 'int', 'string', 'object', 'collection', 'material'.
     By default the values will be updated automatically on each on depsgraph post and frame_pre signals"""
@@ -68,7 +68,7 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         self.label = self.bl_label
 
         #mark an update signal so handler fct do not need to loop every single nodegroups
-        bpy.context.space_data.node_tree["extranodes_pythonapi_updateflag"] = True
+        bpy.context.space_data.node_tree["nodebooster_pythonapi_updateflag"] = True
 
         return None 
 
@@ -302,7 +302,7 @@ class EXTRANODES_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     def update_all(cls):
         """search for all nodes of this type and update them"""
         
-        for n in [n for ng in bpy.data.node_groups if ('extranodes_pythonapi_updateflag' in ng) for n in ng.nodes if (n.bl_idname==cls.bl_idname)]:
+        for n in [n for ng in bpy.data.node_groups if ('nodebooster_pythonapi_updateflag' in ng) for n in ng.nodes if (n.bl_idname==cls.bl_idname)]:
             n.update()
             
         return None

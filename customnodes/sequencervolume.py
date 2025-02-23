@@ -9,7 +9,7 @@ from ..utils.str_utils import word_wrap
 from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue
 
 
-class EXTRANODES_NG_sequencervolume(bpy.types.GeometryNodeCustomGroup):
+class NODEBOOSTER_NG_sequencervolume(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate the sound level of the VideoSequencer editor.
     Expect the value to be automatically updated on each on depsgraph post signals"""
     
