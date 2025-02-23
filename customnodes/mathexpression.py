@@ -498,6 +498,23 @@ class NodeSetter():
         """Clamp value between auto-defined min/max."""
         return cls._floatclamp('RANGE',v,a,b)
 
+    #to support:
+    #TODO frac
+    #TODO use 'mod' not modulo
+    #TODO fmod
+    #TODO pingpong
+    #TODO smin smax
+    #TODO map,mapst,mapsmo, mapsmoo
+    #TODO add dynamic output type
+    #   TODO int
+    #   TODO bool
+    #   TODO sign (to int)
+    #   TODO isneg == boolcompar
+    #   TODO ispair
+    #   TODO isimpair
+    #   TODO ismultiple
+    #   TODO bool <>== comparison
+
 
 class FunctionTransformer(ast.NodeTransformer):
     """AST Transformer for converting math expressions into function-call expressions."""
@@ -592,19 +609,20 @@ class FunctionTransformer(ast.NodeTransformer):
 
 
 class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
-    """Custom Nodgroup: Evaluate a math expression using float math nodes.
-    Under the hood, the expression will be sanarized, the transformed into functions that will be executed to create a new nodetree.
-    The nodetree will be recomposed on each expression keystrokes"""
-    
+    """Custom Nodgroup: Evaluate a math expression using various math nodes.
+    Please See the 'Node > Properties > Glossary' panel to see all functions and notation available and their descriptions.
+    If you wish to bake this node into a nodegroup, a bake operator is available in the 'Node > Properties' panel.
+    Under the hood, on each string field edit, the expression will be sanarized, then transformed into functions that will be executed to create a nodetree."""
+
     #TODO later support multi type operation with blender with int/vector/bool operator?  and other math operation?
     #     - right now we only support the float math node.. we could support these other nodes
     #     - all vars could start with 'v' 'f' 'i' 'b' to designate their types?
     #     - could procedurally change sockets input/outputs depending on type
     #     - however, there will be a lot of checks required to see if the user is using valid types.. quite annoying. Perhaps could be done by checking 'is_valid'
     #     Or maybe create a separate 'ComplexMath' node and keep this simple one?
-    
+
     #TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
-    
+
     bl_idname = "GeometryNodeNodeBoosterMathExpression"
     bl_label = "Math Expression"
 

@@ -18,24 +18,24 @@ class NODEBOOSTER_MT_addmenu_general(bpy.types.Menu):
         return (bpy.context.space_data.tree_type == 'GeometryNodeTree')
 
     def draw(self, context):
-        
+
         for cls in NODECUSTOMCLS:
             if ('_NG_' in cls.__name__):
                 op = self.layout.operator("node.add_node", text=cls.bl_label,)
                 op.type = cls.bl_idname
                 op.use_transform = True
-        
+
         return None
 
 
 def nodebooster_addmenu_append(self, context,):
-    
+
     self.layout.menu("NODEBOOSTER_MT_addmenu_general", text="Booster Nodes",)
-    
+
     return None 
 
 def nodebooster_nodemenu_append(self, context):
-    
+
     layout = self.layout 
     layout.separator()
     layout.operator("nodebooster.node_purge_unused", text="Purge Unused Nodes",)
@@ -48,8 +48,7 @@ def append_menus():
     bpy.types.NODE_MT_add.append(nodebooster_addmenu_append)
     bpy.types.NODE_MT_node.append(nodebooster_nodemenu_append)
 
-    return None 
-
+    return None
 
 def remove_menus():
 
