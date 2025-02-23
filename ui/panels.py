@@ -153,9 +153,14 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
                 
             col = layout.box()
             
-            row = col.row()
+            titlename = name.replace('Select','Sel.')
+            mainrow = col.row(align=True)
+            row = mainrow.row(align=True)
             row.alignment = 'LEFT'
-            row.prop(kmi, "active", text=name,emboss=False,)
+            row.prop(kmi, "active", text=titlename,emboss=False,)
+            row = mainrow.row(align=True)
+            row.alignment = 'RIGHT'
+            row.label(text='',icon=icon)
             
             col = col.column()
             col.active = kmi.active
@@ -208,24 +213,14 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
                         row.label(text='', icon='IMPORT',)
                         row.label(text='', icon='EVENT_J',)
                     
-                    # layout.separator(type='LINE')
+                    case "Draw Reroute":
+                        row.label(text='', icon='IMPORT',)
+                        row.label(text='', icon='EVENT_V',)
 
-                    # col = layout.column(align=True)
-                    # col.label(text="Draw Reroute:")
-                    # box = col.box()
-                    # box.scale_y = 0.9
-                    # row = box.row(align=True)
-                    # row.label(text='', icon='IMPORT',)
-                    # row.label(text='', icon='EVENT_V',)
-
-                    # col = layout.column(align=True)
-                    # col.label(text="Reroute Chamfer:")
-                    # box = col.box()
-                    # box.scale_y = 0.9
-                    # row = box.row(align=True)
-                    # row.label(text='', icon='EVENT_CTRL',)
-                    # row.separator(factor=2.35)
-                    # row.label(text='', icon='EVENT_B',)
+                    case "Reroute Chamfer":
+                        row.label(text='', icon='EVENT_CTRL',)
+                        row.separator(factor=2.35)
+                        row.label(text='', icon='EVENT_B',)
         
                 panel.separator(factor=0.5)
             

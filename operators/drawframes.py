@@ -45,6 +45,7 @@ class NODEBOOSTER_OT_draw_frame(bpy.types.Operator):
         
         super().__init__(*args, **kwargs)
         
+        #We only store blender data here when the operator is active, we should be totally fine!
         self.node_tree = None
         self.boxf = None
         self.old = (0,0)
@@ -81,6 +82,9 @@ class NODEBOOSTER_OT_draw_frame(bpy.types.Operator):
         self.timer = context.window_manager.event_timer_add(self.selframerate, window=context.window)
         self.init_time = datetime.now()
 
+        #Write status bar
+        context.workspace.status_text_set_internal("Confirm:   'Release' 'Left-Click'     |     Cancel:   'Right-Click'")
+
         #start modal 
         context.window_manager.modal_handler_add(self)
 
@@ -92,37 +96,11 @@ class NODEBOOSTER_OT_draw_frame(bpy.types.Operator):
 
         #if user confirm:
         if ((event.value=="RELEASE") or (event.type=="LEFTMOUSE")):
-                    
-            #if box is too small, just cancel
-            if (self.boxf.dimensions.x <30 and self.boxf.dimensions.y <30):
-                self.cancel(context)
-                return {'CANCELLED'}
-
-            nodes = list(get_nodes_in_frame_box(self.boxf,self.node_tree.nodes))
-
-            if (len(nodes)==0):
-                return {'FINISHED'}
-        
-            for n in nodes:
-                n.parent = self.boxf
-                continue
-
-            for n in nodes:
-                n.select = False
-
-            self.node_tree.nodes.active = self.boxf
-            self.boxf.select = True
-
-            context.area.tag_redraw()
-            context.window_manager.event_timer_remove(self.timer)
-
-            return {'FINISHED'}
+            return self.confirm(context)
 
         #if user cancel:
-
         elif event.type in ("ESC","RIGHTMOUSE"):
-            self.cancel(context)
-            return {'CANCELLED'}
+            return self.cancel(context)
 
         #only start if user is pressing a bit longer
         time_diff = datetime.now()-self.init_time
@@ -163,14 +141,42 @@ class NODEBOOSTER_OT_draw_frame(bpy.types.Operator):
 
         return {'RUNNING_MODAL'}
 
+    def confirm(self, context):
+            
+        #if box is too small, just cancel
+        if (self.boxf.dimensions.x <30 and self.boxf.dimensions.y <30):
+            self.cancel(context)
+            return {'CANCELLED'}
+
+        nodes = list(get_nodes_in_frame_box(self.boxf,self.node_tree.nodes))
+
+        #add the nodes
+        if (nodes):
+            for n in nodes:
+                n.parent = self.boxf
+                continue
+            self.node_tree.nodes.active = self.boxf
+            self.boxf.select = True
+
+        self.cleanup(context)
+        return {'FINISHED'} 
+    
     def cancel(self, context):
 
         self.node_tree.nodes.remove(self.boxf)
         
+        self.cleanup(context)
+        return {'CANCELLED'}
+    
+    def cleanup(self,context):
+        
         for n in self.node_tree.nodes:
             n.select = False
-
+            
         context.area.tag_redraw()
         context.window_manager.event_timer_remove(self.timer)
-
-        return None 
+        
+        #cleanup status bar
+        context.workspace.status_text_set_internal(None)
+        
+        return None

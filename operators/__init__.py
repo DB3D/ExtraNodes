@@ -9,8 +9,8 @@ from .bakemath import NODEBOOSTER_OT_bake_mathexpression
 from .purge import NOODLER_OT_node_purge_unused
 from .favorites import NODEBOOSTER_OT_favorite_add, NODEBOOSTER_OT_favorite_loop
 from .depselect import NODEBOOSTER_OT_dependency_select
-from  .drawframes import NODEBOOSTER_OT_draw_frame
-
+from .drawframes import NODEBOOSTER_OT_draw_frame
+from .chamfer import NODEBOOSTER_OT_chamfer
 
 classes = (
 
@@ -20,6 +20,7 @@ classes = (
     NODEBOOSTER_OT_favorite_loop,
     NODEBOOSTER_OT_dependency_select,
     NODEBOOSTER_OT_draw_frame,
+    NODEBOOSTER_OT_chamfer,
 
     )
 
@@ -28,16 +29,16 @@ ADDON_KEYMAPS = []
 
 KMI_DEFS = (
 
-    # Operator.bl_idname,                         Key,         Action,  Ctrl,  Shift, Alt,   props(name,value)                         Name,                      Icon,        Enable
-    # ( NODEBOOSTER_OT_draw_route.bl_idname,        "V",         "PRESS", False, False, False, (),                                       "Operator: Draw Route",              "TRACKING",  True,  ),
-    ( NODEBOOSTER_OT_draw_frame.bl_idname,        "J",         "PRESS", False, False, False, (),                                       "Draw Frame",              "ALIGN_TOP", True, ),
-    # ( NODEBOOSTER_OT_chamfer.bl_idname,           "B",         "PRESS", True,  False, False, (),                                       "Operator: Reroute Chamfer",         "MOD_BEVEL", True,  ),
-    ( NODEBOOSTER_OT_favorite_add.bl_idname,      "Y",         "PRESS", True,  False, False, (),                                       "Add Favorite",            "SOLO_OFF",  True, ),
-    ( NODEBOOSTER_OT_favorite_loop.bl_idname,     "Y",         "PRESS", False, False, False, (),                                       "Loop Favorites",          "SOLO_OFF",  True, ),
-    ( NODEBOOSTER_OT_dependency_select.bl_idname, "LEFTMOUSE", "PRESS", True,  False, False, (("mode","downstream"),("repsel",True )), "Select Downstream",       "BACK",      True, ),
-    ( NODEBOOSTER_OT_dependency_select.bl_idname, "LEFTMOUSE", "PRESS", True,  True,  False, (("mode","downstream"),("repsel",False)), "Select Downstream (Add)", "BACK",      True, ),
-    ( NODEBOOSTER_OT_dependency_select.bl_idname, "LEFTMOUSE", "PRESS", True,  False, True,  (("mode","upstream"),  ("repsel",True )), "Select Upsteam",          "FORWARD",   True, ),
-    ( NODEBOOSTER_OT_dependency_select.bl_idname, "LEFTMOUSE", "PRESS", True,  True,  True,  (("mode","upstream"),  ("repsel",False)), "Select Upsteam (Add)",    "FORWARD",   True, ),
+    # Operator.bl_idname,                         Key,         Action,  Ctrl,  Shift, Alt,   props(name,value)                         Name,                      Icon,                  Enable
+    # ( NODEBOOSTER_OT_draw_route.bl_idname,        "V",         "PRESS", False, False, False, (),                                       "Draw Reroute",              "TRACKING",          True,  ),
+    ( NODEBOOSTER_OT_favorite_add.bl_idname,      "Y",         "PRESS", True,  False, False, (),                                       "Add Favorite",            "SOLO_OFF",            True, ),
+    ( NODEBOOSTER_OT_favorite_loop.bl_idname,     "Y",         "PRESS", False, False, False, (),                                       "Loop Favorites",          "SOLO_OFF",            True, ),
+    ( NODEBOOSTER_OT_draw_frame.bl_idname,        "J",         "PRESS", False, False, False, (),                                       "Draw Frame",              "ALIGN_TOP",           True, ),
+    ( NODEBOOSTER_OT_chamfer.bl_idname,           "B",         "PRESS", True,  False, False, (),                                       "Reroute Chamfer",         "MOD_BEVEL",           True, ),
+    ( NODEBOOSTER_OT_dependency_select.bl_idname, "LEFTMOUSE", "PRESS", True,  False, False, (("mode","downstream"),("repsel",True )), "Select Downstream",       "RESTRICT_SELECT_OFF", True, ),
+    ( NODEBOOSTER_OT_dependency_select.bl_idname, "LEFTMOUSE", "PRESS", True,  True,  False, (("mode","downstream"),("repsel",False)), "Select Downstream (Add)", "RESTRICT_SELECT_OFF", True, ),
+    ( NODEBOOSTER_OT_dependency_select.bl_idname, "LEFTMOUSE", "PRESS", True,  False, True,  (("mode","upstream"),  ("repsel",True )), "Select Upsteam",          "RESTRICT_SELECT_OFF", True, ),
+    ( NODEBOOSTER_OT_dependency_select.bl_idname, "LEFTMOUSE", "PRESS", True,  True,  True,  (("mode","upstream"),  ("repsel",False)), "Select Upsteam (Add)",    "RESTRICT_SELECT_OFF", True, ),
 
     )
 

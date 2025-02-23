@@ -868,195 +868,195 @@ class NOODLER_OT_draw_route(bpy.types.Operator):
 #  `Y8bood8P'  o888o o888o `Y888""8o o888o o888o o888o o888o   `Y8bod8P' d888b
 
 
-def get_rr_links_info(n,mode):
-    """get links information from given node, we do all this because we can't store socket object directly, too dangerous, cause bug as object pointer change in memory often"""
+# def get_rr_links_info(n,mode):
+#     """get links information from given node, we do all this because we can't store socket object directly, too dangerous, cause bug as object pointer change in memory often"""
 
-    links_info=[]
-    is_input = (mode=="IN")
+#     links_info=[]
+#     is_input = (mode=="IN")
 
-    sockets = n.inputs[0] if is_input else n.outputs[0]
-    for i,l in enumerate(sockets.links):
-        s = l.from_socket if is_input else l.to_socket
-        dn = s.node
+#     sockets = n.inputs[0] if is_input else n.outputs[0]
+#     for i,l in enumerate(sockets.links):
+#         s = l.from_socket if is_input else l.to_socket
+#         dn = s.node
 
-        #retrieve socket index
-        sidx = None #should never be none
-        nsocks = dn.outputs if is_input else dn.inputs
-        for sidx,sout in enumerate(nsocks):
-            if (sout==s):
-                break 
-        info = (dn.name,s.name,sidx)
-        links_info.append(info) 
-        continue
+#         #retrieve socket index
+#         sidx = None #should never be none
+#         nsocks = dn.outputs if is_input else dn.inputs
+#         for sidx,sout in enumerate(nsocks):
+#             if (sout==s):
+#                 break 
+#         info = (dn.name,s.name,sidx)
+#         links_info.append(info) 
+#         continue
 
-    return links_info
+#     return links_info
 
 
-def restore_links(n,ng,links_info,mode):
-    """restore links from given info list"""
+# def restore_links(n,ng,links_info,mode):
+#     """restore links from given info list"""
 
-    is_input = (mode=="IN")
+#     is_input = (mode=="IN")
 
-    for elem in links_info:
+#     for elem in links_info:
         
-        nn, _, sidx = elem
-        dn = ng.nodes.get(nn)
-        s = dn.outputs[sidx] if is_input else dn.inputs[sidx]
+#         nn, _, sidx = elem
+#         dn = ng.nodes.get(nn)
+#         s = dn.outputs[sidx] if is_input else dn.inputs[sidx]
         
-        args = (s, n.inputs[0]) if is_input else (n.outputs[0], s,)
-        ng.links.new(*args)
+#         args = (s, n.inputs[0]) if is_input else (n.outputs[0], s,)
+#         ng.links.new(*args)
 
-        continue
+#         continue
 
-    return None 
-
-
-class ChamferItem():
-
-    init_rr = "" #Initial Reroute Node. Storing names to avoid crash
-    init_loc_local = (0,0) #Initial Local Location Vector.
-    added_rr = "" #all added reroute, aka the reroute added before init rr. Storing names to avoid crash
-    fromvec = (0,0) #downstream chamfer direction Vector
-    tovec = (0,0) #upstream chamfer direction  Vector
+#     return None 
 
 
-class NOODLER_OT_chamfer(bpy.types.Operator): 
+# class ChamferItem():
 
-    #not sure how real bevel algo works, but this is a naive approach, creating new vert, new edges and moving location from origin point
-    #note that local/global space can be problematic. here we are only working in local space, if parent. 
+#     init_rr = "" #Initial Reroute Node. Storing names to avoid crash
+#     init_loc_local = (0,0) #Initial Local Location Vector.
+#     added_rr = "" #all added reroute, aka the reroute added before init rr. Storing names to avoid crash
+#     fromvec = (0,0) #downstream chamfer direction Vector
+#     tovec = (0,0) #upstream chamfer direction  Vector
 
-    bl_idname = "noodler.chamfer"
-    bl_label = "Reroute Chamfer"
-    bl_options = {'REGISTER'}
 
-    def __init__(self): 
+# class NOODLER_OT_chamfer(bpy.types.Operator): 
 
-        self.node_tree = None
-        self.init_click = (0,0)
-        self.chamfer_data = []
-        self.init_state = {}
+#     #not sure how real bevel algo works, but this is a naive approach, creating new vert, new edges and moving location from origin point
+#     #note that local/global space can be problematic. here we are only working in local space, if parent. 
 
-    @classmethod
-    def poll(cls, context):
-        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
+#     bl_idname = "noodler.chamfer"
+#     bl_label = "Reroute Chamfer"
+#     bl_options = {'REGISTER'}
 
-    def chamfer_setup(self, n):
+#     def __init__(self): 
 
-        ng = self.node_tree
+#         self.node_tree = None
+#         self.init_click = (0,0)
+#         self.chamfer_data = []
+#         self.init_state = {}
 
-        Chamf = ChamferItem() #Using custom class may cause crashes? i had one... perhaps it would be best to switch to nested lists or dicts?  
-        Chamf.init_rr = n.name     #we are storing objects directly and their adress may change 
+#     @classmethod
+#     def poll(cls, context):
+#         return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
-        #get initial node location
-        Chamf.init_loc_local = n.location.copy() 
+#     def chamfer_setup(self, n):
 
-        left_link = n.inputs[0].links[0]
-        from_sock = left_link.from_socket
-        right_link = n.outputs[0].links[0]
-        to_sock = right_link.to_socket
+#         ng = self.node_tree
 
-        #get chamfer directions, in global space
-        loc_init_global = get_node_location(n, ng.nodes).copy() 
-        #get chamfer direction from
-        if (from_sock.node.type=="REROUTE"):
-              Chamf.fromvec = get_node_location(from_sock.node, ng.nodes) - loc_init_global
-              Chamf.fromvec.normalize()
-        else: Chamf.fromvec = Vector((-1,0))
-        #get chamfer direction to
-        if (to_sock.node.type=="REROUTE"):
-              Chamf.tovec = get_node_location(to_sock.node, ng.nodes) - loc_init_global
-              Chamf.tovec.normalize()
-        else: Chamf.tovec = Vector((1,0))
+#         Chamf = ChamferItem() #Using custom class may cause crashes? i had one... perhaps it would be best to switch to nested lists or dicts?  
+#         Chamf.init_rr = n.name     #we are storing objects directly and their adress may change 
 
-        #add new reroute 
-        rra = ng.nodes.new("NodeReroute")
-        rra.location = n.location
-        rra.parent = n.parent
-        Chamf.added_rr = rra.name
+#         #get initial node location
+#         Chamf.init_loc_local = n.location.copy() 
 
-        #remove old link 
-        ng.links.remove(left_link)
-        #add new links
-        ng.links.new(from_sock, rra.inputs[0],)
-        ng.links.new(rra.outputs[0], n.inputs[0],)
+#         left_link = n.inputs[0].links[0]
+#         from_sock = left_link.from_socket
+#         right_link = n.outputs[0].links[0]
+#         to_sock = right_link.to_socket
 
-        #set selection visual cue 
-        n.select = rra.select = True 
+#         #get chamfer directions, in global space
+#         loc_init_global = get_node_location(n, ng.nodes).copy() 
+#         #get chamfer direction from
+#         if (from_sock.node.type=="REROUTE"):
+#               Chamf.fromvec = get_node_location(from_sock.node, ng.nodes) - loc_init_global
+#               Chamf.fromvec.normalize()
+#         else: Chamf.fromvec = Vector((-1,0))
+#         #get chamfer direction to
+#         if (to_sock.node.type=="REROUTE"):
+#               Chamf.tovec = get_node_location(to_sock.node, ng.nodes) - loc_init_global
+#               Chamf.tovec.normalize()
+#         else: Chamf.tovec = Vector((1,0))
 
-        self.chamfer_data.append(Chamf)
-        return None
+#         #add new reroute 
+#         rra = ng.nodes.new("NodeReroute")
+#         rra.location = n.location
+#         rra.parent = n.parent
+#         Chamf.added_rr = rra.name
 
-    def invoke(self, context, event):
+#         #remove old link 
+#         ng.links.remove(left_link)
+#         #add new links
+#         ng.links.new(from_sock, rra.inputs[0],)
+#         ng.links.new(rra.outputs[0], n.inputs[0],)
 
-        ng , _ = get_active_tree(context)
-        self.node_tree = ng
+#         #set selection visual cue 
+#         n.select = rra.select = True 
 
-        #get initial mouse position
-        ensure_mouse_cursor(context, event)
-        self.init_click = context.space_data.cursor_location.copy()  
+#         self.chamfer_data.append(Chamf)
+#         return None
 
-        selected = [n for n in ng.nodes if n.select and (n.type=="REROUTE") and not ((len(n.inputs[0].links)==0) or (len(n.outputs[0].links)==0))]
-        if (len(selected)==0):
-            return {'FINISHED'}
+#     def invoke(self, context, event):
 
-        #save state to data later
-        for n in selected: 
-            self.init_state[n.name]={"location":n.location.copy(),"IN":get_rr_links_info(n,"IN"),"OUT":get_rr_links_info(n,"OUT")}
+#         ng , _ = get_active_tree(context)
+#         self.node_tree = ng
 
-        #set selection
-        set_all_node_select(self.node_tree.nodes,False)
+#         #get initial mouse position
+#         ensure_mouse_cursor(context, event)
+#         self.init_click = context.space_data.cursor_location.copy()  
 
-        #set up chamfer
-        for n in selected:
-            self.chamfer_setup(n)
+#         selected = [n for n in ng.nodes if n.select and (n.type=="REROUTE") and not ((len(n.inputs[0].links)==0) or (len(n.outputs[0].links)==0))]
+#         if (len(selected)==0):
+#             return {'FINISHED'}
 
-        #start modal 
-        context.window_manager.modal_handler_add(self)
+#         #save state to data later
+#         for n in selected: 
+#             self.init_state[n.name]={"location":n.location.copy(),"IN":get_rr_links_info(n,"IN"),"OUT":get_rr_links_info(n,"OUT")}
 
-        return {'RUNNING_MODAL'}
+#         #set selection
+#         set_all_node_select(self.node_tree.nodes,False)
 
-    def modal(self, context, event):     
+#         #set up chamfer
+#         for n in selected:
+#             self.chamfer_setup(n)
 
-        context.area.tag_redraw()
+#         #start modal 
+#         context.window_manager.modal_handler_add(self)
 
-        #if user confirm:
+#         return {'RUNNING_MODAL'}
 
-        if (event.type in ("LEFTMOUSE","RET","SPACE")):
-            bpy.ops.ed.undo_push(message="Reroute Chamfer", )
-            return {'FINISHED'}
+#     def modal(self, context, event):     
 
-        #if user cancel:
+#         context.area.tag_redraw()
 
-        elif event.type in ("ESC","RIGHTMOUSE"):
+#         #if user confirm:
+
+#         if (event.type in ("LEFTMOUSE","RET","SPACE")):
+#             bpy.ops.ed.undo_push(message="Reroute Chamfer", )
+#             return {'FINISHED'}
+
+#         #if user cancel:
+
+#         elif event.type in ("ESC","RIGHTMOUSE"):
              
-            #remove all newly created items
-            for Chamfer in self.chamfer_data:
-                self.node_tree.nodes.remove(self.node_tree.nodes.get(Chamfer.added_rr))
+#             #remove all newly created items
+#             for Chamfer in self.chamfer_data:
+#                 self.node_tree.nodes.remove(self.node_tree.nodes.get(Chamfer.added_rr))
 
-            #restore init state
-            for k,v in self.init_state.items():
-                n = self.node_tree.nodes[k]
-                n.location = v["location"]
-                restore_links(n, self.node_tree, v["IN"], "IN")
-                restore_links(n, self.node_tree, v["OUT"], "OUT")
-                continue
+#             #restore init state
+#             for k,v in self.init_state.items():
+#                 n = self.node_tree.nodes[k]
+#                 n.location = v["location"]
+#                 restore_links(n, self.node_tree, v["IN"], "IN")
+#                 restore_links(n, self.node_tree, v["OUT"], "OUT")
+#                 continue
 
-            context.area.tag_redraw()
-            return {'CANCELLED'}
+#             context.area.tag_redraw()
+#             return {'CANCELLED'}
 
-        #else move position of all chamfer items
+#         #else move position of all chamfer items
         
-        #get distance data from cursor
-        ensure_mouse_cursor(context, event)
-        distance = numpy.linalg.norm(context.space_data.cursor_location - self.init_click)
+#         #get distance data from cursor
+#         ensure_mouse_cursor(context, event)
+#         distance = numpy.linalg.norm(context.space_data.cursor_location - self.init_click)
             
-        #move chamfer vertex
-        for Chamf in self.chamfer_data:
-            self.node_tree.nodes.get(Chamf.init_rr).location = Chamf.init_loc_local + ( Chamf.tovec * distance ) #need global to local
-            self.node_tree.nodes.get(Chamf.added_rr).location = Chamf.init_loc_local + ( Chamf.fromvec * distance ) #need global to local
-            continue
+#         #move chamfer vertex
+#         for Chamf in self.chamfer_data:
+#             self.node_tree.nodes.get(Chamf.init_rr).location = Chamf.init_loc_local + ( Chamf.tovec * distance ) #need global to local
+#             self.node_tree.nodes.get(Chamf.added_rr).location = Chamf.init_loc_local + ( Chamf.fromvec * distance ) #need global to local
+#             continue
 
-        return {'RUNNING_MODAL'}
+#         return {'RUNNING_MODAL'}
 
 
 # oooooooooo.                                                    .o8
