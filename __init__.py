@@ -39,11 +39,12 @@ def cleanse_modules():
 def get_addon_classes(revert=False):
     """gather all classes of this plugin that have to be reg/unreg"""
     
-    from .addonprefs import classes as addonpref_classes
+    from .addonprefs import classes as prefs_classes
+    from .operators import classes as ope_classes
     from .customnodes import classes as nodes_classes
     from .ui import classes as ui_classes
-
-    classes = addonpref_classes + nodes_classes + ui_classes
+    
+    classes = prefs_classes + ope_classes + nodes_classes + ui_classes
     
     if (revert):
         return reversed(classes)

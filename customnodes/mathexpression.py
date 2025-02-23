@@ -17,7 +17,7 @@ from functools import partial
 
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, word_wrap
-from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, replace_node, frame_nodes
+from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, frame_nodes
 
 NODE_YOFF, NODE_XOFF = 120, 70
 DIGITS = '0123456789'
@@ -1051,43 +1051,3 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             n.update()
             
         return None
-
-
-class NODEBOOSTER_OT_bake_mathexpression(bpy.types.Operator):
-    """Replace the custom node with a nodegroup, preserve values and links"""
-    
-    bl_idname = "extranode.bake_mathexpression"
-    bl_label = "Bake Expression"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    nodegroup_name: bpy.props.StringProperty()
-    node_name: bpy.props.StringProperty()
-
-    def execute(self, context):
-        
-        space = context.space_data
-        if not space or not hasattr(space, "edit_tree") or space.edit_tree is None:
-            self.report({'ERROR'}, "No active node tree found")
-            return {'CANCELLED'}
-        node_tree = space.edit_tree
-
-        old_node = node_tree.nodes.get(self.node_name)
-        if (old_node is None):
-            self.report({'ERROR'}, "Node with given name not found")
-            return {'CANCELLED'}
-
-        node_group = bpy.data.node_groups.get(self.nodegroup_name)
-        if (node_group is None):
-            self.report({'ERROR'}, "Node group with given name not found")
-            return {'CANCELLED'}
-
-        old_exp = str(old_node.user_mathexp)
-        node_group = node_group.copy()
-        node_group.name = f'{node_group.name}.Baked'
-        
-        new_node = replace_node(node_tree, old_node, node_group,)
-        new_node.label = old_exp
-        
-        self.report({'INFO'}, f"Replaced node '{self.node_name}' with node group '{self.node_name}'")
-        
-        return {'FINISHED'}

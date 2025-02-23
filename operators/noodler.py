@@ -355,7 +355,7 @@ class NOODLER_OT_draw_frame(bpy.types.Operator):
         self.selframerate = 0.350 #selection refreshrate in s, const
 
     @classmethod
-    def poll(cls, context):        
+    def poll(cls, context):
         return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
 
     def invoke(self, context, event):
@@ -513,7 +513,7 @@ class NOODLER_OT_draw_route(bpy.types.Operator):
         self.gr_out_init_len = None
 
     @classmethod
-    def poll(cls, context):        
+    def poll(cls, context):
         return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
 
     def bfl_message(self, mode="add"):
@@ -937,7 +937,7 @@ class NOODLER_OT_chamfer(bpy.types.Operator):
         self.init_state = {}
 
     @classmethod
-    def poll(cls, context):        
+    def poll(cls, context):
         return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
 
     def chamfer_setup(self, n):
@@ -1155,121 +1155,121 @@ class NOODLER_OT_dependency_select(bpy.types.Operator):
 #                                   "Y88888P'
 
 
-def is_node_used(node):
-    """check if node is reaching output"""
+# def is_node_used(node):
+#     """check if node is reaching output"""
             
-    found_output = False
+#     found_output = False
     
-    def recur_node(n):
+#     def recur_node(n):
 
-        #reached destination? 
-        if (n.type == "GROUP_OUTPUT"):
-            nonlocal found_output
-            found_output = True
-            return 
+#         #reached destination? 
+#         if (n.type == "GROUP_OUTPUT"):
+#             nonlocal found_output
+#             found_output = True
+#             return 
 
-        #else continue parcour
-        for out in n.outputs:
-            for link in out.links:
-                recur_node(link.to_node)
+#         #else continue parcour
+#         for out in n.outputs:
+#             for link in out.links:
+#                 recur_node(link.to_node)
 
-        return None 
+#         return None 
         
-    recur_node(node)
+#     recur_node(node)
 
-    return found_output
+#     return found_output
 
 
-def purge_unused_nodes(node_group, delete_muted=True, delete_reroute=True, delete_frame=True):
-    """delete all unused nodes"""
+# def purge_unused_nodes(node_group, delete_muted=True, delete_reroute=True, delete_frame=True):
+#     """delete all unused nodes"""
         
-    for n in list(node_group.nodes):
-        #deselct all
-        n.select = False
-        #delete if muted?
-        if (delete_muted==True and n.mute==True):  
-            n.select = True
-            continue 
-        #delete if reroute?
-        if (delete_reroute==True and n.type=="REROUTE"):
-            n.select = True
-            continue               
-        #don't delete if frame?
-        if (delete_frame==False and n.type=="FRAME"):
-            continue 
-        #delete if unconnected
-        if not is_node_used(n):
-            node_group.nodes.remove(n)
-        continue 
+#     for n in list(node_group.nodes):
+#         #deselct all
+#         n.select = False
+#         #delete if muted?
+#         if (delete_muted==True and n.mute==True):  
+#             n.select = True
+#             continue 
+#         #delete if reroute?
+#         if (delete_reroute==True and n.type=="REROUTE"):
+#             n.select = True
+#             continue               
+#         #don't delete if frame?
+#         if (delete_frame==False and n.type=="FRAME"):
+#             continue 
+#         #delete if unconnected
+#         if not is_node_used(n):
+#             node_group.nodes.remove(n)
+#         continue 
 
-    if delete_muted or delete_reroute:
-        bpy.ops.node.delete_reconnect()
+#     if delete_muted or delete_reroute:
+#         bpy.ops.node.delete_reconnect()
         
-    return None 
+#     return None 
 
 
-def re_arrange_nodes(node_group, Xmultiplier=1):
-    """re-arrange node by sorting them in X location, (could improve)"""
+# def re_arrange_nodes(node_group, Xmultiplier=1):
+#     """re-arrange node by sorting them in X location, (could improve)"""
 
-    nodes = { n.location.x:n for n in node_group.nodes }
-    nodes = { k:nodes[k] for k in sorted(nodes) }
+#     nodes = { n.location.x:n for n in node_group.nodes }
+#     nodes = { k:nodes[k] for k in sorted(nodes) }
 
-    for i,n in enumerate(nodes.values()):
-        n.location.x = i*200*Xmultiplier
-        n.width = 150
+#     for i,n in enumerate(nodes.values()):
+#         n.location.x = i*200*Xmultiplier
+#         n.width = 150
 
-    return None 
+#     return None 
 
 
-class NOODLER_OT_node_purge_unused(bpy.types.Operator): #context from node editor only
+# class NOODLER_OT_node_purge_unused(bpy.types.Operator): #context from node editor only
 
-    bl_idname      = "noodler.node_purge_unused"
-    bl_label       = "Purge Unused Nodes"
-    bl_description = ""
-    bl_options     = {'REGISTER', 'UNDO'}
+#     bl_idname      = "noodler.node_purge_unused"
+#     bl_label       = "Purge Unused Nodes"
+#     bl_description = ""
+#     bl_options     = {'REGISTER', 'UNDO'}
 
-    delete_frame   : bpy.props.BoolProperty(default=True, name="Remove Frame(s)",)
-    delete_muted   : bpy.props.BoolProperty(default=True, name="Remove Muted Node(s)",)
-    delete_reroute : bpy.props.BoolProperty(default=True, name="Remove Reroute(s)",)
+#     delete_frame   : bpy.props.BoolProperty(default=True, name="Remove Frame(s)",)
+#     delete_muted   : bpy.props.BoolProperty(default=True, name="Remove Muted Node(s)",)
+#     delete_reroute : bpy.props.BoolProperty(default=True, name="Remove Reroute(s)",)
 
-    re_arrange : bpy.props.BoolProperty(default=False, name="Re-Arrange Nodes",)
-    re_arrange_fake : bpy.props.BoolProperty(default=False, name="Re-Arrange (not possible with frames)",)
+#     re_arrange : bpy.props.BoolProperty(default=False, name="Re-Arrange Nodes",)
+#     re_arrange_fake : bpy.props.BoolProperty(default=False, name="Re-Arrange (not possible with frames)",)
 
-    def execute(self, context):
-        node_group = context.space_data.node_tree
+#     def execute(self, context):
+#         node_group = context.space_data.node_tree
 
-        purge_unused_nodes(
-            node_group, 
-            delete_muted=self.delete_muted,
-            delete_reroute=self.delete_reroute,
-            delete_frame=self.delete_frame,
-            )
+#         purge_unused_nodes(
+#             node_group, 
+#             delete_muted=self.delete_muted,
+#             delete_reroute=self.delete_reroute,
+#             delete_frame=self.delete_frame,
+#             )
 
-        if (self.re_arrange and self.delete_frame):
-            re_arrange_nodes(node_group)
+#         if (self.re_arrange and self.delete_frame):
+#             re_arrange_nodes(node_group)
 
-        return {'FINISHED'}
+#         return {'FINISHED'}
 
-    def invoke(self, context, event):
-        return bpy.context.window_manager.invoke_props_dialog(self)
+#     def invoke(self, context, event):
+#         return bpy.context.window_manager.invoke_props_dialog(self)
 
-    def draw(self, context):
-        layout = self.layout 
+#     def draw(self, context):
+#         layout = self.layout 
         
-        #Remove
-        layout.prop(self, "delete_muted")
-        layout.prop(self, "delete_reroute")
-        layout.prop(self, "delete_frame")
+#         #Remove
+#         layout.prop(self, "delete_muted")
+#         layout.prop(self, "delete_reroute")
+#         layout.prop(self, "delete_frame")
         
-        #Re-Arrange
-        if self.delete_frame==True:    
-            layout.prop(self, "re_arrange")
-        else: 
-            re = layout.row()
-            re.enabled = False
-            re.prop(self, "re_arrange_fake")
+#         #Re-Arrange
+#         if self.delete_frame==True:    
+#             layout.prop(self, "re_arrange")
+#         else: 
+#             re = layout.row()
+#             re.enabled = False
+#             re.prop(self, "re_arrange_fake")
 
-        return None 
+#         return None 
 
 
 # ooooo                 .                       .o88o.
@@ -1281,109 +1281,109 @@ class NOODLER_OT_node_purge_unused(bpy.types.Operator): #context from node edito
 # o888o o888o o888o   "888" `Y8bod8P' d888b    o888o   `Y888""8o `Y8bod8P' `Y8bod8P'
 
 
-class NOODLER_PT_tool_search(bpy.types.Panel):
+# class NOODLER_PT_tool_search(bpy.types.Panel):
 
-    bl_idname = "NOODLER_PT_tool_search"
-    bl_label = "Node Search"
-    bl_category = "Noolder"
-    bl_space_type = "NODE_EDITOR"
-    bl_region_type = "UI"
+#     bl_idname = "NOODLER_PT_tool_search"
+#     bl_label = "Node Search"
+#     bl_category = "Noolder"
+#     bl_space_type = "NODE_EDITOR"
+#     bl_region_type = "UI"
 
-    def draw(self, context):
+#     def draw(self, context):
 
-        layout = self.layout
-        noodle_scn = context.scene.noodler
+#         layout = self.layout
+#         noodle_scn = context.scene.noodler
             
-        row = layout.row(align=True)
-        row.prop(noodle_scn,"search_keywords",text="",icon="VIEWZOOM")
-        row.prop(noodle_scn,"search_center",text="",icon="ZOOM_ALL")
+#         row = layout.row(align=True)
+#         row.prop(noodle_scn,"search_keywords",text="",icon="VIEWZOOM")
+#         row.prop(noodle_scn,"search_center",text="",icon="ZOOM_ALL")
 
-        layout.label(text="Search Filters:")
+#         layout.label(text="Search Filters:")
 
-        layout.use_property_split = True
+#         layout.use_property_split = True
 
-        layout.prop(noodle_scn,"search_labels")
-        layout.prop(noodle_scn,"search_types")
-        layout.prop(noodle_scn,"search_socket_names")
-        layout.prop(noodle_scn,"search_socket_types")
-        layout.prop(noodle_scn,"search_names")
-        layout.prop(noodle_scn,"search_input_only")
-        layout.prop(noodle_scn,"search_frame_only")
+#         layout.prop(noodle_scn,"search_labels")
+#         layout.prop(noodle_scn,"search_types")
+#         layout.prop(noodle_scn,"search_socket_names")
+#         layout.prop(noodle_scn,"search_socket_types")
+#         layout.prop(noodle_scn,"search_names")
+#         layout.prop(noodle_scn,"search_input_only")
+#         layout.prop(noodle_scn,"search_frame_only")
 
-        s = layout.column()
-        s.label(text=f"Found {noodle_scn.search_found} Element(s)")
+#         s = layout.column()
+#         s.label(text=f"Found {noodle_scn.search_found} Element(s)")
     
-        return None 
+#         return None 
 
 
-class NOODLER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
-    #palette api is a bit bad, it is operatiors designed for unified paint tools
-    #so we are hijacking the context for us then.
+# class NOODLER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
+#     #palette api is a bit bad, it is operatiors designed for unified paint tools
+#     #so we are hijacking the context for us then.
 
-    bl_idname = "NOODLER_PT_tool_color_palette"
-    bl_label = "Assign Palette"
-    bl_category = "Noolder"
-    bl_space_type = "NODE_EDITOR"
-    bl_region_type = "UI"
+#     bl_idname = "NOODLER_PT_tool_color_palette"
+#     bl_label = "Assign Palette"
+#     bl_category = "Noolder"
+#     bl_space_type = "NODE_EDITOR"
+#     bl_region_type = "UI"
 
-    @classmethod
-    def poll(cls, context):
-        return True
+#     @classmethod
+#     def poll(cls, context):
+#         return True
 
-    def draw(self, context):
+#     def draw(self, context):
 
-        layout = self.layout
-        noodle_scn = context.scene.noodler
-        settings = context.tool_settings.vertex_paint
-        unified = context.tool_settings.unified_paint_settings
+#         layout = self.layout
+#         noodle_scn = context.scene.noodler
+#         settings = context.tool_settings.vertex_paint
+#         unified = context.tool_settings.unified_paint_settings
 
-        if settings is None: 
-            col = layout.column()
-            col.active = False
-            col.scale_y = 0.8
-            col.label(text="Please go in vertex-paint to")
-            col.label(text="initiate the palette API.")
-            return None 
+#         if settings is None: 
+#             col = layout.column()
+#             col.active = False
+#             col.scale_y = 0.8
+#             col.label(text="Please go in vertex-paint to")
+#             col.label(text="initiate the palette API.")
+#             return None 
         
-        layout.template_ID(settings, "palette", new="palette.new")
+#         layout.template_ID(settings, "palette", new="palette.new")
 
-        if settings.palette:
-            row = layout.row(align=True)
-            colo = row.row(align=True)
-            colo.prop(unified,"color",text="")
-            colo.prop(noodle_scn,"palette_prop",text="")
+#         if settings.palette:
+#             row = layout.row(align=True)
+#             colo = row.row(align=True)
+#             colo.prop(unified,"color",text="")
+#             colo.prop(noodle_scn,"palette_prop",text="")
 
-            row.operator("noodler.reset_color",text="",icon="LOOP_BACK",)
-            layout.template_palette(settings, "palette", color=True,)
+#             row.operator("noodler.reset_color",text="",icon="LOOP_BACK",)
+#             layout.template_palette(settings, "palette", color=True,)
 
-        return None 
+#         return None 
 
 
-class NOODLER_PT_tool_frame(bpy.types.Panel):
+# class NOODLER_PT_tool_frame(bpy.types.Panel):
 
-    bl_idname = "NOODLER_PT_tool_frame"
-    bl_label = "Draw Frame"
-    bl_category = "Noolder"
-    bl_space_type = "NODE_EDITOR"
-    bl_region_type = "UI"
+#     bl_idname = "NOODLER_PT_tool_frame"
+#     bl_label = "Draw Frame"
+#     bl_category = "Noolder"
+#     bl_space_type = "NODE_EDITOR"
+#     bl_region_type = "UI"
 
-    def draw(self, context):
+#     def draw(self, context):
 
-        layout = self.layout
-        noodle_scn = context.scene.noodler
+#         layout = self.layout
+#         noodle_scn = context.scene.noodler
         
-        layout.use_property_split = True
+#         layout.use_property_split = True
 
-        layout.prop(noodle_scn,"frame_label")
-        layout.prop(noodle_scn,"frame_label_size")
+#         layout.prop(noodle_scn,"frame_label")
+#         layout.prop(noodle_scn,"frame_label_size")
 
-        layout.prop(noodle_scn,"frame_use_custom_color")
-        col = layout.column()
-        col.prop(noodle_scn,"frame_sync_color")
-        col.active = noodle_scn.frame_use_custom_color
-        col.prop(noodle_scn,"frame_color")
+#         layout.prop(noodle_scn,"frame_use_custom_color")
+#         col = layout.column()
+#         col.prop(noodle_scn,"frame_sync_color")
+#         col.active = noodle_scn.frame_use_custom_color
+#         col.prop(noodle_scn,"frame_color")
         
-        return None 
+#         return None 
 
 
 class NOODLER_PF_node_framer(bpy.types.AddonPreferences):
@@ -1465,71 +1465,71 @@ class NOODLER_PF_node_framer(bpy.types.AddonPreferences):
         return None 
 
 
-class NOODLER_PT_shortcuts_memo(bpy.types.Panel):
+# class NOODLER_PT_shortcuts_memo(bpy.types.Panel):
 
-    bl_idname = "NOODLER_PT_shortcuts_memo"
-    bl_label = "Default Shortcuts"
-    bl_category = "Noolder"
-    bl_space_type = "NODE_EDITOR"
-    bl_region_type = "UI"
+#     bl_idname = "NOODLER_PT_shortcuts_memo"
+#     bl_label = "Default Shortcuts"
+#     bl_category = "Noolder"
+#     bl_space_type = "NODE_EDITOR"
+#     bl_region_type = "UI"
 
-    def draw(self, context):
+#     def draw(self, context):
 
-        layout = self.layout
+#         layout = self.layout
         
-        lbl = layout.column()
+#         lbl = layout.column()
             
-        row = lbl.row()
-        row.separator(factor=0.5)
-        rol = row.column()
-        rol.scale_y = 0.9
+#         row = lbl.row()
+#         row.separator(factor=0.5)
+#         rol = row.column()
+#         rol.scale_y = 0.9
 
-        ro = rol.column(align=True)
-        ro.label(text="Loop Favorites:")
-        ro.box().label(text="Y")
+#         ro = rol.column(align=True)
+#         ro.label(text="Loop Favorites:")
+#         ro.box().label(text="Y")
         
-        rol.separator()
+#         rol.separator()
 
-        ro = rol.column(align=True)
-        ro.label(text="Add Favorite:")
-        ro.box().label(text="CTRL+Y")
+#         ro = rol.column(align=True)
+#         ro.label(text="Add Favorite:")
+#         ro.box().label(text="CTRL+Y")
             
-        rol.separator()
+#         rol.separator()
 
-        ro = rol.column(align=True)
-        ro.label(text="Draw Reroute:")
-        ro.box().label(text="V")
+#         ro = rol.column(align=True)
+#         ro.label(text="Draw Reroute:")
+#         ro.box().label(text="V")
         
-        rol.separator()
+#         rol.separator()
 
-        ro = rol.column(align=True)
-        ro.label(text="Draw Frame:")
-        ro.box().label(text="PRESS J")
+#         ro = rol.column(align=True)
+#         ro.label(text="Draw Frame:")
+#         ro.box().label(text="PRESS J")
         
-        rol.separator()
+#         rol.separator()
 
-        ro = rol.column(align=True)
-        ro.label(text="Reroute Chamfer:")
-        ro.box().label(text="CTRL+B")
+#         ro = rol.column(align=True)
+#         ro.label(text="Reroute Chamfer:")
+#         ro.box().label(text="CTRL+B")
         
-        rol.separator()
+#         rol.separator()
 
-        ro = rol.column(align=True)
-        ro.label(text="Select Downstream:")
-        ro.box().label(text="CTRL+LEFTMOUSE")
+#         ro = rol.column(align=True)
+#         ro.label(text="Select Downstream:")
+#         ro.box().label(text="CTRL+LEFTMOUSE")
         
-        rol.separator()
+#         rol.separator()
 
-        ro = rol.column(align=True)
-        ro.label(text="Select Upstream:")
-        ro.box().label(text="CTRL+ALT+LEFTMOUSE")
+#         ro = rol.column(align=True)
+#         ro.label(text="Select Upstream:")
+#         ro.box().label(text="CTRL+ALT+LEFTMOUSE")
 
-        rol.separator()
+#         rol.separator()
 
-        ro = rol.column(align=True)
-        ro.label(text="Purge Unused Nodes in Header")
+#         ro = rol.column(align=True)
+#         ro.label(text="Purge Unused Nodes in Header")
 
-        return None 
+#         return None 
 
 
 # ooooooooo.             oooo                .       .

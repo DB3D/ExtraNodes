@@ -18,6 +18,10 @@ class NODEBOOSTER_PT_tool_search(bpy.types.Panel):
     bl_category = "Node Booster"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
+    
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
 
     def draw(self, context):
 
@@ -58,7 +62,7 @@ class NODEBOOSTER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
 
     @classmethod
     def poll(cls, context):
-        return True
+        return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
 
     def draw(self, context):
 
@@ -99,6 +103,10 @@ class NODEBOOSTER_PT_tool_frame(bpy.types.Panel):
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
 
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
+    
     def draw(self, context):
 
         layout = self.layout
@@ -125,6 +133,10 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
     bl_category = "Node Booster"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
+
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data.type=="NODE_EDITOR") and (context.space_data.node_tree is not None)
 
     def draw(self, context):
 
