@@ -54,7 +54,7 @@ def get_dependecies(node, context, mode="upstream|downstream", parent=False):
 class NODEBOOSTER_OT_dependency_select(bpy.types.Operator):
 
     bl_idname = "nodebooster.dependency_select"
-    bl_label = "Select Dependencies With Shortcut"
+    bl_label = "Select Dependencies"
     bl_options = {'REGISTER', 'UNDO'}
 
     mode : bpy.props.EnumProperty(

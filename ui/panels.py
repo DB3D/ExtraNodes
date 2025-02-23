@@ -8,6 +8,7 @@ import bpy
 from bl_ui.properties_paint_common import BrushPanel
 
 from ..utils.str_utils import word_wrap
+from ..operators import ADDON_KEYMAPS
 
 
 class NODEBOOSTER_PT_tool_search(bpy.types.Panel):
@@ -129,7 +130,7 @@ class NODEBOOSTER_PT_tool_frame(bpy.types.Panel):
 class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
 
     bl_idname = "NODEBOOSTER_PT_shortcuts_memo"
-    bl_label = "Default Shortcuts"
+    bl_label = "Shortcuts"
     bl_category = "Node Booster"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
@@ -141,100 +142,116 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
     def draw(self, context):
 
         layout = self.layout
-    
-        col = layout.column(align=True)
-        col.label(text="Loop Favorites:")
-        box = col.box()
-        box.scale_y = 0.9
-        row = box.row(align=True)
-        row.label(text='', icon='EVENT_Y',)
 
-        layout.separator(type='LINE')
+        for i, (km, kmi, name, icon) in enumerate(ADDON_KEYMAPS):
+            
+            if (i!=0):
+                layout.separator(type='LINE')
+                
+            col = layout.box()
+            
+            row = col.row()
+            row.alignment = 'LEFT'
+            row.prop(kmi, "active", text=name,emboss=False,)
+            
+            col = col.column()
+            col.active = kmi.active
+            
+            header, panel = col.panel(f'geobuilder_shortcut_layoutpanel_defaults_{i}', default_closed=False,)
+            header.label(text="Default Shortcut",)
+            if (panel):
+                panel.separator(factor=0.5)
+                row = panel.row(align=True)
+                row.separator(factor=0.5)
+                
+                match name:
+                    case "Add Favorite":
+                        row.label(text='', icon='EVENT_CTRL',)
+                        row.separator(factor=2.35)
+                        row.label(text='', icon='EVENT_Y',)
+                        
+                    case "Loop Favorites":
+                        row.label(text='', icon='EVENT_Y',)
+                        
+                    case "Select Downstream":
+                        row.label(text='', icon='EVENT_CTRL',)
+                        row.separator(factor=2.35)
+                        row.label(text='', icon='MOUSE_LMB',)
+                        
+                    case "Select Downstream (Add)":
+                        row.label(text='', icon='EVENT_SHIFT',)
+                        row.separator(factor=0.9)
+                        row.label(text='', icon='EVENT_CTRL',)
+                        row.separator(factor=2.35)
+                        row.label(text='', icon='MOUSE_LMB',)
+                        
+                    case "Select Upsteam":
+                        row.label(text='', icon='EVENT_CTRL',)
+                        row.separator(factor=2.35)
+                        row.label(text='', icon='EVENT_ALT',)
+                        row.separator(factor=2.35)
+                        row.label(text='', icon='MOUSE_LMB',)
+                        
+                    case "Select Upsteam (Add)":
+                        row.label(text='', icon='EVENT_SHIFT',)
+                        row.separator(factor=0.9)
+                        row.label(text='', icon='EVENT_CTRL',)
+                        row.separator(factor=2.35)
+                        row.label(text='', icon='EVENT_ALT',)
+                        row.separator(factor=2.35)
+                        row.label(text='', icon='MOUSE_LMB',)
+                
+                    # layout.separator(type='LINE')
 
-        col = layout.column(align=True)
-        col.label(text="Add Favorite:")
-        box = col.box()
-        box.scale_y = 0.9
-        row = box.row(align=True)
-        row.label(text='', icon='EVENT_CTRL',)
-        row.separator(factor=2.35)
-        row.label(text='', icon='EVENT_Y',)
+                    # col = layout.column(align=True)
+                    # col.label(text="Draw Reroute:")
+                    # box = col.box()
+                    # box.scale_y = 0.9
+                    # row = box.row(align=True)
+                    # row.label(text='', icon='IMPORT',)
+                    # row.label(text='', icon='EVENT_V',)
 
-        layout.separator(type='LINE')
+                    # layout.separator(type='LINE')
 
-        col = layout.column(align=True)
-        col.label(text="Draw Reroute:")
-        box = col.box()
-        box.scale_y = 0.9
-        row = box.row(align=True)
-        row.label(text='', icon='IMPORT',)
-        row.label(text='', icon='EVENT_V',)
+                    # col = layout.column(align=True)
+                    # col.label(text="Draw Frame:")
+                    # box = col.box()
+                    # box.scale_y = 0.9
+                    # row = box.row(align=True)
+                    # row.label(text='', icon='IMPORT',)
+                    # row.label(text='', icon='EVENT_J',)
 
-        layout.separator(type='LINE')
+                    # layout.separator(type='LINE')
 
-        col = layout.column(align=True)
-        col.label(text="Draw Frame:")
-        box = col.box()
-        box.scale_y = 0.9
-        row = box.row(align=True)
-        row.label(text='', icon='IMPORT',)
-        row.label(text='', icon='EVENT_J',)
+                    # col = layout.column(align=True)
+                    # col.label(text="Reroute Chamfer:")
+                    # box = col.box()
+                    # box.scale_y = 0.9
+                    # row = box.row(align=True)
+                    # row.label(text='', icon='EVENT_CTRL',)
+                    # row.separator(factor=2.35)
+                    # row.label(text='', icon='EVENT_B',)
+        
+                panel.separator(factor=0.5)
+            
+            col.separator(factor=0.5)
+                        
+            header, panel = col.panel(f'geobuilder_shortcut_layoutpanel_custom_{i}', default_closed=True,)
+            header.label(text="Customize",)
+            if (panel):
+                panel.use_property_split = True
 
-        layout.separator(type='LINE')
+                sub = panel.column()
+                subrow = sub.row(align=True)
+                subrow.prop(kmi, "type", text='Key', event=True)
 
-        col = layout.column(align=True)
-        col.label(text="Reroute Chamfer:")
-        box = col.box()
-        box.scale_y = 0.9
-        row = box.row(align=True)
-        row.label(text='', icon='EVENT_CTRL',)
-        row.separator(factor=2.35)
-        row.label(text='', icon='EVENT_B',)
+                sub = panel.column(heading='Modifiers:')
+                sub.use_property_split = True
+                sub.prop(kmi, "shift_ui",)
+                sub.prop(kmi, "ctrl_ui",)
+                sub.prop(kmi, "alt_ui",)
 
-        layout.separator(type='LINE')
-
-        col = layout.column(align=True)
-        col.label(text="Select Downstream:")
-        box = col.box()
-        box.scale_y = 0.9
-        row = box.row(align=True)
-        row.label(text='', icon='EVENT_CTRL',)
-        row.separator(factor=2.35)
-        row.label(text='', icon='MOUSE_LMB',)
-        #
-        box = col.box()
-        box.scale_y = 0.9
-        row = box.row(align=True)
-        row.label(text='', icon='EVENT_SHIFT',)
-        row.separator(factor=0.9)
-        row.label(text='', icon='EVENT_CTRL',)
-        row.separator(factor=2.35)
-        row.label(text='', icon='MOUSE_LMB',)
-
-        layout.separator(type='LINE')
-
-        col = layout.column(align=True)
-        col.label(text="Select Upstream:")
-        box = col.box()
-        box.scale_y = 0.9
-        row = box.row(align=True)
-        row.label(text='', icon='EVENT_CTRL',)
-        row.separator(factor=2.35)
-        row.label(text='', icon='EVENT_ALT',)
-        row.separator(factor=2.35)
-        row.label(text='', icon='MOUSE_LMB',)
-        #
-        box = col.box()
-        box.scale_y = 0.9
-        row = box.row(align=True)
-        row.label(text='', icon='EVENT_SHIFT',)
-        row.separator(factor=0.9)
-        row.label(text='', icon='EVENT_CTRL',)
-        row.separator(factor=2.35)
-        row.label(text='', icon='EVENT_ALT',)
-        row.separator(factor=2.35)
-        row.label(text='', icon='MOUSE_LMB',)
-
-        layout.separator(factor=2)
+            continue
+        
 
         return None 

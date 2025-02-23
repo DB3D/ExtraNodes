@@ -1071,77 +1071,77 @@ class NOODLER_OT_chamfer(bpy.types.Operator):
 
 
 
-def get_dependecies(node, context, mode="upstream or downstream", parent=False):
-    """return list of all nodes downstream or upsteam"""
+# def get_dependecies(node, context, mode="upstream or downstream", parent=False):
+#     """return list of all nodes downstream or upsteam"""
 
-    #determine vars used in recur fct
-    is_upstream = (mode=="upstream")
-    sockets_api = "outputs" if is_upstream else "inputs"
-    link_api = "to_node" if is_upstream else "from_node"
-    nodelist = []
+#     #determine vars used in recur fct
+#     is_upstream = (mode=="upstream")
+#     sockets_api = "outputs" if is_upstream else "inputs"
+#     link_api = "to_node" if is_upstream else "from_node"
+#     nodelist = []
 
-    def recur_node(node):
-        """gather node in nodelist by recursion"""
+#     def recur_node(node):
+#         """gather node in nodelist by recursion"""
 
-        #add note to list 
-        nodelist.append(node)
+#         #add note to list 
+#         nodelist.append(node)
 
-        #frame?
-        if (parent and node.parent):
-            if (node.parent not in nodelist):
-                nodelist.append(node.parent)
+#         #frame?
+#         if (parent and node.parent):
+#             if (node.parent not in nodelist):
+#                 nodelist.append(node.parent)
 
-        #get sockets 
-        sockets = getattr(node,sockets_api)
-        if not len(sockets):
-            return None 
+#         #get sockets 
+#         sockets = getattr(node,sockets_api)
+#         if not len(sockets):
+#             return None 
 
-        #check all outputs
-        for socket in sockets:
-            for link in socket.links:
-                nextnode = getattr(link,link_api)
-                if nextnode not in nodelist:
-                    recur_node(nextnode)
-                continue
-            continue
+#         #check all outputs
+#         for socket in sockets:
+#             for link in socket.links:
+#                 nextnode = getattr(link,link_api)
+#                 if nextnode not in nodelist:
+#                     recur_node(nextnode)
+#                 continue
+#             continue
         
-        return None 
+#         return None 
 
-    recur_node(node)
+#     recur_node(node)
 
-    return nodelist
+#     return nodelist
 
 
-class NOODLER_OT_dependency_select(bpy.types.Operator):
+# class NOODLER_OT_dependency_select(bpy.types.Operator):
 
-    bl_idname = "noodler.dependency_select"
-    bl_label = "Select Dependencies With Shortcut"
-    bl_options = {'REGISTER', 'UNDO'}
+#     bl_idname = "noodler.dependency_select"
+#     bl_label = "Select Dependencies With Shortcut"
+#     bl_options = {'REGISTER', 'UNDO'}
 
-    mode : bpy.props.EnumProperty(default="downstream",items=[("downstream","Downstream","",),("upstream","Upstream","",),], name="Mode") 
-    repsel : bpy.props.BoolProperty(default=True, name="Replace Selection")
-    frame : bpy.props.BoolProperty(default=False, name="Include Frames")
+#     mode : bpy.props.EnumProperty(default="downstream",items=[("downstream","Downstream","",),("upstream","Upstream","",),], name="Mode") 
+#     repsel : bpy.props.BoolProperty(default=True, name="Replace Selection")
+#     frame : bpy.props.BoolProperty(default=False, name="Include Frames")
 
-    @classmethod
-    def poll(cls, context):
-        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
+#     @classmethod
+#     def poll(cls, context):
+#         return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
-    def invoke(self, context, event):
+#     def invoke(self, context, event):
 
-        ng , _ = get_active_tree(context)
-        ensure_mouse_cursor(context, event)
-        node = get_node_at_pos(ng.nodes, context, event, position=context.space_data.cursor_location)
-        if node is None:
-            return {"CANCELLED"}
+#         ng , _ = get_active_tree(context)
+#         ensure_mouse_cursor(context, event)
+#         node = get_node_at_pos(ng.nodes, context, event, position=context.space_data.cursor_location)
+#         if node is None:
+#             return {"CANCELLED"}
 
-        if self.repsel:
-            bpy.ops.node.select_all(action="DESELECT")
+#         if self.repsel:
+#             bpy.ops.node.select_all(action="DESELECT")
 
-        deps = get_dependecies(node, context, mode=self.mode, parent=self.frame)
-        for n in deps:
-            n.select = True
+#         deps = get_dependecies(node, context, mode=self.mode, parent=self.frame)
+#         for n in deps:
+#             n.select = True
 
-        return {"CANCELLED"}
+#         return {"CANCELLED"}
 
 
 # ooooooooo.
