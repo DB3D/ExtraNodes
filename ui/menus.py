@@ -34,21 +34,32 @@ def nodebooster_addmenu_append(self, context,):
     
     return None 
 
+def nodebooster_nodemenu_append(self, context):
+    
+    layout = self.layout 
+    layout.separator()
+    layout.operator("nodebooster.node_purge_unused", text="Purge Unused Nodes",)
+
+    return None
+
 
 def append_menus():
 
-    menu = bpy.types.NODE_MT_add
-    menu.append(nodebooster_addmenu_append)
+    bpy.types.NODE_MT_add.append(nodebooster_addmenu_append)
+    bpy.types.NODE_MT_node.append(nodebooster_nodemenu_append)
 
     return None 
 
 
 def remove_menus():
 
-    menu = bpy.types.NODE_MT_add
-    for f in menu._dyn_ui_initialize().copy():
-        if (f.__name__=='nodebooster_addmenu_append'):
-            menu.remove(f)
-            continue
-    
+    #remove menus by name, in case there was a problem at unreg
+    menus = (bpy.types.NODE_MT_add, bpy.types.NODE_MT_node,)
+    for menu in menus:
+        for f in menu._dyn_ui_initialize().copy():
+            if (f.__name__=='nodebooster_addmenu_append'):
+                menu.remove(f)
+            if (f.__name__=='nodebooster_nodemenu_append'):
+                menu.remove(f)
+
     return None

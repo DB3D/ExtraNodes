@@ -48,7 +48,7 @@ def get_addon_classes(revert=False):
     
     if (revert):
         return reversed(classes)
-    
+
     return classes
 
 
