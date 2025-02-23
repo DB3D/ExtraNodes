@@ -22,11 +22,8 @@ from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socke
 NODE_YOFF, NODE_XOFF = 120, 70
 DIGITS = '0123456789'
 ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
-IRRATIONALS = {
-    'Pi':   {'unicode':'π', 'value':'3.1415927'},
-    'eNum': {'unicode':'𝑒', 'value':'2.7182818'},
-    'Gold': {'unicode':'φ', 'value':'1.6180339'},
-}
+IRRATIONALS = {'π':'3.1415927','𝑒':'2.7182818','φ':'1.6180339',}
+MACROS = {'Pi':'π','eNum':'𝑒','Gold':'φ',}
 SUPERSCRIPTS = {'⁰':'0', '¹':'1', '²':'2', '³':'3', '⁴':'4', '⁵':'5', '⁶':'6', '⁷':'7', '⁸':'8', '⁹':'9',}
 DOCSYMBOLS = {
     '+':{'name':"Addition",'desc':""},
@@ -613,7 +610,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     debug_sanatized : bpy.props.StringProperty()
     debug_fctexp : bpy.props.StringProperty()
     
-    def update_user_mathexp(self,context):
+    def update_signal(self,context):
         """evaluate user expression and change the sockets implicitly"""
         self.apply_expression()
         return None 
@@ -621,20 +618,20 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     user_mathexp : bpy.props.StringProperty(
         default="a + b + c",
         name="Expression",
-        update=update_user_mathexp,
+        update=update_signal,
         description="type your math expression right here",
     )
     use_algrebric_multiplication : bpy.props.BoolProperty(
         default=False,
         name="Algebric Notation",
-        update=update_user_mathexp,
+        update=update_signal,
         description="Algebric Notation.\nAutomatically consider notation such as '2ab' as '2*a*b'",
     )
-    use_auto_symbols : bpy.props.BoolProperty(
+    use_macros : bpy.props.BoolProperty(
         default=False,
         name="Recognize Macros",
-        update=update_user_mathexp,
-        description="Recognize Macros.\nAutomatically recognize the irrational constants 'π' '𝑒' 'φ' from the macros 'Pi' 'eNum' 'Gold'.\nThe constant will be set in float, up to 7 decimals",
+        update=update_signal,
+        description="Recognize Macros.\nAutomatically recognize the strings 'Pi' 'eNum' 'Gold' and replace them with their unicode symbols.",
     )
 
     @classmethod
@@ -681,7 +678,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     def sanatize_expression(self, expression) -> str | Exception:
         """ensure the user expression is correct, sanatized it, and collect its element"""
 
-        # Remove white spaces
+        # Remove white spaces char
         expression = expression.replace(' ','')
         expression = expression.replace('	','')
                 
@@ -693,13 +690,10 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                     )
                 break 
         
-        # Support for Irrational numbers (Pi ect.., we need to replace their tokens)
-        mached = match_exact_tokens(expression, [v['unicode'] for v in IRRATIONALS.values()])
+        # Support for Irrational unicode char
+        mached = match_exact_tokens(expression, IRRATIONALS.keys())
         if any(mached):
-            expression = replace_exact_tokens(
-                expression,
-                {v['unicode']:v['value'] for v in IRRATIONALS.values() if (v['unicode'] in mached)}
-            )
+            expression = replace_exact_tokens(expression, IRRATIONALS)
         
         # Gather lists of expression component outside of operand and some synthax elements
         elemTotal = expression
@@ -805,26 +799,37 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         
         return expression
     
+    def apply_macros_to_expression(self, expression) -> str:
+        """Replace macros such as 'Pi' 'eNum' or else..  by their values"""
+        
+        modified_expression = None
+        
+        for k,v in MACROS.items():
+            if (k in expression):
+                if (modified_expression is None):
+                    modified_expression = expression
+                modified_expression = modified_expression.replace(k,v)
+            
+        return modified_expression
+    
     def apply_expression(self) -> None:
         """transform the math expression into sockets and nodes arrangements"""
+        
+        # Support for automatically replacing uer symbols
+        if (self.use_macros):
+            newexp = self.apply_macros_to_expression(self.user_mathexp)
+            if (newexp is not None):
+                self.user_mathexp = newexp
+                # We just sent an update signal by modifying self.user_mathexp
+                # let's stop here then, the function will restart shortly and we don't have a recu error.
+                return None
         
         ng = self.node_tree 
         in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
         
         # Reset error message
         self.error_message = self.debug_sanatized = self.debug_fctexp = ""
-        
-        # Support for automatically replacing some symbols
-        if (self.use_auto_symbols):
-            mached = match_exact_tokens(self.user_mathexp, IRRATIONALS.keys())
-            if any(mached):
-                self.user_mathexp = replace_exact_tokens(
-                    self.user_mathexp,
-                    {k:v['unicode'] for k,v in IRRATIONALS.items() if (k in mached)}
-                )
-                #We just sent an update signal to "user_mathexp", the function will restart shortly..
-                return None
-            
+
         # First we make sure the user expression is correct
         rval = self.sanatize_expression(self.user_mathexp)
         if (type(rval) is Exception):
@@ -930,7 +935,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         
         opt = row.row(align=True)
         opt.scale_x = 0.3
-        opt.prop(self, "use_auto_symbols", text="π", toggle=True, )
+        opt.prop(self, "use_macros", text="π", toggle=True, )
         
         if (self.error_message):
             lbl = col.row()
@@ -950,7 +955,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         row.prop(self,"user_mathexp", text="",)
         
         layout.prop(self, "use_algrebric_multiplication",)
-        layout.prop(self, "use_auto_symbols",)
+        layout.prop(self, "use_macros",)
         
         if (self.error_message):
             lbl = col.row()
