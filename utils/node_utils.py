@@ -5,6 +5,29 @@
 
 import bpy 
 
+from math import hypot
+from mathutils import Vector
+
+from .draw_utils import get_dpifac
+
+
+def get_node_absolute_location(node):
+    """find the location of the node in global space"""
+
+    if (node.parent is None):
+        return node.location
+    
+    #if there's a frame, then the location is false
+    x,y = node.location
+
+    while (node.parent is not None):
+        x += node.parent.location.x
+        y += node.parent.location.y
+        node = node.parent
+        continue
+
+    return Vector((x,y))
+
 
 def get_socket_interface_item(ng, idx, in_out='OUTPUT',):
     """return a given socket index as an interface item, either find the socket by it's index, name or socketidentifier"""
@@ -139,18 +162,21 @@ def replace_node(node_tree, old_node, node_group):
     # For outputs, store the linked to_socket (if exists)
     old_outputs_links = [sock.links[0].to_socket if sock.links else None for sock in old_node.outputs]
     
-    # Delete the old node.
-    node_tree.nodes.remove(old_node)
     
     # Determine the appropriate node type for a node group.
-    if node_tree.bl_idname == "ShaderNodeTree":
-        new_node_type = "ShaderNodeGroup"
-    elif node_tree.bl_idname == "CompositorNodeTree":
-        new_node_type = "CompositorNodeGroup"
-    elif node_tree.bl_idname == "GeometryNodeTree":
-        new_node_type = "GeometryNodeGroup"
-    else:
-        new_node_type = "ShaderNodeGroup"  # Fallback if unknown.
+    match node_tree.bl_idname:
+        case 'ShaderNodeTree':
+            new_node_type = 'ShaderNodeGroup'
+        case 'CompositorNodeTree':
+            new_node_type = 'CompositorNodeGroup'
+        case 'GeometryNodeTree':
+            new_node_type = 'GeometryNodeGroup'
+        case _:
+            print(f"replace_node() does not support'{node_tree.bl_idname}'.")
+            return None
+
+    # Delete the old node.
+    node_tree.nodes.remove(old_node)
     
     # Create the new node group node.
     new_node = node_tree.nodes.new(new_node_type)
@@ -197,3 +223,69 @@ def frame_nodes(node_tree, *nodes, label="Frame",):
         node.parent = frame
     
     return frame
+
+
+def get_nearest_mouse(nodes, context, event, position=None, allow_reroute=True, forbidden=None):
+    """get mouse near cursor"""
+    # Function from from 'node_wrangler.py'
+    
+    nodes_near_mouse = []
+    nodes_under_mouse = []
+    target_node = None
+
+    x, y = position
+
+    # Make a list of each corner (and middle of border) for each node.
+    # Will be sorted to find nearest point and thus nearest node
+    node_points_with_dist = []
+
+    for n in nodes:
+        if (n.type == 'FRAME'):
+            continue
+        if (not allow_reroute and (n.type == 'REROUTE')):
+            continue
+        if (forbidden is not None) and (n in forbidden):
+            continue
+
+        locx, locy = get_node_absolute_location(n)
+        dimx, dimy = n.dimensions.x/get_dpifac(), n.dimensions.y/get_dpifac()
+
+        node_points_with_dist.append([n, hypot(x - locx, y - locy)])  # Top Left
+        node_points_with_dist.append([n, hypot(x - (locx + dimx), y - locy)])  # Top Right
+        node_points_with_dist.append([n, hypot(x - locx, y - (locy - dimy))])  # Bottom Left
+        node_points_with_dist.append([n, hypot(x - (locx + dimx), y - (locy - dimy))])  # Bottom Right
+
+        node_points_with_dist.append([n, hypot(x - (locx + (dimx / 2)), y - locy)])  # Mid Top
+        node_points_with_dist.append([n, hypot(x - (locx + (dimx / 2)), y - (locy - dimy))])  # Mid Bottom
+        node_points_with_dist.append([n, hypot(x - locx, y - (locy - (dimy / 2)))])  # Mid Left
+        node_points_with_dist.append([n, hypot(x - (locx + dimx), y - (locy - (dimy / 2)))])  # Mid Right
+
+        continue
+
+    nearest_node = sorted(node_points_with_dist, key=lambda k: k[1])[0][0]
+
+    for n in nodes:
+        if (n.type == 'FRAME'):
+            continue
+        if (not allow_reroute and (n.type == 'REROUTE')):
+            continue
+        if (forbidden is not None) and (n in forbidden):
+            continue
+
+        locx, locy = get_node_absolute_location(n)
+        dimx, dimy = n.dimensions.x/get_dpifac(), n.dimensions.y/get_dpifac()
+
+        if (locx <= x <= locx+dimx) and (locy-dimy <= y <= locy):
+            nodes_under_mouse.append(n)
+
+        continue
+
+    if (len(nodes_under_mouse)==1):
+
+        if nodes_under_mouse[0] != nearest_node:
+              target_node = nodes_under_mouse[0]
+        else: target_node = nearest_node
+    else:
+        target_node = nearest_node
+
+    return target_node

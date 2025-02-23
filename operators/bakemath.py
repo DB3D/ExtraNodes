@@ -42,8 +42,12 @@ class NODEBOOSTER_OT_bake_mathexpression(bpy.types.Operator):
         node_group.name = f'{node_group.name}.Baked'
         
         new_node = replace_node(node_tree, old_node, node_group,)
+        if (new_node is None):
+            self.report({'ERROR'}, "Current NodeTree type not supported")
+            return {'FINISHED'}
+    
         new_node.label = old_exp
-        
+
         self.report({'INFO'}, f"Replaced node '{self.node_name}' with node group '{self.node_name}'")
         
         return {'FINISHED'}

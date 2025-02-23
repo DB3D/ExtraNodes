@@ -141,54 +141,100 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
     def draw(self, context):
 
         layout = self.layout
+    
+        col = layout.column(align=True)
+        col.label(text="Loop Favorites:")
+        box = col.box()
+        box.scale_y = 0.9
+        row = box.row(align=True)
+        row.label(text='', icon='EVENT_Y',)
 
-        lbl = layout.column()
+        layout.separator(type='LINE')
 
-        row = lbl.row()
-        row.separator(factor=0.5)
-        rol = row.column()
-        rol.scale_y = 0.9
+        col = layout.column(align=True)
+        col.label(text="Add Favorite:")
+        box = col.box()
+        box.scale_y = 0.9
+        row = box.row(align=True)
+        row.label(text='', icon='EVENT_CTRL',)
+        row.separator(factor=2.35)
+        row.label(text='', icon='EVENT_Y',)
 
-        ro = rol.column(align=True)
-        ro.label(text="Loop Favorites:")
-        ro.box().label(text="Y")
+        layout.separator(type='LINE')
 
-        rol.separator()
+        col = layout.column(align=True)
+        col.label(text="Draw Reroute:")
+        box = col.box()
+        box.scale_y = 0.9
+        row = box.row(align=True)
+        row.label(text='', icon='IMPORT',)
+        row.label(text='', icon='EVENT_V',)
 
-        ro = rol.column(align=True)
-        ro.label(text="Add Favorite:")
-        ro.box().label(text="CTRL+Y")
+        layout.separator(type='LINE')
 
-        rol.separator()
+        col = layout.column(align=True)
+        col.label(text="Draw Frame:")
+        box = col.box()
+        box.scale_y = 0.9
+        row = box.row(align=True)
+        row.label(text='', icon='IMPORT',)
+        row.label(text='', icon='EVENT_J',)
 
-        ro = rol.column(align=True)
-        ro.label(text="Draw Reroute:")
-        ro.box().label(text="V")
+        layout.separator(type='LINE')
 
-        rol.separator()
+        col = layout.column(align=True)
+        col.label(text="Reroute Chamfer:")
+        box = col.box()
+        box.scale_y = 0.9
+        row = box.row(align=True)
+        row.label(text='', icon='EVENT_CTRL',)
+        row.separator(factor=2.35)
+        row.label(text='', icon='EVENT_B',)
 
-        ro = rol.column(align=True)
-        ro.label(text="Draw Frame:")
-        ro.box().label(text="PRESS J")
+        layout.separator(type='LINE')
 
-        rol.separator()
+        col = layout.column(align=True)
+        col.label(text="Select Downstream:")
+        box = col.box()
+        box.scale_y = 0.9
+        row = box.row(align=True)
+        row.label(text='', icon='EVENT_CTRL',)
+        row.separator(factor=2.35)
+        row.label(text='', icon='MOUSE_LMB',)
+        #
+        box = col.box()
+        box.scale_y = 0.9
+        row = box.row(align=True)
+        row.label(text='', icon='EVENT_SHIFT',)
+        row.separator(factor=0.9)
+        row.label(text='', icon='EVENT_CTRL',)
+        row.separator(factor=2.35)
+        row.label(text='', icon='MOUSE_LMB',)
 
-        ro = rol.column(align=True)
-        ro.label(text="Reroute Chamfer:")
-        ro.box().label(text="CTRL+B")
+        layout.separator(type='LINE')
 
-        rol.separator()
+        col = layout.column(align=True)
+        col.label(text="Select Upstream:")
+        box = col.box()
+        box.scale_y = 0.9
+        row = box.row(align=True)
+        row.label(text='', icon='EVENT_CTRL',)
+        row.separator(factor=2.35)
+        row.label(text='', icon='EVENT_ALT',)
+        row.separator(factor=2.35)
+        row.label(text='', icon='MOUSE_LMB',)
+        #
+        box = col.box()
+        box.scale_y = 0.9
+        row = box.row(align=True)
+        row.label(text='', icon='EVENT_SHIFT',)
+        row.separator(factor=0.9)
+        row.label(text='', icon='EVENT_CTRL',)
+        row.separator(factor=2.35)
+        row.label(text='', icon='EVENT_ALT',)
+        row.separator(factor=2.35)
+        row.label(text='', icon='MOUSE_LMB',)
 
-        ro = rol.column(align=True)
-        ro.label(text="Select Downstream:")
-        ro.box().label(text="CTRL+LEFTMOUSE")
-
-        rol.separator()
-
-        ro = rol.column(align=True)
-        ro.label(text="Select Upstream:")
-        ro.box().label(text="CTRL+ALT+LEFTMOUSE")
-
-        rol.separator(factor=5)
+        layout.separator(factor=2)
 
         return None 

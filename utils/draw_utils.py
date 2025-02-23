@@ -6,6 +6,12 @@
 import bpy 
 
 
+def get_dpifac():
+    """get user dpi"""
+    prefs = bpy.context.preferences.system
+    return prefs.dpi * prefs.pixel_size / 72
+
+
 def ensure_mouse_cursor(context, event):
     """function needed to get cursor location"""
 

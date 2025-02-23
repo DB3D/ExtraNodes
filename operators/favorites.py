@@ -2,8 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# NOTE ideally, active favorite should be set on a prop per nodegroup and not per scene.
-
 
 import bpy
 
@@ -35,9 +33,13 @@ def get_favorites(nodes, at_index=None,):
 
 class NODEBOOSTER_OT_favorite_add(bpy.types.Operator):
 
-    bl_idname      = "nodebooster.favorite_add"
-    bl_label       = "Add New Favorites Reroute"
+    bl_idname = "nodebooster.favorite_add"
+    bl_label = "Add New Favorites Reroute"
     bl_description = "Add New Favorites Reroute"
+
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
     def invoke(self, context, event):
 
@@ -65,9 +67,13 @@ class NODEBOOSTER_OT_favorite_add(bpy.types.Operator):
 
 class NODEBOOSTER_OT_favorite_loop(bpy.types.Operator):
 
-    bl_idname      = "nodebooster.favorite_loop"
-    bl_label       = "Loop Over Your Favorites"
+    bl_idname = "nodebooster.favorite_loop"
+    bl_label = "Loop Over Your Favorites"
     bl_description = "Loop Over Your Favorites"
+
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
     def execute(self, context):
 
@@ -75,14 +81,13 @@ class NODEBOOSTER_OT_favorite_loop(bpy.types.Operator):
         sett_scene = context.scene.nodebooster
 
         favs = get_favorites(ng.nodes)
-        favs_len = len(favs)
-
-        if (favs_len==0):
+        if (not favs):
             self.report({'INFO'}, "No Favorites Found")
             return {"FINISHED"}
 
-        #rest to 0 if reach the end
-        if (sett_scene.favorite_index>=(favs_len-1)):
+        # NOTE ideally, active favorite should be set on a prop per nodegroup and not per scene.
+        # We reset to 0 if reach the end
+        if (sett_scene.favorite_index >= (len(favs)-1)):
               sett_scene.favorite_index = 0
         else: sett_scene.favorite_index += 1
 
@@ -90,6 +95,7 @@ class NODEBOOSTER_OT_favorite_loop(bpy.types.Operator):
         
         for n in ng.nodes:
             n.select = False
+
         reroute.select = True 
         ng.nodes.active = reroute
 
