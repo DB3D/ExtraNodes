@@ -78,7 +78,7 @@ def re_arrange_nodes(node_group, Xmultiplier=1):
     return None 
 
 
-class NOODLER_OT_node_purge_unused(bpy.types.Operator):
+class NODEBOOSTER_OT_node_purge_unused(bpy.types.Operator):
 
     bl_idname      = "nodebooster.node_purge_unused"
     bl_label       = "Purge Unused Nodes"

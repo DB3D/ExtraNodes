@@ -9,12 +9,14 @@ from collections.abc import Iterable
 
 from .__init__ import get_addon_prefs
 from .customnodes import NODEBOOSTER_NG_camerainfo, NODEBOOSTER_NG_pythonapi, NODEBOOSTER_NG_sequencervolume, NODEBOOSTER_NG_isrenderedview
+from .operators.palette import msgbus_palette_callback
 
 
 # We start with msgbusses
 
 
 MSGBUSOWNER_VIEWPORT_SHADING = object()
+MSGBUSOWNER_PALETTE =  object()
 
 
 def msgbus_viewportshading_callback(*args):
@@ -38,14 +40,23 @@ def register_msgbusses():
         args=(None,),
         options={"PERSISTENT"},
         )
+    
+    bpy.msgbus.subscribe_rna(
+        key=bpy.types.PaletteColor,
+        owner=MSGBUSOWNER_PALETTE,
+        notify=msgbus_palette_callback,
+        args=(None,),
+        options={"PERSISTENT"},
+        )
 
     return None
 
 
 def unregister_msgbusses():
-    
+
     bpy.msgbus.clear_by_owner(MSGBUSOWNER_VIEWPORT_SHADING)
-    
+    bpy.msgbus.clear_by_owner(MSGBUSOWNER_PALETTE)
+
     return None
 
 

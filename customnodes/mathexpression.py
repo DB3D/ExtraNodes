@@ -620,6 +620,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     #     - could procedurally change sockets input/outputs depending on type
     #     - however, there will be a lot of checks required to see if the user is using valid types.. quite annoying. Perhaps could be done by checking 'is_valid'
     #     Or maybe create a separate 'ComplexMath' node and keep this simple one?
+    # Inspiration https://extensions.blender.org/add-ons/math-formula/ 
 
     #TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
 

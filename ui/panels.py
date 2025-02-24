@@ -13,13 +13,13 @@ from ..operators import ADDON_KEYMAPS
 
 class NODEBOOSTER_PT_tool_search(bpy.types.Panel):
     """search element within your node_tree"""
-    
+
     bl_idname = "NODEBOOSTER_PT_tool_search"
     bl_label = "Node Search"
     bl_category = "Node Booster"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
-    
+
     @classmethod
     def poll(cls, context):
         return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
@@ -56,7 +56,7 @@ class NODEBOOSTER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
     #so we are hijacking the context for us then.
 
     bl_idname = "NODEBOOSTER_PT_tool_color_palette"
-    bl_label = "Assign Palette"
+    bl_label = "Assign Color"
     bl_category = "Node Booster"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
@@ -68,30 +68,25 @@ class NODEBOOSTER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
     def draw(self, context):
 
         layout = self.layout
-        # sett_scene = context.scene.nodebooster
-        settings = context.tool_settings.vertex_paint
-        unified = context.tool_settings.unified_paint_settings
-
-        if settings is None: 
-            col = layout.column()
-            col.active = False
-            col.scale_y = 0.8                
-            word_wrap(layout=col, alert=False, active=True, max_char='auto',
-                char_auto_sidepadding=0.95, context=context, alignment='LEFT',
-                string="Please go in vertex-paint to initiate the palette API.",
-                )
-            return None 
-
-        layout.template_ID(settings, "palette", new="palette.new")
-
-        if settings.palette:
-            row = layout.row(align=True)
-            colo = row.row(align=True)
-            colo.prop(unified,"color",text="")
-            # colo.prop(sett_scene,"palette_prop",text="")
-
-            row.operator("nodebooster.reset_color",text="",icon="LOOP_BACK",)
-            layout.template_palette(settings, "palette", color=True,)
+        
+        sett_scene = context.scene.nodebooster
+        ts = context.tool_settings
+        tsi = ts.image_paint
+        
+        if (not tsi.palette):
+            layout.operator("nodebooster.initalize_palette",text="Create Palette",icon="ADD",)
+            return None
+        
+        row = layout.row(align=True)
+        
+        colo = row.row(align=True)
+        colo.prop(sett_scene,"palette_older",text="")
+        colo.prop(sett_scene,"palette_old",text="")
+        colo.prop(sett_scene,"palette_active",text="")
+        
+        row.operator("nodebooster.palette_reset_color",text="",icon="LOOP_BACK",)
+        
+        layout.template_palette(tsi, "palette", color=True,)
 
         return None 
 

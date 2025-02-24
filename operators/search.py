@@ -6,7 +6,9 @@
 import bpy
 
 
-#TODO this operator could be improved
+#NOTE this functinality is implemented on an property update level
+
+#TODO this functionality could be improved
 #   TODO would be nice to add a recursive search feature in there
 #   TODO perhaps better to use a search operator instead of using a prop update
 #   TODO perhaps it would be nicer to confirm if user want to select (or enter a subgroup)

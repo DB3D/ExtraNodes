@@ -6,21 +6,26 @@
 import bpy
 
 from .bakemath import NODEBOOSTER_OT_bake_mathexpression
-from .purge import NOODLER_OT_node_purge_unused
+from .purge import NODEBOOSTER_OT_node_purge_unused
 from .favorites import NODEBOOSTER_OT_favorite_add, NODEBOOSTER_OT_favorite_loop
 from .depselect import NODEBOOSTER_OT_dependency_select
 from .drawframes import NODEBOOSTER_OT_draw_frame
 from .chamfer import NODEBOOSTER_OT_chamfer
+from .palette import NODEBOOSTER_OT_setcolor, NODEBOOSTER_OT_palette_reset_color, NODEBOOSTER_OT_initalize_palette
+
 
 classes = (
 
     NODEBOOSTER_OT_bake_mathexpression,
-    NOODLER_OT_node_purge_unused,
+    NODEBOOSTER_OT_node_purge_unused,
     NODEBOOSTER_OT_favorite_add,
     NODEBOOSTER_OT_favorite_loop,
     NODEBOOSTER_OT_dependency_select,
     NODEBOOSTER_OT_draw_frame,
     NODEBOOSTER_OT_chamfer,
+    NODEBOOSTER_OT_setcolor,
+    NODEBOOSTER_OT_palette_reset_color,
+    NODEBOOSTER_OT_initalize_palette,
 
     )
 
@@ -44,13 +49,13 @@ KMI_DEFS = (
 
 
 def load_operators_keymaps():
-    
+
     ADDON_KEYMAPS.clear()
-    
+
     kc = bpy.context.window_manager.keyconfigs.addon
     if (not kc):
         return None
-        
+
     km = kc.keymaps.new(name="Node Editor", space_type='NODE_EDITOR',)
     for (identifier, key, action, ctrl, shift, alt, props, name, icon, enable) in KMI_DEFS:
         kmi = km.keymap_items.new(identifier, key, action, ctrl=ctrl, shift=shift, alt=alt,)
@@ -59,14 +64,13 @@ def load_operators_keymaps():
             for prop, value in props:
                 setattr(kmi.properties, prop, value)
         ADDON_KEYMAPS.append((km, kmi, name, icon))
-    
+
     return None
             
 def unload_operators_keymaps():
-    
+
     for km, kmi, _, _ in ADDON_KEYMAPS:
         km.keymap_items.remove(kmi)
     ADDON_KEYMAPS.clear()
-    
+
     return None
-    

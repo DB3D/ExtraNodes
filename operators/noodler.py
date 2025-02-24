@@ -98,7 +98,7 @@ def get_space_from_mouse(x,y):
     for a in areas:
         if (a.x<x<a.x+a.width) and (a.y<y<a.y+a.height):
             return a.spaces[0]
-    return None 
+    return None
 
 
 def set_all_node_select(nodes, select_state,):
@@ -1221,7 +1221,7 @@ class NOODLER_OT_draw_route(bpy.types.Operator):
 #     return None 
 
 
-# class NOODLER_OT_node_purge_unused(bpy.types.Operator): #context from node editor only
+# class NODEBOOSTER_OT_node_purge_unused(bpy.types.Operator): #context from node editor only
 
 #     bl_idname      = "noodler.node_purge_unused"
 #     bl_label       = "Purge Unused Nodes"
@@ -1351,9 +1351,9 @@ class NOODLER_OT_draw_route(bpy.types.Operator):
 #             row = layout.row(align=True)
 #             colo = row.row(align=True)
 #             colo.prop(unified,"color",text="")
-#             colo.prop(noodle_scn,"palette_prop",text="")
+#             colo.prop(noodle_scn,"palette_active",text="")
 
-#             row.operator("noodler.reset_color",text="",icon="LOOP_BACK",)
+#             row.operator("noodler.palette_reset_color",text="",icon="LOOP_BACK",)
 #             layout.template_palette(settings, "palette", color=True,)
 
 #         return None 
@@ -1563,7 +1563,7 @@ class NOODLER_OT_get_mouse_location(bpy.types.Operator):
 
 class NOODLER_OT_reset_color(bpy.types.Operator, ):
 
-    bl_idname = "noodler.reset_color"
+    bl_idname = "noodler.palette_reset_color"
     bl_label = "Reset Color"
     bl_description = "Reset Color"
         
@@ -1579,7 +1579,7 @@ class NOODLER_OT_reset_color(bpy.types.Operator, ):
 
 def palette_callback(*args):
     """execute this function everytime user is clicking on a palette color""" 
-    #bpy.ops.noodler.reset_color()
+    #bpy.ops.noodler.palette_reset_color()
 
     bpy.ops.noodler.get_mouse_location(('INVOKE_DEFAULT'))
     global mouse_coord
@@ -1593,7 +1593,7 @@ def palette_callback(*args):
     palette_color = bpy.context.tool_settings.unified_paint_settings.color
 
     noodle_scn = bpy.context.scene.noodler
-    noodle_scn.palette_prop = list(palette_color)[:3]
+    noodle_scn.palette_active = list(palette_color)[:3]
     if noodle_scn.frame_sync_color:
         noodle_scn.frame_color = list(palette_color)[:3]
 
@@ -1606,7 +1606,7 @@ def palette_callback(*args):
     return None 
 
 
-def palette_prop_upd(self, context):
+def palette_active_upd(self, context):
 
     if context.space_data is None:
         return None 
@@ -1616,7 +1616,7 @@ def palette_prop_upd(self, context):
         if n.select:
             if not n.use_custom_color:
                 n.use_custom_color = True
-            n.color = self.palette_prop
+            n.color = self.palette_active
 
     return None 
 
@@ -1875,7 +1875,7 @@ def search_upd(self, context):
 #     frame_label: bpy.props.StringProperty(default=" ",name="Label")
 #     frame_label_size: bpy.props.IntProperty(default=16,min=0,name="Label Size")
 
-#     palette_prop: bpy.props.FloatVectorProperty(default=(0,0,0),subtype="COLOR",name="Color",update=palette_prop_upd)
+#     palette_active: bpy.props.FloatVectorProperty(default=(0,0,0),subtype="COLOR",name="Color",update=palette_active_upd)
 
 #     search_keywords: bpy.props.StringProperty(default=" ",name="Keywords",update=search_upd)
 #     search_center: bpy.props.BoolProperty(default=True,name="Recenter View",update=search_upd) 
@@ -1942,7 +1942,7 @@ classes = (
 
     NOODLER_OT_dependency_select,
 
-    NOODLER_OT_node_purge_unused,
+    NODEBOOSTER_OT_node_purge_unused,
     )
 
 
