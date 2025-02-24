@@ -242,7 +242,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         row = layout.row()
         row.alert = self.evaluation_error
         icon = 'ERROR' if self.evaluation_error else 'SCRIPT'
-        row.prop(self,"user_expression",text="", icon=icon,)
+        row.prop(self, "user_expression", placeholder="Python Expression", text="", icon=icon,)
 
         return None
 
