@@ -95,49 +95,17 @@ class NODEBOOSTER_NG_camerainfo(bpy.types.GeometryNodeCustomGroup):
 
     def draw_buttons(self, context, layout):
         """node interface drawing"""
-        
+
         row = layout.row(align=True)
         sub = row.row(align=True)
         sub.active = not self.use_scene_cam
-        
+
         if (self.use_scene_cam):
               sub.prop(bpy.context.scene, "camera", text="", icon="CAMERA_DATA")
         else: sub.prop(self, "camera_obj", text="", icon="CAMERA_DATA")
-        
+
         row.prop(self, "use_scene_cam", text="", icon="SCENE_DATA")
 
-        return None
-
-    def draw_buttons_ext(self, context, layout):
-        """draw in the N panel when the node is selected"""
-        
-        row = layout.row(align=True)
-        sub = row.row(align=True)
-        sub.active = not self.use_scene_cam
-        
-        if (self.use_scene_cam):
-              sub.prop(bpy.context.scene, "camera", text="", icon="CAMERA_DATA")
-        else: sub.prop(self, "camera_obj", text="", icon="CAMERA_DATA")
-        
-        layout.prop(self, "use_scene_cam",)
-    
-        header, panel = layout.panel("doc_panelid", default_closed=True,)
-        header.label(text="Documentation",)
-        if (panel):
-            word_wrap(layout=panel, alert=False, active=True, max_char='auto',
-                char_auto_sidepadding=0.9, context=context, string=self.bl_description,
-                )
-            panel.operator("wm.url_open", text="Documentation",).url = "www.todo.com"
-            
-        header, panel = layout.panel("dev_panelid", default_closed=True,)
-        header.label(text="Development",)
-        if (panel):
-            panel.active = False
-                            
-            col = panel.column(align=True)
-            col.label(text="NodeTree:")
-            col.template_ID(self, "node_tree")
-        
         return None
         
     @classmethod

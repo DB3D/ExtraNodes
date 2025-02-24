@@ -241,62 +241,9 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                 
         row = layout.row()
         row.alert = self.evaluation_error
-        row.prop(self,"user_expression",text="",)
+        icon = 'ERROR' if self.evaluation_error else 'SCRIPT'
+        row.prop(self,"user_expression",text="", icon=icon,)
 
-        return None
-
-    def draw_buttons_ext(self, context, layout):
-        """draw in the N panel when the node is selected"""
-
-        sett_plugin = get_addon_prefs()
-
-        col = layout.column(align=True)
-        row = col.row(align=True)
-        row.alert = self.evaluation_error
-        row.prop(self,"user_expression", text="",)
-
-        header, panel = layout.panel("doc_panelid", default_closed=True,)
-        header.label(text="Documentation",)
-        if (panel):
-            word_wrap(layout=panel, alert=False, active=True, max_char='auto',
-                char_auto_sidepadding=0.9, context=context, string=self.bl_description,
-                )
-            panel.operator("wm.url_open", text="Documentation",).url = "www.todo.com"
-
-        header, panel = layout.panel("doc_prefs", default_closed=True,)
-        header.label(text="Preferences",)
-        if (panel):
-            col = panel.column(align=True)
-            col.label(text="Namespace Convenience:")
-            
-            row = col.row(align=True)
-            row.enabled = False
-            row.prop(sett_plugin,"pynode_convenience_exec1",text="",)
-            
-            row = col.row(align=True)
-            row.enabled = False
-            row.prop(sett_plugin,"pynode_convenience_exec2",text="",)
-            
-            row = col.row(align=True)
-            row.prop(sett_plugin,"pynode_convenience_exec3",text="",)
-        
-            panel.prop(sett_plugin,"pynode_depseval",)
-
-        header, panel = layout.panel("dev_panelid", default_closed=True,)
-        header.label(text="Development",)
-        if (panel):
-            panel.active = False
-                            
-            col = panel.column(align=True)
-            col.label(text="NodeTree:")
-            col.template_ID(self, "node_tree")
-            
-            col = panel.column(align=True)
-            col.label(text="Debugging:")
-            row = col.row()
-            row.enabled = False
-            row.prop(self, "debug_update_counter",)
-        
         return None
 
     @classmethod
