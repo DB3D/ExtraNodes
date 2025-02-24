@@ -5,11 +5,12 @@
 
 import bpy
 
+from ..operators.search import search_upd
+
 
 class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup): 
     """sett_scene = bpy.context.scene.nodebooster"""
 
-    #custom properties for the frame node operator
     frame_use_custom_color: bpy.props.BoolProperty(
         default=False,
         name="Frame Color")
@@ -39,55 +40,54 @@ class NODEBOOSTER_PR_scene(bpy.types.PropertyGroup):
     #     update=palette_prop_upd,
     #     )
 
-    # search_keywords: bpy.props.StringProperty(
-    #     default=" ",
-    #     name="Keywords",
-    #     update=search_upd,
-    #     )
-    # search_center: bpy.props.BoolProperty(
-    #     default=True,
-    #     name="Recenter View",
-    #     update=search_upd,
-    #     )
-    # search_labels: bpy.props.BoolProperty(
-    #     default=True,
-    #     name="Label",
-    #     update=search_upd,
-    #     )
-    # search_types: bpy.props.BoolProperty(
-    #     default=True,
-    #     name="Type",
-    #     update=search_upd,
-    #     )
-    # search_names: bpy.props.BoolProperty(
-    #     default=False,
-    #     name="Internal Name",
-    #     update=search_upd,
-    #     )
-    # search_socket_names: bpy.props.BoolProperty(
-    #     default=False,
-    #     name="Socket Names",
-    #     update=search_upd,
-    #     )
-    # search_socket_types: bpy.props.BoolProperty(
-    #     default=False,
-    #     name="Socket Types",
-    #     update=search_upd,
-    #     )
-    # search_input_only: bpy.props.BoolProperty(
-    #     default=False,
-    #     name="Input Only",
-    #     update=search_upd,
-    #     )
-    # search_frame_only: bpy.props.BoolProperty(
-    #     default=False,
-    #     name="Frame Only",
-    #     update=search_upd,
-    #     )
-    
-    # search_found: bpy.props.IntProperty(
-    #     default=0,
-    #     )
+    search_keywords: bpy.props.StringProperty(
+        default=" ",
+        name="Keywords",
+        update=search_upd,
+        )
+    search_center: bpy.props.BoolProperty(
+        default=True,
+        name="Recenter View",
+        update=search_upd,
+        )
+    search_labels: bpy.props.BoolProperty(
+        default=True,
+        name="Label",
+        update=search_upd,
+        )
+    search_types: bpy.props.BoolProperty(
+        default=True,
+        name="Type",
+        update=search_upd,
+        )
+    search_names: bpy.props.BoolProperty(
+        default=False,
+        name="Internal Name",
+        update=search_upd,
+        )
+    search_socket_names: bpy.props.BoolProperty(
+        default=False,
+        name="Socket Names",
+        update=search_upd,
+        )
+    search_socket_types: bpy.props.BoolProperty(
+        default=False,
+        name="Socket Types",
+        update=search_upd,
+        )
+    search_input_only: bpy.props.BoolProperty(
+        default=False,
+        name="Input Nodes Only",
+        update=search_upd,
+        )
+    search_frame_only: bpy.props.BoolProperty(
+        default=False,
+        name="Frame Only",
+        update=search_upd,
+        )
+    search_found: bpy.props.IntProperty(
+        default=0,
+        )
 
     favorite_index : bpy.props.IntProperty(
         default=0,

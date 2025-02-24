@@ -26,27 +26,27 @@ class NODEBOOSTER_PT_tool_search(bpy.types.Panel):
 
     def draw(self, context):
 
+        sett_scene = context.scene.nodebooster
+
         layout = self.layout
-        # sett_scene = context.scene.nodebooster
-            
-        # row = layout.row(align=True)
-        # row.prop(noodle_scn,"search_keywords",text="",icon="VIEWZOOM")
-        # row.prop(noodle_scn,"search_center",text="",icon="ZOOM_ALL")
-
-        layout.label(text="Search Filters:")
-
         layout.use_property_split = True
+        layout.use_property_decorate = False
 
-        # layout.prop(noodle_scn,"search_labels")
-        # layout.prop(noodle_scn,"search_types")
-        # layout.prop(noodle_scn,"search_socket_names")
-        # layout.prop(noodle_scn,"search_socket_types")
-        # layout.prop(noodle_scn,"search_names")
-        # layout.prop(noodle_scn,"search_input_only")
-        # layout.prop(noodle_scn,"search_frame_only")
+        row = layout.row(align=True)
+        row.prop(sett_scene,"search_keywords",text="",icon="VIEWZOOM")
+        row.prop(sett_scene,"search_center",text="",icon="ZOOM_ALL")
 
-        # s = layout.column()
-        # s.label(text=f"Found {noodle_scn.search_found} Element(s)")
+        col = layout.column(heading="Filters")
+        col.prop(sett_scene,"search_labels")
+        # col.prop(sett_scene,"search_types") #TODO For later. Ideally they should be type enum
+        col.prop(sett_scene,"search_socket_names") #TODO Ideally we should have an option to either check sockets or ng info.
+        # col.prop(sett_scene,"search_socket_types") #TODO For later. Ideally they should be type enum
+        col.prop(sett_scene,"search_names")
+        col.prop(sett_scene,"search_input_only")
+        col.prop(sett_scene,"search_frame_only")
+
+        s = layout.column()
+        s.label(text=f"Found {sett_scene.search_found} Element(s)")
     
         return None
 
@@ -68,7 +68,7 @@ class NODEBOOSTER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
     def draw(self, context):
 
         layout = self.layout
-        # noodle_scn = context.scene.nodebooster
+        # sett_scene = context.scene.nodebooster
         settings = context.tool_settings.vertex_paint
         unified = context.tool_settings.unified_paint_settings
 
@@ -88,7 +88,7 @@ class NODEBOOSTER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
             row = layout.row(align=True)
             colo = row.row(align=True)
             colo.prop(unified,"color",text="")
-            # colo.prop(noodle_scn,"palette_prop",text="")
+            # colo.prop(sett_scene,"palette_prop",text="")
 
             row.operator("nodebooster.reset_color",text="",icon="LOOP_BACK",)
             layout.template_palette(settings, "palette", color=True,)
