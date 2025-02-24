@@ -19,6 +19,7 @@ class NODEBOOSTER_PT_tool_search(bpy.types.Panel):
     bl_category = "Node Booster"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
+    bl_order = 0
 
     @classmethod
     def poll(cls, context):
@@ -60,6 +61,7 @@ class NODEBOOSTER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
     bl_category = "Node Booster"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
+    bl_order = 1
 
     @classmethod
     def poll(cls, context):
@@ -68,24 +70,24 @@ class NODEBOOSTER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
     def draw(self, context):
 
         layout = self.layout
-        
+
         sett_scene = context.scene.nodebooster
         ts = context.tool_settings
         tsi = ts.image_paint
-        
+
         if (not tsi.palette):
             layout.operator("nodebooster.initalize_palette",text="Create Palette",icon="ADD",)
             return None
-        
+
         row = layout.row(align=True)
-        
+
         colo = row.row(align=True)
         colo.prop(sett_scene,"palette_older",text="")
         colo.prop(sett_scene,"palette_old",text="")
         colo.prop(sett_scene,"palette_active",text="")
-        
+
         row.operator("nodebooster.palette_reset_color",text="",icon="LOOP_BACK",)
-        
+
         layout.template_palette(tsi, "palette", color=True,)
 
         return None 
@@ -98,30 +100,31 @@ class NODEBOOSTER_PT_tool_frame(bpy.types.Panel):
     bl_category = "Node Booster"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
+    bl_order = 3
 
     @classmethod
     def poll(cls, context):
         return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
-    
+
     def draw(self, context):
 
         sett_scene = context.scene.nodebooster
-        
+
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False
-        
+
         col = layout.column()
         col.prop(sett_scene,"frame_label")
         col.prop(sett_scene,"frame_label_size")
         col.prop(sett_scene,"frame_use_custom_color")
-                
+
         col = col.column()
         col.prop(sett_scene,"frame_sync_color")
         col.separator(factor=0.25)
         col.active = sett_scene.frame_use_custom_color
         col.prop(sett_scene,"frame_color")
-        
+
         return None
 
 
@@ -132,6 +135,7 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
     bl_category = "Node Booster"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
+    bl_order = 2
 
     @classmethod
     def poll(cls, context):
@@ -145,9 +149,9 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
             
             if (i!=0):
                 layout.separator(type='LINE')
-                
+
             col = layout.box()
-            
+
             titlename = name.replace('Select','Sel.')
             mainrow = col.row(align=True)
             row = mainrow.row(align=True)
@@ -156,45 +160,45 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
             row = mainrow.row(align=True)
             row.alignment = 'RIGHT'
             row.label(text='',icon=icon)
-            
+
             col = col.column()
             col.active = kmi.active
-            
+
             header, panel = col.panel(f'geobuilder_shortcut_layoutpanel_defaults_{i}', default_closed=False,)
             header.label(text="Default Shortcut",)
             if (panel):
                 panel.separator(factor=0.5)
                 row = panel.row(align=True)
                 row.separator(factor=0.5)
-                
+
                 match name:
                     case "Add Favorite":
                         row.label(text='', icon='EVENT_CTRL',)
                         row.separator(factor=2.35)
                         row.label(text='', icon='EVENT_Y',)
-                        
+
                     case "Loop Favorites":
                         row.label(text='', icon='EVENT_Y',)
-                        
+
                     case "Select Downstream":
                         row.label(text='', icon='EVENT_CTRL',)
                         row.separator(factor=2.35)
                         row.label(text='', icon='MOUSE_LMB',)
-                        
+
                     case "Select Downstream (Add)":
                         row.label(text='', icon='EVENT_SHIFT',)
                         row.separator(factor=0.9)
                         row.label(text='', icon='EVENT_CTRL',)
                         row.separator(factor=2.35)
                         row.label(text='', icon='MOUSE_LMB',)
-                        
+
                     case "Select Upsteam":
                         row.label(text='', icon='EVENT_CTRL',)
                         row.separator(factor=2.35)
                         row.label(text='', icon='EVENT_ALT',)
                         row.separator(factor=2.35)
                         row.label(text='', icon='MOUSE_LMB',)
-                        
+
                     case "Select Upsteam (Add)":
                         row.label(text='', icon='EVENT_SHIFT',)
                         row.separator(factor=0.9)
@@ -203,11 +207,11 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
                         row.label(text='', icon='EVENT_ALT',)
                         row.separator(factor=2.35)
                         row.label(text='', icon='MOUSE_LMB',)
-                    
+
                     case "Draw Frame":
                         row.label(text='', icon='IMPORT',)
                         row.label(text='', icon='EVENT_J',)
-                    
+
                     case "Draw Reroute":
                         row.label(text='', icon='IMPORT',)
                         row.label(text='', icon='EVENT_V',)
@@ -216,11 +220,11 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
                         row.label(text='', icon='EVENT_CTRL',)
                         row.separator(factor=2.35)
                         row.label(text='', icon='EVENT_B',)
-        
+
                 panel.separator(factor=0.5)
-            
+
             col.separator(factor=0.5)
-                        
+
             header, panel = col.panel(f'geobuilder_shortcut_layoutpanel_custom_{i}', default_closed=True,)
             header.label(text="Customize",)
             if (panel):
@@ -237,6 +241,5 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
                 sub.prop(kmi, "alt_ui",)
 
             continue
-        
 
         return None 

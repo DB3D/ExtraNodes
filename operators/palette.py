@@ -113,13 +113,10 @@ class NODEBOOSTER_OT_palette_reset_color(bpy.types.Operator, ):
         return {'FINISHED'}
 
 
-class NODEBOOSTER_OT_initalize_palette(bpy.types.Operator, ):
+def initialize_palette():
+    """create a new palette data with new colors"""
 
-    bl_idname = "nodebooster.initalize_palette"
-    bl_label = "Create Palette"
-    bl_description = "Create Palette"
-
-    INITPALLETTE = [
+    colors = [
         (1.0, 1.0, 1.0),
         (0.9490196704864502, 0.9490196704864502, 0.9490196704864502),
         (0.9019608497619629, 0.9019608497619629, 0.9019608497619629),
@@ -242,22 +239,32 @@ class NODEBOOSTER_OT_initalize_palette(bpy.types.Operator, ):
         (0.0, 0.0, 0.49803924560546875),
     ]
 
+    pal = bpy.data.palettes.get(".NodeBoosterPalette")
+    if pal is None:
+        pal = bpy.data.palettes.new(".NodeBoosterPalette")
+
+        for col in colors:
+            palcol = pal.colors.new()
+            palcol.color = col
+            palcol.weight = 1.0
+
+    ts = bpy.context.tool_settings
+    ts.image_paint.palette = pal
+    
+    return None
+
+
+class NODEBOOSTER_OT_initalize_palette(bpy.types.Operator, ):
+
+    bl_idname = "nodebooster.initalize_palette"
+    bl_label = "Create Palette"
+    bl_description = "Create Palette"
+
+
     @classmethod
     def poll(cls, context):
         return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
 
     def execute(self, context,):
-
-        pal = bpy.data.palettes.get(".NodeBoosterPalette")
-        if pal is None:
-            pal = bpy.data.palettes.new(".NodeBoosterPalette")
-
-            for col in self.INITPALLETTE:
-                palcol = pal.colors.new()
-                palcol.color = col
-                palcol.weight = 1.0
-
-        ts = context.tool_settings
-        ts.image_paint.palette = pal
-
+        initialize_palette()
         return {'FINISHED'}
