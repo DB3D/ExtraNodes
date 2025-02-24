@@ -677,7 +677,7 @@ class FunctionTransformer(ast.NodeTransformer):
 
 
 class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
-    """Custom Nodgroup: Evaluate a math expression using various math nodes.
+    """Custom Nodgroup: Evaluate a math expression, internally it will use various math nodes automatically.
     Please See the 'Node > Properties > Glossary' panel to see all functions and notation available and their descriptions.
     If you wish to bake this node into a nodegroup, a bake operator is available in the 'Node > Properties' panel.
     Under the hood, on each string field edit, the expression will be sanarized, then transformed into functions that will be executed to create a nodetree."""
@@ -691,6 +691,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     # Inspiration https://extensions.blender.org/add-ons/math-formula/ 
 
     #TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
+    #TODO would be nice to go back and forth from bake to custom node again..
 
     bl_idname = "GeometryNodeNodeBoosterMathExpression"
     bl_label = "Math Expression"
