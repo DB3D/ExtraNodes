@@ -450,7 +450,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
         for l in self.node_tree.links[:].copy():
             if (l.to_socket.node.type=='GROUP_OUTPUT'):
                 if (l.to_socket.type=='CUSTOM'):
-                    
+
                     newtype = l.from_socket.type
                     if (newtype in {'CUSTOM','VALUE'}):
                         newtype = 'FLOAT'
@@ -462,13 +462,13 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                     self.node_tree.links.remove(l)
                     self.node_tree.links.new(s_old,s_new)
                     break
-        
+
         # case if link comes from a custom group input, 
         # with current link behavior we need to check the final type of the potential reroute chain
         for l in self.node_tree.links[:].copy():
             if (l.from_socket.node.type=='GROUP_INPUT'):
                 if l.from_socket.type=='CUSTOM':
-                                        
+
                     newtype = get_linkchain_finalsocket_type(l)
                     if (newtype in {'CUSTOM','VALUE'}):
                         newtype = 'FLOAT'
@@ -483,7 +483,7 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
 
         bpy.ops.ed.undo_push(message="Route Drawing", )
         context.workspace.status_text_set_internal(None)
-        
+
         self.report({'INFO'},"Drawroute Created New Links!")
         return None
 

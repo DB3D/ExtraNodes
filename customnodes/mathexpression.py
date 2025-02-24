@@ -374,12 +374,22 @@ class NodeSetter():
     def min(cls,a,b):
         """Minimum between A & B."""
         return cls._floatmath('MINIMUM',a,b)
-    
+
+    @taguser
+    def smin(cls,a,b,dist):
+        """Minimum between A & B considering a smoothing distance."""
+        return cls._floatmath('SMOOTH_MIN',a,b,dist)
+
     @taguser
     def max(cls,a,b):
         """Maximum between A & B."""
         return cls._floatmath('MAXIMUM',a,b)
-    
+
+    @taguser
+    def smax(cls,a,b,dist):
+        """Maximum between A & B considering a smoothing distance."""
+        return cls._floatmath('SMOOTH_MAX',a,b,dist)
+
     @taguser
     def round(cls,a):
         """Round a Float to an Integer."""
@@ -401,10 +411,20 @@ class NodeSetter():
         return cls._floatmath('TRUNC',a)
 
     @taguser
-    def modulo(cls,a,b):
+    def frac(cls,a):
+        """Fraction.\nThe fraction part of A."""
+        return cls._floatmath('FRACT',a)
+    
+    @taguser
+    def mod(cls,a,b):
         """Modulo.\nEquivalent to the '%' symbol."""
         return cls._floatmath('MODULO',a,b)
-    
+
+    @taguser
+    def fmod(cls,a,b):
+        """Floored Modulo."""
+        return cls._floatmath('FLOORED_MODULO',a,b)
+
     @taguser
     def wrap(cls,v,a,b):
         """Wrap value to Range A B."""
@@ -414,6 +434,11 @@ class NodeSetter():
     def snap(cls,v,i):
         """Snap to Increment."""
         return cls._floatmath('SNAP',v,i)
+
+    @taguser
+    def pingpong(cls,v,scale):
+        """PingPong. Wrap a value and every other cycles at cycle Scale."""
+        return cls._floatmath('PINGPONG',v,scale)
     
     @taguser
     def floordiv(cls,a,b): #Custom
@@ -499,11 +524,6 @@ class NodeSetter():
         return cls._floatclamp('RANGE',v,a,b)
 
     #to support:
-    #TODO frac
-    #TODO use 'mod' not modulo
-    #TODO fmod
-    #TODO pingpong
-    #TODO smin smax
     #TODO map,mapst,mapsmo, mapsmoo
     #TODO add dynamic output type
     #   TODO int
@@ -540,7 +560,7 @@ class FunctionTransformer(ast.NodeTransformer):
             case ast.Pow():
                 func_name = 'pow'
             case ast.Mod():
-                func_name = 'modulo'
+                func_name = 'mod'
             case ast.FloorDiv():
                 func_name = 'floordiv'
             case _:
