@@ -5,7 +5,7 @@
 
 import bpy
 
-from ..utils.node_utils import get_nearest_node_at_position
+from ..utils.node_utils import get_nearest_node_at_position, create_socket, get_socket_from_socketui
 from ..utils.draw_utils import ensure_mouse_cursor
 
 
@@ -17,12 +17,38 @@ def get_next_itm_after_active(itter, active=None, step=1):
     return itter[next_index]
 
 
+def get_linkchain_finalsocket_type(link):
+    """Given a link object with, returns the final socket type after following any reroute chain."""
+    
+    if (link.to_socket.node.type=='REROUTE'):
+
+        while True:
+            
+            nd = link.to_socket.node
+            if (nd.type!='REROUTE'):
+                print("FINAL",link.to_socket.type, link.to_socket.node.type,)
+                break
+            if (not nd.outputs): #necessary?
+                break
+            if (not nd.outputs[0].links):
+                break
+            
+            # Assign next link
+            # NOTE in that context, the draw_route operator cannot create branched path
+            # so we only have a single link possibility, using [0] will work
+            link = nd.outputs[0].links[0]
+            
+            continue
+        
+    return link.to_socket.type
+
 class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
 
     #TODO could propose shift a menu when done just like link operation
     #TODO what if user want to link right to left direction?
     #TODO need to support new panel functionality for nodes, only for latest blender version tho, don't think it was there for 4.2
-    
+    #TODO could use shift+ctrl to replace existing link maybe?
+
     bl_idname = "nodebooster.draw_route"
     bl_label = "Draw Reroute Pathways"
     bl_options = {'REGISTER'}
@@ -38,10 +64,11 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
         self.init_click = (0,0)
         self.last_click = (0,0)
 
-        #keeps track of reroutes
+        #keeps track of reroutes & links
         self.old_rr = None 
         self.new_rr = None
         self.created_rr = []
+        self.created_lks = []
 
         #wheeling upon active 
         self.from_active = None #if node is active, then we do not create an new reroute to begin with but we use active output and wheel shortcut
@@ -53,7 +80,6 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
         self.nearest = None
 
         #keep track of if we created inputs on GROUP_OUTPUT type
-        self.gr_out_init_len = None
         self.tmp_custom_sock_links = None
 
         self.footer_active = None #'main|shift'
@@ -103,7 +129,6 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
 
         #Write status bar
         context.workspace.status_text_set_internal(self.footer_main)
-        # context.area.tag_redraw()
         
         #start modal 
         context.window_manager.modal_handler_add(self)
@@ -222,7 +247,6 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
         if (self.footer_active!='main'):
             context.workspace.status_text_set_internal(self.footer_main)
             self.footer_active = 'main'
-        # context.area.tag_redraw()
 
         #if user is holding shift, that means he want to finalize and connect to input, entering a sub modal state.
 
@@ -232,7 +256,6 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
             if (self.footer_active!='shift'):
                 context.workspace.status_text_set_internal(self.footer_shift)
                 self.footer_active = 'shift'
-                # context.area.tag_redraw()
             
             #initiating the shift mode, when user press for the first time
             if (event.type=="LEFT_SHIFT" and event.value=="PRESS"):
@@ -269,14 +292,6 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                 #reset wheel loop
                 self.wheel_out = 0
 
-                #if we created new slots in group output, reset
-                if (self.gr_out_init_len is not None):
-                    #HERE
-                    print("111111")
-                    # while len(self.node_tree.outputs)>self.gr_out_init_len:
-                    #     self.node_tree.outputs.remove(self.node_tree.outputs[-1])
-                    # self.gr_out_init_len = None 
-
             #find available sockets
             availsock = [ i for i,s in enumerate(nearest.inputs) if (s.is_multi_input or len(s.links)==0) and s.enabled]
             socklen = len(availsock)
@@ -302,12 +317,14 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                   inp = self.new_rr.outputs[0] 
             else: inp = self.from_active.outputs[self.wheel_inp]
 
-            #keep track if we created new sockets of an GROUP_OUTPUT type
-            if ((nearest.type=="GROUP_OUTPUT") and (self.gr_out_init_len is None)):
-                self.gr_out_init_len = len([s for s in nearest.inputs if s.type!="CUSTOM"])
-
             #create the link
             out_link = self.node_tree.links.new(inp, outp,)
+            
+            # blender might think the link is false if the outp or inp is a CUSTOM, 
+            # not the case, we are going to fix that later on confirm
+            if (inp.type=='CUSTOM' or outp.type=='CUSTOM'):
+                out_link.is_valid = True #Blender devs might put this to read only one of these days.. I hope not..
+                # NOTE 'Invalid Link' message will still appear tho.
 
             #detect if we created a new group output by doing this check
             if (out_link!=self.node_tree.links[-1]):
@@ -315,12 +332,9 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
             else: self.out_link = out_link
 
             if (event.type=="RET") or ((event.type=="LEFTMOUSE") and (event.value=="PRESS")):
-                
-                bpy.ops.ed.undo_push(message="Route Drawing", )
-                context.workspace.status_text_set_internal(None)
+                self.confirm(context)
                 return {'FINISHED'}
         
-            # context.area.tag_redraw()
             return {'RUNNING_MODAL'}
 
         #upon quitting shift event?
@@ -335,19 +349,9 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
             #reset wheel loop
             self.wheel_out = 0
 
-            #if we created new slots in group output, reset
-            if (self.gr_out_init_len is not None):
-                
-                #HERE
-                print("222222")
-                # while (len(self.node_tree.outputs)>self.gr_out_init_len):
-                #     self.node_tree.outputs.remove(self.node_tree.outputs[-1])
-                # self.gr_out_init_len = None 
-
             #restore reroute we removed on shift init
             self.add_reroute(context,event)
 
-            # context.area.tag_redraw()
             return {'RUNNING_MODAL'}
 
         #switch to new reroute? 
@@ -406,27 +410,13 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
             #just remove last non confirmed reroute
             self.node_tree.nodes.remove(self.new_rr)
             
-            bpy.ops.ed.undo_push(message="Route Drawing", )
-            context.workspace.status_text_set_internal(None)
+            self.confirm(context)
             return {'FINISHED'}
 
         #cancel? 
 
         if (event.type in {"ESC","RIGHTMOUSE"}):
-
-            #remove all created
-            for n in self.created_rr:
-                self.node_tree.nodes.remove(n)
-
-            #reset selection to init
-            for n in self.node_tree.nodes:
-                n.select = False
-            
-            if (self.from_active):
-                self.node_tree.nodes.active = self.from_active
-                self.from_active.select = True
-
-            context.workspace.status_text_set_internal(None)
+            self.cancel(context)
             return {'CANCELLED'}
 
         #or move newest reroute 
@@ -445,8 +435,76 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
     
         # except Exception as e:
         #     print(e)
-        #     context.workspace.status_text_set_internal(None)
+        #     self.cancel(context)
         #     self.report({'ERROR'},"An Error Occured during DrawRoute modal")
         #     return {'CANCELLED'}
             
         return {'RUNNING_MODAL'}
+
+    def confirm(self, context):
+    
+        # we might created links from the CUSTOM GROUP_INPUT or GROUP_OUTPUT socket type,
+        # Let's check this and actually create the new sockets
+
+        # case if link goes toward a custom group output
+        for l in self.node_tree.links[:].copy():
+            if (l.to_socket.node.type=='GROUP_OUTPUT'):
+                if (l.to_socket.type=='CUSTOM'):
+
+                    print("Hoyyyy")
+                    
+                    newtype = l.from_socket.type
+                    if (newtype in {'CUSTOM','VALUE'}):
+                        newtype = 'FLOAT'
+
+                    s_old = l.from_socket
+                    s_new = create_socket(self.node_tree, in_out='OUTPUT', 
+                        socket_type=newtype, socket_name='Output',)
+                    s_new = get_socket_from_socketui(self.node_tree, s_new, in_out='OUTPUT')
+
+                    self.node_tree.links.remove(l)
+                    self.node_tree.links.new(s_old,s_new)
+                    continue
+        
+        # case if link comes from a custom group input, 
+        # with current link behavior we need to check the final type of the potential reroute chain
+        for l in self.node_tree.links[:].copy():
+            if (l.from_socket.node.type=='GROUP_INPUT'):
+                if l.from_socket.type=='CUSTOM':
+                    
+                    print("Heyy")
+                    
+                    newtype = get_linkchain_finalsocket_type(l)
+                    if (newtype in {'CUSTOM','VALUE'}):
+                        newtype = 'FLOAT'
+
+                    s_old = l.to_socket
+                    s_new = create_socket(self.node_tree, in_out='INPUT', 
+                        socket_type=newtype, socket_name='Input',)
+                    s_new = get_socket_from_socketui(self.node_tree, s_new, in_out='INPUT')
+
+                    self.node_tree.links.remove(l)
+                    self.node_tree.links.new(s_new,s_old)
+                    continue
+
+        bpy.ops.ed.undo_push(message="Route Drawing", )
+        context.workspace.status_text_set_internal(None)
+        
+        self.report({'INFO'},"Drawroute Created New Links!")
+        return None
+
+    def cancel(self, context):
+        
+        #remove all reroutes we created
+        for n in self.created_rr:
+            self.node_tree.nodes.remove(n)
+
+        #reset selection and active
+        for n in self.node_tree.nodes:
+            n.select = False
+        if (self.from_active):
+            self.node_tree.nodes.active = self.from_active
+            self.from_active.select = True
+
+        context.workspace.status_text_set_internal(None)
+        return None

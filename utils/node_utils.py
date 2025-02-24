@@ -29,7 +29,7 @@ def get_node_absolute_location(node):
     return Vector((x,y))
 
 
-def get_socket_interface_item(ng, idx, in_out='OUTPUT',):
+def get_socketui_from_socket_idx(ng, idx, in_out='OUTPUT',):
     """return a given socket index as an interface item, either find the socket by it's index, name or socketidentifier"""
     
     #first we need to retrieve the socket identifier from index
@@ -41,7 +41,7 @@ def get_socket_interface_item(ng, idx, in_out='OUTPUT',):
             break
     
     if (identifier is None):
-        raise Exception("ERROR: get_socket_interface_item(): couldn't retrieve socket identifier..")
+        raise Exception("ERROR: get_socketui_from_socket_idx(): couldn't retrieve socket identifier..")
     
     #then we retrieve thesocket interface item from identifier
     sockui = None
@@ -51,9 +51,19 @@ def get_socket_interface_item(ng, idx, in_out='OUTPUT',):
         sockui = findgen[0]
         
     if (sockui is None):
-        raise Exception("ERROR: get_socket_interface_item(): couldn't retrieve socket interface item..")
+        raise Exception("ERROR: get_socketui_from_socket_idx(): couldn't retrieve socket interface item..")
     
     return sockui
+
+
+def get_socket_from_socketui(ng, sockui, in_out='OUTPUT'):
+    """retrieve NodeSocket from a NodeTreeInterfaceSocket type"""
+    
+    sockets = ng.nodes["Group Output"].inputs if (in_out=='OUTPUT') else ng.nodes["Group Input"].outputs
+    for s in sockets:
+        if (s.identifier == sockui.identifier):
+            return s
+    raise Exception('NodeSocket from nodetree.interface.items_tree does not exist?')
 
 
 def get_socket_defvalue(ng, idx, in_out='OUTPUT',):
@@ -85,7 +95,7 @@ def set_socket_defvalue(ng, idx, in_out='OUTPUT', value=None,):
 def set_socket_label(ng, idx, in_out='OUTPUT', label=None,):
     """return the label of the given nodegroups output at given socket idx"""
     
-    itm = get_socket_interface_item(ng, idx, in_out=in_out,)
+    itm = get_socketui_from_socket_idx(ng, idx, in_out=in_out,)
     itm.name = str(label)
                 
     return None  
@@ -94,14 +104,14 @@ def set_socket_label(ng, idx, in_out='OUTPUT', label=None,):
 def get_socket_type(ng, idx, in_out='OUTPUT',):
     """return the type of the given nodegroups output at given socket idx"""
     
-    itm = get_socket_interface_item(ng, idx, in_out=in_out,)
+    itm = get_socketui_from_socket_idx(ng, idx, in_out=in_out,)
     return itm.socket_type
 
 
 def set_socket_type(ng, idx, in_out='OUTPUT', socket_type="NodeSocketFloat",):
     """set socket type via bpy.ops.node.tree_socket_change_type() with manual override, context MUST be the geometry node editor"""
 
-    itm = get_socket_interface_item(ng, idx, in_out=in_out,)
+    itm = get_socketui_from_socket_idx(ng, idx, in_out=in_out,)
     itm.socket_type = socket_type
 
     return None
@@ -110,13 +120,21 @@ def set_socket_type(ng, idx, in_out='OUTPUT', socket_type="NodeSocketFloat",):
 def create_socket(ng, in_out='OUTPUT', socket_type="NodeSocketFloat", socket_name="Value",):
     """create a new socket output of given type for given nodegroup"""
     
-    return ng.interface.new_socket(socket_name, in_out=in_out, socket_type=socket_type,)
+    #naive support for strandard socket.type notation
+    if (socket_type.isupper()):
+        socket_type = f'NodeSocket{socket_type.title()}'
+    
+    sockui = ng.interface.new_socket(socket_name, in_out=in_out, socket_type=socket_type,)
+    return sockui
+
+    #NOTE should't we return a NodeSocket Type directly?? Hmm
+    #return get_socket_from_socketui(ng, sockui, in_out=in_out) ????
 
 
 def remove_socket(ng, idx, in_out='OUTPUT',):
     """remove a nodegroup socket output at given index"""
         
-    itm = get_socket_interface_item(ng, idx, in_out=in_out,)
+    itm = get_socketui_from_socket_idx(ng, idx, in_out=in_out,)
     ng.interface.remove(itm)
     
     return None 
@@ -161,7 +179,6 @@ def replace_node(node_tree, old_node, node_group):
     
     # For outputs, store the linked to_socket (if exists)
     old_outputs_links = [sock.links[0].to_socket if sock.links else None for sock in old_node.outputs]
-    
     
     # Determine the appropriate node type for a node group.
     match node_tree.bl_idname:
