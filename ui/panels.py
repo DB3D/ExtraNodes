@@ -212,9 +212,9 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
                         row.label(text='', icon='IMPORT',)
                         row.label(text='', icon='EVENT_J',)
 
-                    case "Draw Reroute":
+                    case "Draw Route":
                         row.label(text='', icon='IMPORT',)
-                        row.label(text='', icon='EVENT_V',)
+                        row.label(text='', icon='EVENT_E',)
 
                     case "Reroute Chamfer":
                         row.label(text='', icon='EVENT_CTRL',)

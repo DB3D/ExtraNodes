@@ -5,6 +5,7 @@
 
 import bpy
 
+from .drawroute import NODEBOOSTER_OT_draw_route
 from .bakemath import NODEBOOSTER_OT_bake_mathexpression
 from .purge import NODEBOOSTER_OT_node_purge_unused
 from .favorites import NODEBOOSTER_OT_favorite_add, NODEBOOSTER_OT_favorite_loop
@@ -16,6 +17,7 @@ from .palette import NODEBOOSTER_OT_setcolor, NODEBOOSTER_OT_palette_reset_color
 
 classes = (
 
+    NODEBOOSTER_OT_draw_route,
     NODEBOOSTER_OT_bake_mathexpression,
     NODEBOOSTER_OT_node_purge_unused,
     NODEBOOSTER_OT_favorite_add,
@@ -35,7 +37,7 @@ ADDON_KEYMAPS = []
 KMI_DEFS = (
 
     # Operator.bl_idname,                         Key,         Action,  Ctrl,  Shift, Alt,   props(name,value)                         Name,                      Icon,                  Enable
-    # ( NODEBOOSTER_OT_draw_route.bl_idname,        "V",         "PRESS", False, False, False, (),                                       "Draw Reroute",              "TRACKING",          True,  ),
+    ( NODEBOOSTER_OT_draw_route.bl_idname,        "E",         "PRESS", False, False, False, (),                                       "Draw Route",              "TRACKING",            True, ),
     ( NODEBOOSTER_OT_favorite_add.bl_idname,      "Y",         "PRESS", True,  False, False, (),                                       "Add Favorite",            "SOLO_OFF",            True, ),
     ( NODEBOOSTER_OT_favorite_loop.bl_idname,     "Y",         "PRESS", False, False, False, (),                                       "Loop Favorites",          "SOLO_OFF",            True, ),
     ( NODEBOOSTER_OT_draw_frame.bl_idname,        "J",         "PRESS", False, False, False, (),                                       "Draw Frame",              "ALIGN_TOP",           True, ),
@@ -50,6 +52,8 @@ KMI_DEFS = (
 
 def load_operators_keymaps():
 
+    #TODO, ideally we need to save these keys on addonprefs somehow, it will reset per blender sessions.
+    
     ADDON_KEYMAPS.clear()
 
     kc = bpy.context.window_manager.keyconfigs.addon

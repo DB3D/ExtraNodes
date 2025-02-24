@@ -218,15 +218,15 @@ def frame_nodes(node_tree, *nodes, label="Frame",):
 
     frame = node_tree.nodes.new("NodeFrame")
     frame.label = label
-    
+
     for node in nodes:
         node.parent = frame
-    
+
     return frame
 
 
-def get_nearest_mouse(nodes, context, event, position=None, allow_reroute=True, forbidden=None):
-    """get mouse near cursor"""
+def get_nearest_node_at_position(nodes, context, event, position=None, allow_reroute=True, forbidden=None,):
+    """get nearest node at cursor location"""
     # Function from from 'node_wrangler.py'
     
     nodes_near_mouse = []

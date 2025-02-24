@@ -486,7 +486,7 @@ def get_node_at_pos(nodes, context, event, position=None, allow_reroute=True, fo
 class NOODLER_OT_draw_route(bpy.types.Operator):
 
     bl_idname = "noodler.draw_route"
-    bl_label = "Draw Reroute Noodle Easily with Shortcut."
+    bl_label = "Draw Route Noodle Easily with Shortcut."
     bl_options = {'REGISTER'}
 
     def __init__(self): 
@@ -1497,7 +1497,7 @@ class NOODLER_PF_node_framer(bpy.types.AddonPreferences):
 #         rol.separator()
 
 #         ro = rol.column(align=True)
-#         ro.label(text="Draw Reroute:")
+#         ro.label(text="Draw Route:")
 #         ro.box().label(text="V")
         
 #         rol.separator()

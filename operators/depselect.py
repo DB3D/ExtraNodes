@@ -6,7 +6,7 @@
 import bpy
 
 from ..utils.draw_utils import ensure_mouse_cursor
-from ..utils.node_utils import get_nearest_mouse
+from ..utils.node_utils import get_nearest_node_at_position
 
 
 def get_dependecies(node, context, mode="upstream|downstream", parent=False):
@@ -83,7 +83,7 @@ class NODEBOOSTER_OT_dependency_select(bpy.types.Operator):
         ng = context.space_data.edit_tree
         
         ensure_mouse_cursor(context, event)
-        node = get_nearest_mouse(ng.nodes, context, event, position=context.space_data.cursor_location)
+        node = get_nearest_node_at_position(ng.nodes, context, event, position=context.space_data.cursor_location)
         if node is None:
             return {"CANCELLED"}
 

@@ -11,23 +11,25 @@ from ..utils.node_utils import get_node_absolute_location
 from ..utils.draw_utils import ensure_mouse_cursor
 
 
-def get_nodes_in_frame_box(boxf, nodes, frame_support=True,):
-    """search node that can potentially be inside this boxframe created box"""
+def get_nodes_in_frame_box(frame, nodes, frame_support=True,):
+    """search node that can potentially be inside this frame created box"""
+
+    #TODO 'frame_support', should support frames within frame
+
+    bounds_left = frame.location.x
+    bounds_right = frame.location.x + frame.dimensions.x
+    bounds_top = frame.location.y
+    bounds_bottom = frame.location.y - frame.dimensions.y
 
     for n in nodes:
-
-        #we do not want information on ourselves
-        if ((n==boxf) or (n.parent==boxf)):
+        if ((n==frame) or (n.parent==frame)):
             continue
-
-        #for now, completely impossible to get a frame location..
         if (n.type=="FRAME"):
             continue
 
-        locx,locy = get_node_absolute_location(n)
-
-        if boxf.location.x <= locx <= (boxf.location.x + boxf.dimensions.x) and \
-           boxf.location.y >= locy >= (boxf.location.y - boxf.dimensions.y):
+        x, y = get_node_absolute_location(n)
+        if (bounds_left <= x <= bounds_right) and \
+           (bounds_top >= y >= bounds_bottom):
             yield n
 
 
@@ -92,53 +94,60 @@ class NODEBOOSTER_OT_draw_frame(bpy.types.Operator):
 
     def modal(self, context, event):     
 
-        context.area.tag_redraw()
+        try:
+                
+            # context.area.tag_redraw()
 
-        #if user confirm:
-        if ((event.value=="RELEASE") or (event.type=="LEFTMOUSE")):
-            return self.confirm(context)
+            #if user confirm:
+            if ((event.value=="RELEASE") or (event.type=="LEFTMOUSE")):
+                return self.confirm(context)
 
-        #if user cancel:
-        elif event.type in ("ESC","RIGHTMOUSE"):
+            #if user cancel:
+            elif event.type in ("ESC","RIGHTMOUSE"):
+                return self.cancel(context)
+
+            #only start if user is pressing a bit longer
+            time_diff = datetime.now()-self.init_time
+            if time_diff.total_seconds()<0.150:
+                return {'RUNNING_MODAL'}
+
+            #else, adjust frame location/width/height:
+        
+            #else recalculate position & frame dimensions
+            ensure_mouse_cursor(context, event)
+            new = context.space_data.cursor_location
+            old = self.old
+
+            #new y above init y
+            if (old.y<=new.y):
+                self.boxf.location.y = new.y
+                self.boxf.height = (new.y-old.y)
+            else: self.boxf.height = (old.y-new.y)
+
+            #same principle as above for width
+            if (old.x>=new.x):
+                self.boxf.location.x = new.x
+                self.boxf.width = (old.x-new.x)
+            else: self.boxf.width = (new.x-old.x)
+
+            #dynamic selection:
+
+            #enable every 100ms, too slow for python.. 
+            if (event.type != 'TIMER'):
+                return {'RUNNING_MODAL'}
+
+            #show user a preview off the future node by selecting them
+            for n in self.node_tree.nodes:
+                n.select = False
+            for n in get_nodes_in_frame_box(self.boxf,self.node_tree.nodes):
+                n.select = True
+                continue
+
+        except Exception as e:
+            print(e)
+            self.report({'ERROR'},"An Error Occured during DrawFrame modal")
             return self.cancel(context)
-
-        #only start if user is pressing a bit longer
-        time_diff = datetime.now()-self.init_time
-        if time_diff.total_seconds()<0.150:
-            return {'RUNNING_MODAL'}
-
-        #else, adjust frame location/width/height:
-    
-        #else recalculate position & frame dimensions
-        ensure_mouse_cursor(context, event)
-        new = context.space_data.cursor_location
-        old = self.old
-
-        #new y above init y
-        if (old.y<=new.y):
-              self.boxf.location.y = new.y
-              self.boxf.height = (new.y-old.y)
-        else: self.boxf.height = (old.y-new.y)
-
-        #same principle as above for width
-        if (old.x>=new.x):
-              self.boxf.location.x = new.x
-              self.boxf.width = (old.x-new.x)
-        else: self.boxf.width = (new.x-old.x)
-
-        #dynamic selection:
-
-        #enable every 100ms, too slow for python.. 
-        if (event.type != 'TIMER'):
-            return {'RUNNING_MODAL'}
-
-        #show user a preview off the future node by selecting them
-        for n in self.node_tree.nodes:
-            n.select = False
-        for n in get_nodes_in_frame_box(self.boxf,self.node_tree.nodes):
-            n.select = True
-            continue
-
+        
         return {'RUNNING_MODAL'}
 
     def confirm(self, context):
@@ -173,7 +182,7 @@ class NODEBOOSTER_OT_draw_frame(bpy.types.Operator):
         for n in self.node_tree.nodes:
             n.select = False
             
-        context.area.tag_redraw()
+        # context.area.tag_redraw()
         context.window_manager.event_timer_remove(self.timer)
         
         #cleanup status bar

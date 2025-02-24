@@ -37,7 +37,7 @@ def get_rr_links_info(n,mode):
     return links_info
 
 
-def restore_links(n,ng,links_info,mode):
+def restore_links_to_original(n,ng,links_info,mode):
     """restore links from given info list"""
 
     is_input = (mode=='IN')
@@ -176,44 +176,51 @@ class NODEBOOSTER_OT_chamfer(bpy.types.Operator):
 
     def modal(self, context, event):     
 
-        context.area.tag_redraw()
+        try:
+            # context.area.tag_redraw()
 
-        #if user confirm:
-        if (event.type in ("LEFTMOUSE","RET","SPACE")):
-            bpy.ops.ed.undo_push(message="Reroute Chamfer", )
-            context.workspace.status_text_set_internal(None)
-            return {'FINISHED'}
+            #if user confirm:
+            if (event.type in ("LEFTMOUSE","RET","SPACE")):
+                bpy.ops.ed.undo_push(message="Reroute Chamfer", )
+                context.workspace.status_text_set_internal(None)
+                return {'FINISHED'}
 
-        #if user cancel:
-        elif event.type in ("ESC","RIGHTMOUSE"):
-             
-            #remove all newly created items
-            for Chamfer in self.chamfer_data:
-                self.node_tree.nodes.remove(self.node_tree.nodes.get(Chamfer.added_rr))
+            #if user cancel:
+            elif event.type in ("ESC","RIGHTMOUSE"):
+                
+                #remove all newly created items
+                for Chamfer in self.chamfer_data:
+                    self.node_tree.nodes.remove(self.node_tree.nodes.get(Chamfer.added_rr))
 
-            #restore init state
-            for k,v in self.init_state.items():
-                n = self.node_tree.nodes[k]
-                n.location = v["location"]
-                restore_links(n, self.node_tree, v["IN"], "IN")
-                restore_links(n, self.node_tree, v["OUT"], "OUT")
+                #restore init state
+                for k,v in self.init_state.items():
+                    n = self.node_tree.nodes[k]
+                    n.location = v["location"]
+                    restore_links_to_original(n, self.node_tree, v["IN"], "IN")
+                    restore_links_to_original(n, self.node_tree, v["OUT"], "OUT")
+                    continue
+                
+                context.workspace.status_text_set_internal(None)
+                # context.area.tag_redraw()
+                return {'CANCELLED'}
+
+            #else move position of all chamfer items
+            
+            #get distance data from cursor
+            ensure_mouse_cursor(context, event)
+            distance = numpy.linalg.norm(context.space_data.cursor_location - self.init_click)
+                
+            #move chamfer vertex
+            for Chamf in self.chamfer_data:
+                #need global to local
+                self.node_tree.nodes.get(Chamf.init_rr).location = Chamf.init_loc_local + ( Chamf.tovec * distance )
+                self.node_tree.nodes.get(Chamf.added_rr).location = Chamf.init_loc_local + ( Chamf.fromvec * distance )
                 continue
-            
-            context.workspace.status_text_set_internal(None)
-            context.area.tag_redraw()
-            return {'CANCELLED'}
 
-        #else move position of all chamfer items
-        
-        #get distance data from cursor
-        ensure_mouse_cursor(context, event)
-        distance = numpy.linalg.norm(context.space_data.cursor_location - self.init_click)
-            
-        #move chamfer vertex
-        for Chamf in self.chamfer_data:
-            #need global to local
-            self.node_tree.nodes.get(Chamf.init_rr).location = Chamf.init_loc_local + ( Chamf.tovec * distance )
-            self.node_tree.nodes.get(Chamf.added_rr).location = Chamf.init_loc_local + ( Chamf.fromvec * distance )
-            continue
+        except Exception as e:
+            print(e)
+            context.workspace.status_text_set_internal(None)
+            self.report({'ERROR'},"An Error Occured during Chamfer modal")
+            return {'CANCELLED'}
 
         return {'RUNNING_MODAL'}
