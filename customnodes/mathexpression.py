@@ -174,14 +174,14 @@ class NodeSetter():
             return Exception("Error on Final Link")
         
         return None            
-    
+
     @classmethod
     def _floatmath(cls, operation_type, sock1, sock2=None, sock3=None,):
         """generic operation for adding a float math node and linking"""
-        
+
         ng = sock1.id_data
         last = ng.nodes.active
-        
+
         location = (0,200,)
         if (last):
             location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
@@ -198,121 +198,7 @@ class NodeSetter():
             link_sockets(sock2, node.inputs[1])
         if (sock3):
             link_sockets(sock3, node.inputs[2])
-            
-        return node.outputs[0]
-    
-    @classmethod
-    def _floatmath_neg(cls, sock1,):
-        """special operation for negative -1 -x ect"""
 
-        ng = sock1.id_data
-        last = ng.nodes.active
-
-        location = (0,200,)
-        if (last):
-            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-        node = ng.nodes.new('ShaderNodeMath')
-        node.operation = 'SUBTRACT'
-        node.use_clamp = False
-        node.label = 'Negate'
-
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-
-        node.inputs[0].default_value = 0.0
-        link_sockets(sock1, node.inputs[1])
-        
-        return node.outputs[0]
-    
-    @classmethod
-    def _floatmath_nroot(cls, sock1, sock2):
-        """special operation to calculate custom root x**(1/n)"""
-
-        ng = sock1.id_data
-        last = ng.nodes.active
-
-        location = (0,200,)
-        if (last):
-            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-        divnode = ng.nodes.new('ShaderNodeMath')
-        divnode.operation = 'DIVIDE'
-        divnode.use_clamp = False
-
-        divnode.location = location
-        ng.nodes.active = divnode #Always set the last node active for the final link
-
-        divnode.inputs[0].default_value = 1.0
-        link_sockets(sock2, divnode.inputs[1])
-
-        pnode = ng.nodes.new('ShaderNodeMath')
-        pnode.operation = 'POWER'
-        pnode.use_clamp = False
-
-        last = divnode
-        location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-        pnode.location = location
-        ng.nodes.active = pnode #Always set the last node active for the final link
-
-        link_sockets(sock1, pnode.inputs[0])
-        link_sockets(divnode.outputs[0], pnode.inputs[1])
-        frame_nodes(ng, divnode, pnode, label='nRoot')
-        
-        return pnode.outputs[0]
-
-    @classmethod
-    def _mix(cls, data_type, sock1, sock2, sock3,):
-        """generic operation for adding a mix node and linking"""
-
-        ng = sock1.id_data
-        last = ng.nodes.active
-
-        location = (0,200,)
-        if (last):
-            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-        node = ng.nodes.new('ShaderNodeMix')
-        node.data_type = data_type
-        node.clamp_factor = False
-
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-
-        link_sockets(sock1, node.inputs[0])
-
-        # Need to choose socket depending on node data_type (hidden sockets)
-        match data_type:
-            case 'FLOAT':
-                link_sockets(sock2, node.inputs[2])
-                link_sockets(sock3, node.inputs[3])
-            case _:
-                raise Exception("Integration Needed")
-
-        return node.outputs[0]
-
-    @classmethod
-    def _floatclamp(cls, clamp_type, sock1, sock2, sock3,):
-        """generic operation for adding a mix node and linking"""
-        
-        ng = sock1.id_data
-        last = ng.nodes.active
-        
-        location = (0,200,)
-        if (last):
-            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-        node = ng.nodes.new('ShaderNodeClamp')
-        node.clamp_type = clamp_type
-        
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-        
-        link_sockets(sock1, node.inputs[0])
-        link_sockets(sock2, node.inputs[1])
-        link_sockets(sock3, node.inputs[2])
-        
         return node.outputs[0]
 
     @taguser
@@ -355,6 +241,43 @@ class NodeSetter():
         """1/ Square Root of A."""
         return cls._floatmath('INVERSE_SQRT',a)
 
+    @classmethod
+    def _floatmath_nroot(cls, sock1, sock2):
+        """special operation to calculate custom root x**(1/n)"""
+
+        ng = sock1.id_data
+        last = ng.nodes.active
+
+        location = (0,200,)
+        if (last):
+            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
+
+        divnode = ng.nodes.new('ShaderNodeMath')
+        divnode.operation = 'DIVIDE'
+        divnode.use_clamp = False
+
+        divnode.location = location
+        ng.nodes.active = divnode #Always set the last node active for the final link
+
+        divnode.inputs[0].default_value = 1.0
+        link_sockets(sock2, divnode.inputs[1])
+
+        pnode = ng.nodes.new('ShaderNodeMath')
+        pnode.operation = 'POWER'
+        pnode.use_clamp = False
+
+        last = divnode
+        location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
+
+        pnode.location = location
+        ng.nodes.active = pnode #Always set the last node active for the final link
+
+        link_sockets(sock1, pnode.inputs[0])
+        link_sockets(divnode.outputs[0], pnode.inputs[1])
+        frame_nodes(ng, divnode, pnode, label='nRoot')
+        
+        return pnode.outputs[0]
+
     @taguser
     def nroot(cls,a,n):
         """A Root N. a**(1/n.)"""
@@ -364,6 +287,30 @@ class NodeSetter():
     def abs(cls,a):
         """Absolute of A."""
         return cls._floatmath('ABSOLUTE',a)
+
+    @classmethod
+    def _floatmath_neg(cls, sock1,):
+        """special operation for negative -1 -x ect"""
+
+        ng = sock1.id_data
+        last = ng.nodes.active
+
+        location = (0,200,)
+        if (last):
+            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
+
+        node = ng.nodes.new('ShaderNodeMath')
+        node.operation = 'SUBTRACT'
+        node.use_clamp = False
+        node.label = 'Negate'
+
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+
+        node.inputs[0].default_value = 0.0
+        link_sockets(sock1, node.inputs[1])
+        
+        return node.outputs[0]
 
     @taguser
     def neg(cls, a):
@@ -502,17 +449,70 @@ class NodeSetter():
     def deg(cls,a):
         """Convert from Radians to Degrees."""
         return cls._floatmath('DEGREES',a)
-    
+
+    @classmethod
+    def _mix(cls, data_type, sock1, sock2, sock3,):
+        """generic operation for adding a mix node and linking"""
+
+        ng = sock1.id_data
+        last = ng.nodes.active
+
+        location = (0,200,)
+        if (last):
+            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
+
+        node = ng.nodes.new('ShaderNodeMix')
+        node.data_type = data_type
+        node.clamp_factor = False
+
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+
+        link_sockets(sock1, node.inputs[0])
+
+        # Need to choose socket depending on node data_type (hidden sockets)
+        match data_type:
+            case 'FLOAT':
+                link_sockets(sock2, node.inputs[2])
+                link_sockets(sock3, node.inputs[3])
+            case _:
+                raise Exception("Integration Needed")
+
+        return node.outputs[0]
+
     @taguser
     def lerp(cls,f,a,b):
-        """Linear Interpolation of value A and B from given factor."""
+        """Mix.\nLinear Interpolation of value A and B from given factor."""
         return cls._mix('FLOAT',f,a,b)
     
     @taguser
     def mix(cls,f,a,b): 
-        """Same as 'lerp' function."""
+        """Alternative notation to lerp() function."""
         return cls.lerp(f,a,b)
-    
+
+    @classmethod
+    def _floatclamp(cls, clamp_type, sock1, sock2, sock3,):
+        """generic operation for adding a mix node and linking"""
+        
+        ng = sock1.id_data
+        last = ng.nodes.active
+        
+        location = (0,200,)
+        if (last):
+            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
+
+        node = ng.nodes.new('ShaderNodeClamp')
+        node.clamp_type = clamp_type
+
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+
+        link_sockets(sock1, node.inputs[0])
+        link_sockets(sock2, node.inputs[1])
+        link_sockets(sock3, node.inputs[2])
+
+        return node.outputs[0]
+
     @taguser
     def clamp(cls,v,a,b):
         """Clamp value between min an max."""
@@ -523,8 +523,56 @@ class NodeSetter():
         """Clamp value between auto-defined min/max."""
         return cls._floatclamp('RANGE',v,a,b)
 
+    @classmethod
+    def _maprange(cls, data_type, interpolation_type, sock1, sock2, sock3, sock4, sock5, sock6=None,):
+        """generic operation for adding a remap node and linking"""
+
+        ng = sock1.id_data
+        last = ng.nodes.active
+
+        location = (0,200,)
+        if (last):
+            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
+
+        node = ng.nodes.new('ShaderNodeMapRange')
+        node.data_type = data_type
+        node.interpolation_type = interpolation_type
+        node.clamp = False
+
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+
+        link_sockets(sock1, node.inputs[0])
+        link_sockets(sock2, node.inputs[1])
+        link_sockets(sock3, node.inputs[2])
+        link_sockets(sock4, node.inputs[3])
+        link_sockets(sock5, node.inputs[4])
+        if (sock6):
+            link_sockets(sock6, node.inputs[5])
+        
+        return node.outputs[0]
+
+    @taguser
+    def map(cls,val,a,b,x,y):
+        """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
+        return cls._maprange('FLOAT','LINEAR',val,a,b,x,y)
+
+    @taguser
+    def mapst(cls,val,a,b,x,y,step):
+        """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
+        return cls._maprange('FLOAT','STEPPED',val,a,b,x,y,step)
+
+    @taguser
+    def mapsmo(cls,val,a,b,x,y):
+        """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
+        return cls._maprange('FLOAT','SMOOTHSTEP',val,a,b,x,y)
+
+    @taguser
+    def mapsmoo(cls,val,a,b,x,y):
+        """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
+        return cls._maprange('FLOAT','SMOOTHERSTEP',val,a,b,x,y)
+
     #to support:
-    #TODO map,mapst,mapsmo, mapsmoo
     #TODO add dynamic output type
     #   TODO int
     #   TODO bool
