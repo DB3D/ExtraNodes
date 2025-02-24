@@ -9,10 +9,10 @@
 #    Vectors, Rotation, Comparison, Matrix ect.. Auto socket type swap as well
 #  - Sequencer volume could use some options for sampling a specific time. Perhaps sampling other elements of the sound?
 #  - Other node ideas from user feedback?
+#  - Maybe copy some nodewrangler functionality such as quick mix so user don't rely on both plugins and swap to Booster ;-)
 
 #NOTE You might stumble into this crash when hot-reloading (enable/disable) the plugin on blender 4.2/4.2
 #     https://projects.blender.org/blender/blender/issues/134669 Has been fixed in 4.4. Only impacts developers hotreloading.
-
 
 import bpy
 

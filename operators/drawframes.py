@@ -37,7 +37,8 @@ class NODEBOOSTER_OT_draw_frame(bpy.types.Operator):
     """modal operator to easily draw frames by keep pressing the J key"""
     
     #TODO would be nice to also support add frames to frames
-    
+    #TODO would be nice so the frame don't wrap around the selection as an option
+
     bl_idname = "nodebooster.draw_frame"
     bl_label = "Draw Frames"
     bl_options = {'REGISTER'}
