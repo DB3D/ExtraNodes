@@ -26,7 +26,6 @@ def get_linkchain_finalsocket_type(link):
             
             nd = link.to_socket.node
             if (nd.type!='REROUTE'):
-                print("FINAL",link.to_socket.type, link.to_socket.node.type,)
                 break
             if (not nd.outputs): #necessary?
                 break
@@ -451,8 +450,6 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
         for l in self.node_tree.links[:].copy():
             if (l.to_socket.node.type=='GROUP_OUTPUT'):
                 if (l.to_socket.type=='CUSTOM'):
-
-                    print("Hoyyyy")
                     
                     newtype = l.from_socket.type
                     if (newtype in {'CUSTOM','VALUE'}):
@@ -462,19 +459,16 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                     s_new = create_socket(self.node_tree, in_out='OUTPUT', 
                         socket_type=newtype, socket_name='Output',)
                     s_new = get_socket_from_socketui(self.node_tree, s_new, in_out='OUTPUT')
-
                     self.node_tree.links.remove(l)
                     self.node_tree.links.new(s_old,s_new)
-                    continue
+                    break
         
         # case if link comes from a custom group input, 
         # with current link behavior we need to check the final type of the potential reroute chain
         for l in self.node_tree.links[:].copy():
             if (l.from_socket.node.type=='GROUP_INPUT'):
                 if l.from_socket.type=='CUSTOM':
-                    
-                    print("Heyy")
-                    
+                                        
                     newtype = get_linkchain_finalsocket_type(l)
                     if (newtype in {'CUSTOM','VALUE'}):
                         newtype = 'FLOAT'
@@ -483,10 +477,9 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
                     s_new = create_socket(self.node_tree, in_out='INPUT', 
                         socket_type=newtype, socket_name='Input',)
                     s_new = get_socket_from_socketui(self.node_tree, s_new, in_out='INPUT')
-
-                    self.node_tree.links.remove(l)
                     self.node_tree.links.new(s_new,s_old)
-                    continue
+                    self.node_tree.links.remove(l)
+                    break
 
         bpy.ops.ed.undo_push(message="Route Drawing", )
         context.workspace.status_text_set_internal(None)
