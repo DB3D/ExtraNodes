@@ -6,3 +6,6 @@ See the documentation, or engage with other users on this [blender artist topic]
 
 # This project is free, it relies on donations!
 **Please, consider a [donation❤️](https://www.patreon.com/c/bd3d_digital/membership)** to keep this project alive and well maintained!
+
+# Issues
+Report only bugs on the issues, no support or general questions are allowed.
