@@ -572,8 +572,8 @@ class NodeSetter():
         """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
         return cls._maprange('FLOAT','SMOOTHERSTEP',val,a,b,x,y)
 
-    #to support:
     #TODO add dynamic output type
+    #   NOTE if we do so, then how can we support other nodetree later on?????
     #   TODO int
     #   TODO bool
     #   TODO sign (to int)
