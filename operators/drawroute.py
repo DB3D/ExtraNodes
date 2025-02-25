@@ -445,7 +445,13 @@ class NODEBOOSTER_OT_draw_route(bpy.types.Operator):
         # we might created links from the CUSTOM GROUP_INPUT or GROUP_OUTPUT socket type,
         # Let's check this and actually create the new sockets
         # NOTE what's the difference between CUSTOM and VALUE??
-        
+
+        # TODO: there's a few bugs to fix when dealing with custom socket linking on 
+        # very special use case. Linked with links.remove(l)
+
+        # TODO: The lines below seems to make blender debug build. 
+        # Unsure why? perhaps debug mode is too picky.
+
         # case if link goes toward a custom group output
         for l in self.node_tree.links[:].copy():
             if (l.to_socket.node.type=='GROUP_OUTPUT'):
