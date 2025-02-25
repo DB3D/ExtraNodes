@@ -706,7 +706,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         return None 
     
     user_mathexp : bpy.props.StringProperty(
-        default="a + b + c",
+        default="",
         name="Expression",
         update=update_signal,
         description="type your math expression right here",
@@ -747,9 +747,6 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         self.node_tree = ng
         self.width = 250
         self.label = self.bl_label
-
-        #initialize default expression
-        self.user_mathexp = self.user_mathexp
 
         return None 
 
@@ -1017,7 +1014,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         
         field = row.row(align=True)
         field.alert = bool(self.error_message)
-        field.prop(self,"user_mathexp", text="",)
+        field.prop(self, "user_mathexp", placeholder="(a + sin(b)/c)²", text="",)
         
         opt = row.row(align=True)
         opt.scale_x = 0.35
