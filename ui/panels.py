@@ -195,6 +195,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                         "context = bpy.context",
                         "scene = context.scene",
                         "D = bpy.data ; C = bpy.context",
+                        "self = NodeUserObject",
                         ):
                         row = col.row(align=True).box()
                         row.scale_y = 0.65

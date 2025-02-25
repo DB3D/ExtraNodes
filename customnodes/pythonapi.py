@@ -120,6 +120,11 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
             namespace["scene"] = bpy.context.scene
             namespace.update(vars(__import__('mathutils')))
             namespace.update(vars(__import__('math')))
+            
+            #recognize self as object using this node? only if valid and not ambiguous
+            node_obj_users = self.get_objects_from_node_instance()
+            if (len(node_obj_users)==1):
+                namespace["self"] = list(node_obj_users)[0]
 
             #convenience execution for user (he can customize this in plugin preference)
             # NOTE Need sanatization layer here? Hmm
@@ -238,9 +243,13 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         except Exception as e:
 
             print(f"{self.bl_idname}: Exception:\n{e}")
-
+            
+            msg = str(e)
+            if ("name 'self' is not defined" in msg):
+                msg = "'self' is not Available in this Context"
+            
             #display error to user
-            self.error_message = str(e)
+            self.error_message = msg
             set_socket_label(ng,0, label=type(e).__name__,)
 
             #set error socket output to True
@@ -271,6 +280,19 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
             lbl.label(text=self.error_message)
 
         return None
+
+    def get_objects_from_node_instance(self,):
+        """Return a list of objects using the given GeometryNodeTree."""
+        
+        #NOTE could support recur nodegroups perhaps? altho it will cause ambiguity..
+        users = set()
+        for o in bpy.data.objects:
+            for m in o.modifiers:
+                if (m.type=='NODES' and m.node_group):
+                    for n in m.node_group.nodes:
+                        if (n==self):
+                            users.add(o)
+        return users
 
     @classmethod
     def update_all(cls):
