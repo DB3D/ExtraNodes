@@ -39,12 +39,12 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
             layout.active = False
             layout.label(text="No Active Nodes")
             return None
-        
+
         if ('NodeBooster' not in active.bl_idname):
             layout.active = False
             layout.label(text="Select a Booster Node")
             return None
-    
+
         sett_plugin = get_addon_prefs()
         ng = context.space_data.edit_tree
         n = ng.nodes.active
@@ -168,8 +168,8 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     col = panel.column(align=True)
                     row = col.row(align=True)
                     row.alert = n.evaluation_error
-                    icon = 'ERROR' if n.evaluation_error else 'SCRIPT'
-                    row.prop(n, "user_expression", placeholder="Python Expression", text="", icon=icon,)
+                    #icon = 'ERROR' if n.evaluation_error else 'SCRIPT'
+                    row.prop(n, "user_expression", placeholder="C.object.name", text="",) #icon=icon,) # Use an icon for the text field?
 
                 header, panel = layout.panel("prefs_panelid", default_closed=True,)
                 header.label(text="Preferences",)

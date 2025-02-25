@@ -241,8 +241,8 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                 
         row = layout.row()
         row.alert = self.evaluation_error
-        icon = 'ERROR' if self.evaluation_error else 'SCRIPT'
-        row.prop(self, "user_expression", placeholder="Python Expression", text="", icon=icon,)
+        #icon = 'ERROR' if self.evaluation_error else 'SCRIPT'
+        row.prop(self, "user_expression", placeholder="C.object.name", text="",) #icon=icon,) # Use an icon for the text field?
 
         return None
 
