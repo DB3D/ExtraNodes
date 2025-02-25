@@ -58,18 +58,20 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                 header, panel = layout.panel("params_panelid", default_closed=False,)
                 header.label(text="Parameters",)
                 if (panel):
-                    
+
+                    is_error = bool(n.error_message)
+
                     col = panel.column(align=True)
                     row = col.row(align=True)
-                    row.alert = bool(n.error_message)
+                    row.alert = is_error
                     row.prop(n, "user_mathexp", placeholder="(a + sin(b)/c)²", text="",)
 
                     panel.prop(n, "use_algrebric_multiplication",)
                     panel.prop(n, "use_macros",)
-                    
-                    if (n.error_message):
+
+                    if (is_error):
                         lbl = col.row()
-                        lbl.alert = bool(n.error_message)
+                        lbl.alert = is_error
                         lbl.label(text=n.error_message)
                 
                 header, panel = layout.panel("inputs_panelid", default_closed=True,)
@@ -165,12 +167,18 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                 header.label(text="Parameters",)
                 if (panel):
 
+                    is_error = bool(n.error_message)
+
                     col = panel.column(align=True)
                     row = col.row(align=True)
-                    row.alert = n.evaluation_error
-                    #icon = 'ERROR' if n.evaluation_error else 'SCRIPT'
-                    row.prop(n, "user_expression", placeholder="C.object.name", text="",) #icon=icon,) # Use an icon for the text field?
+                    row.alert = is_error
+                    row.prop(n, "user_expression", placeholder="C.object.name", text="",)
 
+                    if (is_error):
+                        lbl = col.row()
+                        lbl.alert = is_error
+                        lbl.label(text=n.error_message)
+            
                 header, panel = layout.panel("prefs_panelid", default_closed=True,)
                 header.label(text="Preferences",)
                 if (panel):

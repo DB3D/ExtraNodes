@@ -17,11 +17,19 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     The evaluated type can be of type 'float', 'int', 'string', 'object', 'collection', 'material'.
     By default the values will be updated automatically on each on depsgraph post and frame_pre signals"""
 
+    #TODO we could expand this functionality and let user select a python script datablock.
+    # the script could automatically recognize some vars from the execution namespace and output them?
+    # ex: the user define some global variables starting with 'NODEOUTPUT_' and they become output values automatically.
+    # ...
+    # Could even go harder, and user could call the math expression node within the script to mix with arguments. 
+    # Admitting we implement a 'Advanced Math Expression' node that supports Vec/Rot/Matrix ect..
+    # Note that if this happens, it would be nicer to have some sort of create_expression_nodetree(mathexpression, modify_node_tree=None, create_node_tree=True,)
+
     bl_idname = "GeometryNodeNodeBoosterPythonApi"
     bl_label = "Python Api"
 
-    evaluation_error : bpy.props.BoolProperty(
-        default=False,
+    error_message : bpy.props.StringProperty(
+        description="user interface error message",
         )
     socket_type : bpy.props.StringProperty(
         default="NodeSocketBool",
@@ -96,7 +104,10 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
             set_socket_defvalue(ng,1, value=True,)
             return None
 
-        #catch any exception, and report error to node
+        #we reset the Error status back to false
+        set_socket_defvalue(ng,1, value=False,)
+        self.error_message = ""
+
         try:
             #NOTE, maybe the execution need to check for some sort of blender checks before allowing execution?
             # a little like the driver python expression, there's a global setting for that. Unsure if it's needed.
@@ -127,6 +138,8 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
 
                 # TODO could support Quaternion rotation & Matrix evaluation???
                 # Would be quite nice to directly execute matrix math code in there..
+                
+                # TODO could support numpy as well? Hmm.
 
                 case bool():
 
@@ -218,37 +231,44 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                     set_socket_label(ng,0, label=f'D.images["{evalexp.name}"]',)
 
                 case _:
-                    self.evaluation_error = True
-                    raise Exception(f"TypeError: '{type(evalexp).__name__.title()}' not supported")
+                    raise TypeError(f"'{type(evalexp).__name__.title()}' not supported")
 
-            #no error, then return False to error output socket
-            set_socket_defvalue(ng,1, value=False,)
-
-            self.evaluation_error = False
             return get_socket_defvalue(ng,0)
 
         except Exception as e:
 
-            self.evaluation_error = True 
-            print(f"{self.bl_idname} EVALUATION ERROR:\n{e}")
+            print(f"{self.bl_idname}: Exception:\n{e}")
 
+            #display error to user
+            self.error_message = str(e)
+            set_socket_label(ng,0, label=type(e).__name__,)
+
+            #set error socket output to True
             set_socket_defvalue(ng,1, value=True,)
-            set_socket_label(ng,0, label=e,)
 
         return None
 
     def draw_label(self,):
         """node label"""
-        
+
         return self.bl_label
 
     def draw_buttons(self, context, layout,):
         """node interface drawing"""
-                
-        row = layout.row()
-        row.alert = self.evaluation_error
-        #icon = 'ERROR' if self.evaluation_error else 'SCRIPT'
-        row.prop(self, "user_expression", placeholder="C.object.name", text="",) #icon=icon,) # Use an icon for the text field?
+
+        is_error = bool(self.error_message)
+
+        col = layout.column(align=True)
+        row = col.row(align=True)
+
+        field = row.row(align=True)
+        field.alert = is_error
+        field.prop(self, "user_expression", placeholder="C.object.name", text="",)
+
+        if (is_error):
+            lbl = col.row()
+            lbl.alert = is_error
+            lbl.label(text=self.error_message)
 
         return None
 
