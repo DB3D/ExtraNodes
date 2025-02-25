@@ -40,13 +40,13 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         default=0,
         )
 
-    def update_user_expression(self,context):
+    def update_signal(self,context):
         """evaluate user expression and change the socket output type implicitly"""
-        self.evaluate_user_expression(implicit_conversion=True)
+        self.evaluate_python_expression(implicit_conversion=True)
         return None 
 
-    user_expression : bpy.props.StringProperty(
-        update=update_user_expression,
+    user_pyapiexp : bpy.props.StringProperty(
+        update=update_signal,
         description="type the expression you wish to evaluate right here",
         )
 
@@ -87,19 +87,19 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     def update(self):
         """generic update function"""
         
-        self.evaluate_user_expression()
+        self.evaluate_python_expression()
         self.debug_update_counter +=1
 
         return None
 
-    def evaluate_user_expression(self, implicit_conversion=False,):
+    def evaluate_python_expression(self, implicit_conversion=False,):
         """evaluate the user string and assign value to output node"""
 
         ng = self.node_tree
         sett_plugin = get_addon_prefs()
 
         #check if string is empty first, perhaps user didn't input anything yet 
-        if (self.user_expression==""):
+        if (self.user_pyapiexp==""):
             set_socket_label(ng,0, label="Waiting for Input" ,)
             set_socket_defvalue(ng,1, value=True,)
             return None
@@ -128,7 +128,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
             if (sett_plugin.pynode_namespace3!=""): exec(sett_plugin.pynode_namespace3, {}, namespace,)
 
             #evaluated exprtession
-            evalexp = eval(self.user_expression, {}, namespace,)
+            evalexp = eval(self.user_pyapiexp, {}, namespace,)
 
             #translate to list when possible
             if type(evalexp) in (Vector, Euler, bpy.types.bpy_prop_array, tuple,):
@@ -263,7 +263,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
 
         field = row.row(align=True)
         field.alert = is_error
-        field.prop(self, "user_expression", placeholder="C.object.name", text="",)
+        field.prop(self, "user_pyapiexp", placeholder="C.object.name", text="",)
 
         if (is_error):
             lbl = col.row()

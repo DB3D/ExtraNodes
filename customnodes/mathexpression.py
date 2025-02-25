@@ -6,7 +6,7 @@
 #How does it works?
 # 1- Find the variables or constants with regex
 # 2- dynamically remove/create sockets accordingly
-# 3- transform the algebric expression into 'function expressions' using 'transform_expression'
+# 3- transform the algebric expression into 'function expressions' using 'transform_math_expression'
 # 4- execute the function expression with 'NodeSetter' using exec(), which will set the nodes in place.
 
 
@@ -104,7 +104,7 @@ class NodeSetter():
         return classmethod(func)
 
     @classmethod
-    def execute_function_expression(cls, customnode=None, expression:str=None, node_tree=None, varsapi:dict=None, constapi:dict=None,) -> None | Exception:
+    def execute_math_function_expression(cls, customnode=None, expression:str=None, node_tree=None, varsapi:dict=None, constapi:dict=None,) -> None | Exception:
         """Execute the functions to arrange the node_tree"""
         
         # Replace the constants or variable with sockets API
@@ -654,7 +654,7 @@ class FunctionTransformer(ast.NodeTransformer):
     def visit_Constant(self, node):
         return node
 
-    def transform_expression(self, math_express: str) -> str | Exception:
+    def transform_math_expression(self, math_express: str) -> str | Exception:
         """Transforms a math expression into a function-call expression.
         Example: 'x*2 + (3-4/5)/3 + (x+y)**2' becomes 'add(mult(x,2),div(subtract(3,div(4,5)),3),exp(add(x,y),2))'"""
         
@@ -702,7 +702,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
 
     def update_signal(self,context):
         """evaluate user expression and change the sockets implicitly"""
-        self.apply_expression()
+        self.apply_math_expression()
         return None 
     
     user_mathexp : bpy.props.StringProperty(
@@ -762,7 +762,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 
         return None
     
-    def sanatize_expression(self, expression) -> str | Exception:
+    def sanatize_math_expression(self, expression) -> str | Exception:
         """ensure the user expression is correct, sanatized it, and collect its element"""
 
         # Remove white spaces char
@@ -886,7 +886,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         
         return expression
     
-    def apply_macros_to_expression(self, expression) -> str:
+    def apply_macros_to_math_expression(self, expression) -> str:
         """Replace macros such as 'Pi' 'eNum' or else..  by their values"""
         
         modified_expression = None
@@ -899,12 +899,12 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             
         return modified_expression
     
-    def apply_expression(self) -> None:
+    def apply_math_expression(self) -> None:
         """transform the math expression into sockets and nodes arrangements"""
         
         # Support for automatically replacing uer symbols
         if (self.use_macros):
-            newexp = self.apply_macros_to_expression(self.user_mathexp)
+            newexp = self.apply_macros_to_math_expression(self.user_mathexp)
             if (newexp is not None):
                 self.user_mathexp = newexp
                 # We just sent an update signal by modifying self.user_mathexp
@@ -918,13 +918,13 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         self.error_message = self.debug_sanatized = self.debug_fctexp = ""
 
         # First we make sure the user expression is correct
-        rval = self.sanatize_expression(self.user_mathexp)
+        rval = self.sanatize_math_expression(self.user_mathexp)
         if (type(rval) is Exception):
             self.error_message = str(rval)
             self.debug_sanatized = 'Failed'
             return None
         
-        # Define the result of sanatize_expression
+        # Define the result of sanatize_math_expression
         sanatized_expr = self.debug_sanatized = rval
         elemVar, elemConst = self.elemVar, self.elemConst
         
@@ -980,7 +980,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         
         # Transform user expression into pure function expression
         transformer = FunctionTransformer()
-        fctexp = transformer.transform_expression(sanatized_expr)
+        fctexp = transformer.transform_math_expression(sanatized_expr)
 
         if (type(fctexp) is Exception):
             self.error_message = str(fctexp)
@@ -990,7 +990,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         self.debug_fctexp = fctexp
         
         # Execute the function expression to arrange the user nodetree
-        rval = NodeSetter.execute_function_expression(
+        rval = NodeSetter.execute_math_function_expression(
             customnode=self, expression=fctexp, node_tree=ng, varsapi=vareq, constapi=consteq,
             )
         

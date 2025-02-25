@@ -172,7 +172,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     col = panel.column(align=True)
                     row = col.row(align=True)
                     row.alert = is_error
-                    row.prop(n, "user_expression", placeholder="C.object.name", text="",)
+                    row.prop(n, "user_pyapiexp", placeholder="C.object.name", text="",)
 
                     if (is_error):
                         lbl = col.row()
