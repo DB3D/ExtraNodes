@@ -20,20 +20,24 @@ class NODEBOOSTER_AddonPref(bpy.types.AddonPreferences):
         default=False,
         )
     pynode_depseval : bpy.props.BoolProperty(
-        name="Auto Evaluate",
+        name="Depsgraph Evaluation",
         description="Automatically evaluate these nodes python expression on every depsgraph update signal",
         default=True,
         )
-    pynode_convenience_exec1 : bpy.props.StringProperty(
-        default="from mathutils import * ; from math import *",
-        description="this text is informal and read only",
-        )
-    pynode_convenience_exec2 : bpy.props.StringProperty(
-        default="D = bpy.data ; C = context = bpy.context ; scene = context.scene",
-        description="this text is informal and read only",
-        )
-    pynode_convenience_exec3 : bpy.props.StringProperty(
+    pynode_namespace1 : bpy.props.StringProperty(
         default="",
+        name="User Defined Namespace",
+        description="Define Custom Variables and macros that will be evaluated in your expression field",
+        )
+    pynode_namespace2 : bpy.props.StringProperty(
+        default="",
+        name="User Defined Namespace",
+        description="Define Custom Variables and macros that will be evaluated in your expression field",
+        )
+    pynode_namespace3 : bpy.props.StringProperty(
+        default="",
+        name="User Defined Namespace",
+        description="Define Custom Variables and macros that will be evaluated in your expression field",
         )
     #not exposed
     ui_word_wrap_max_char_factor : bpy.props.FloatProperty(

@@ -174,21 +174,27 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                 header, panel = layout.panel("prefs_panelid", default_closed=True,)
                 header.label(text="Preferences",)
                 if (panel):
+                    
+                    panel.prop(sett_plugin, "pynode_depseval",)
+                    panel.separator(factor=0.3)
+                    
                     col = panel.column(align=True)
-                    col.label(text="Namespace Convenience:")
-                    
-                    row = col.row(align=True)
-                    row.enabled = False
-                    row.prop(sett_plugin,"pynode_convenience_exec1",text="",)
-                    
-                    row = col.row(align=True)
-                    row.enabled = False
-                    row.prop(sett_plugin,"pynode_convenience_exec2",text="",)
-                    
-                    row = col.row(align=True)
-                    row.prop(sett_plugin,"pynode_convenience_exec3",text="",)
-                
-                    panel.prop(sett_plugin,"pynode_depseval",)
+                    col.label(text="Namespace:")
+                    for info in (
+                        "import bpy",
+                        "from mathutils import *",
+                        "from math import *",
+                        "context = bpy.context",
+                        "scene = context.scene",
+                        "D = bpy.data ; C = bpy.context",
+                        ):
+                        row = col.row(align=True).box()
+                        row.scale_y = 0.65
+                        row.label(text=info)
+                    col.prop(sett_plugin, "pynode_namespace1", text="", placeholder="MyObj = D.objects['Foo']",)
+                    col.prop(sett_plugin, "pynode_namespace2", text="", placeholder="import random",)
+                    col.prop(sett_plugin, "pynode_namespace3", text="", placeholder="R = random.randint(0,100)",)
+                    panel.separator(factor=0.6)
 
                 header, panel = layout.panel("doc_panelid", default_closed=True,)
                 header.label(text="Documentation",)

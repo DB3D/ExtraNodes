@@ -8,7 +8,8 @@ from ..__init__ import get_addon_prefs
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue, get_socket_type, set_socket_type, set_socket_label, get_socket_defvalue
 
-from mathutils import * ; from math import * # Conveniences vars! Needed for user python expression (cannot import a wildcard within the class).
+from mathutils import * ; from math import * # Conveniences vars! Needed to evaluate the user python expression. 
+                                             # Must be done in global space, wild cards not supported within classes.
 
 
 class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
@@ -87,135 +88,140 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         """evaluate the user string and assign value to output node"""
 
         ng = self.node_tree
+        sett_plugin = get_addon_prefs()
 
         #check if string is empty first, perhaps user didn't input anything yet 
         if (self.user_expression==""):
-
             set_socket_label(ng,0, label="Waiting for Input" ,)
             set_socket_defvalue(ng,1, value=True,)
-
             return None
 
         #catch any exception, and report error to node
         try:
-            #convenience variable for user
-            D = bpy.data ; C = context = bpy.context ; scene = context.scene
-
-            #convenience execution for user (he can customize this in plugin preference)
-            pynode_convenience_exec3 = get_addon_prefs().pynode_convenience_exec3
-            if (pynode_convenience_exec3!=""): 
-                exec(pynode_convenience_exec3) 
-
-            #evaluate
-            value = eval(self.user_expression)
-            
-            #NOTE, for eval() and exec()
-            # perhaps we could pass namespace instead of evaluating local()?
-            # Perhaps a layer of sanatization is needed? if so, what exactly?
-            
             #NOTE, maybe the execution need to check for some sort of blender checks before allowing execution?
             # a little like the driver python expression, there's a global setting for that. Unsure if it's needed.
 
-            #translate to list when possible
-            if type(value) in (Vector, Euler, bpy.types.bpy_prop_array, tuple,):
-                value = list(value)
+            namespace = {}
+            namespace["bpy"] = bpy
+            namespace["D"] = bpy.data
+            namespace["C"] = bpy.context
+            namespace["context"] = bpy.context
+            namespace["scene"] = bpy.context.scene
+            namespace.update(vars(__import__('mathutils')))
+            namespace.update(vars(__import__('math')))
 
-            match value:
+            #convenience execution for user (he can customize this in plugin preference)
+            # NOTE Need sanatization layer here? Hmm
+            if (sett_plugin.pynode_namespace1!=""): exec(sett_plugin.pynode_namespace1, {}, namespace,)
+            if (sett_plugin.pynode_namespace2!=""): exec(sett_plugin.pynode_namespace2, {}, namespace,)
+            if (sett_plugin.pynode_namespace3!=""): exec(sett_plugin.pynode_namespace3, {}, namespace,)
+
+            #evaluated exprtession
+            evalexp = eval(self.user_expression, {}, namespace,)
+
+            #translate to list when possible
+            if type(evalexp) in (Vector, Euler, bpy.types.bpy_prop_array, tuple,):
+                evalexp = list(evalexp)
+
+            match evalexp:
+
+                # TODO could support Quaternion rotation & Matrix evaluation???
+                # Would be quite nice to directly execute matrix math code in there..
 
                 case bool():
 
                     if implicit_conversion and (get_socket_type(ng,0)!="BOOLEAN"):
                         set_socket_type(ng,0, socket_type="NodeSocketBool")
                         self.socket_type = "NodeSocketBool"
-                    set_socket_defvalue(ng,0, value=value ,)
-                    set_socket_label(ng,0, label=value ,)
+                    set_socket_defvalue(ng,0, value=evalexp ,)
+                    set_socket_label(ng,0, label=evalexp ,)
 
                 case int():
 
                     if implicit_conversion and (get_socket_type(ng,0)!="INT"):
                         set_socket_type(ng,0, socket_type="NodeSocketInt")
                         self.socket_type = "NodeSocketInt"
-                    set_socket_defvalue(ng,0, value=value ,)
-                    set_socket_label(ng,0, label=value ,)
+                    set_socket_defvalue(ng,0, value=evalexp ,)
+                    set_socket_label(ng,0, label=evalexp ,)
 
                 case float():
 
                     if implicit_conversion and (get_socket_type(ng,0)!="VALUE"):
                         set_socket_type(ng,0, socket_type="NodeSocketFloat")
                         self.socket_type = "NodeSocketFloat"
-                    set_socket_defvalue(ng,0, value=value ,)
-                    set_socket_label(ng,0, label=round(value,4) ,)
+                    set_socket_defvalue(ng,0, value=evalexp ,)
+                    set_socket_label(ng,0, label=round(evalexp,4) ,)
                 
                 case list():
 
                     #evaluate as vector?
-                    if (len(value)==3):
+                    if (len(evalexp)==3):
 
                         if implicit_conversion and (get_socket_type(ng,0)!="VECTOR"):
                             set_socket_type(ng,0, socket_type="NodeSocketVector")
                             self.socket_type = "NodeSocketVector"
-                        set_socket_defvalue(ng,0, value=value ,)
-                        set_socket_label(ng,0, label=[round(n,4) for n in value] ,)
+                        set_socket_defvalue(ng,0, value=evalexp ,)
+                        set_socket_label(ng,0, label=[round(n,4) for n in evalexp] ,)
                     
                     #evaluate as color? 
-                    elif (len(value)==4):
+                    elif (len(evalexp)==4):
 
                         if implicit_conversion and (get_socket_type(ng,0)!="RGBA"):
                             set_socket_type(ng,0, socket_type="NodeSocketColor")
                             self.socket_type = "NodeSocketColor"
-                        set_socket_defvalue(ng,0, value=value ,)
-                        set_socket_label(ng,0, label=[round(n,4) for n in value] ,)
+                        set_socket_defvalue(ng,0, value=evalexp ,)
+                        set_socket_label(ng,0, label=[round(n,4) for n in evalexp] ,)
 
                     #only vec3 and vec4 are supported
                     else:
                         self.evaluation_error = True
-                        raise Exception(f"TypeError: 'List{len(value)}' not supported")
+                        raise Exception(f"TypeError: 'List{len(evalexp)}' not supported")
 
                 case str():
 
                     if implicit_conversion and (get_socket_type(ng,0)!="STRING"):
                         set_socket_type(ng,0, socket_type="NodeSocketString")
                         self.socket_type = "NodeSocketString"
-                    set_socket_defvalue(ng,0, value=value ,)
-                    set_socket_label(ng,0, label='"'+value+'"' ,)
+                    set_socket_defvalue(ng,0, value=evalexp ,)
+                    set_socket_label(ng,0, label='"'+evalexp+'"' ,)
 
                 case bpy.types.Object():
 
                     if implicit_conversion and (get_socket_type(ng,0)!="OBJECT"):
                         set_socket_type(ng,0, socket_type="NodeSocketObject")
                         self.socket_type = "NodeSocketObject"
-                    set_socket_defvalue(ng,0, value=value,)
-                    set_socket_label(ng,0, label=f'D.objects["{value.name}"]',)
+                    set_socket_defvalue(ng,0, value=evalexp,)
+                    set_socket_label(ng,0, label=f'D.objects["{evalexp.name}"]',)
 
                 case bpy.types.Collection():
 
                     if implicit_conversion and (get_socket_type(ng,0)!="COLLECTION"):
                         set_socket_type(ng,0, socket_type="NodeSocketCollection")
                         self.socket_type = "NodeSocketCollection"
-                    set_socket_defvalue(ng,0, value=value,)
-                    set_socket_label(ng,0, label=f'D.collections["{value.name}"]',)
+                    set_socket_defvalue(ng,0, value=evalexp,)
+                    set_socket_label(ng,0, label=f'D.collections["{evalexp.name}"]',)
 
                 case bpy.types.Material():
 
                     if implicit_conversion and (get_socket_type(ng,0)!="MATERIAL"):
                         set_socket_type(ng,0, socket_type="NodeSocketMaterial")
                         self.socket_type = "NodeSocketMaterial"
-                    set_socket_defvalue(ng,0, value=value,)
-                    set_socket_label(ng,0, label=f'D.materials["{value.name}"]',)
+                    set_socket_defvalue(ng,0, value=evalexp,)
+                    set_socket_label(ng,0, label=f'D.materials["{evalexp.name}"]',)
 
                 case bpy.types.Image():
 
                     if implicit_conversion and (get_socket_type(ng,0)!="IMAGE"):
                         set_socket_type(ng,0, socket_type="NodeSocketImage")
                         self.socket_type = "NodeSocketImage"
-                    set_socket_defvalue(ng,0, value=value,)
-                    set_socket_label(ng,0, label=f'D.images["{value.name}"]',)
+                    set_socket_defvalue(ng,0, value=evalexp,)
+                    set_socket_label(ng,0, label=f'D.images["{evalexp.name}"]',)
 
                 case _:
                     self.evaluation_error = True
-                    raise Exception(f"TypeError: '{type(value).__name__.title()}' not supported")
-            
-            #no error, then return False to error prop
+                    raise Exception(f"TypeError: '{type(evalexp).__name__.title()}' not supported")
+
+            #no error, then return False to error output socket
             set_socket_defvalue(ng,1, value=False,)
 
             self.evaluation_error = False
