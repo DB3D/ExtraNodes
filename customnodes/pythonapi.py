@@ -236,52 +236,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
                 set_socket_label(ng,0, label=set_label ,)
 
             if (set_value is not None):
-                
-                if (set_type in 'NodeSocketRotation'):
-
-                    innode = ng.nodes.get('QuatInput')
-
-                    #We cleanup nodetree and set up our input special.
-                    if (innode is None):    
-                        for node in list(ng.nodes).copy():
-                            if node.type not in {'GROUP_INPUT', 'GROUP_OUTPUT'}:
-                                ng.nodes.remove(node)
-                        innode = ng.nodes.new("FunctionNodeQuaternionToRotation")
-                        innode.name = 'QuatInput'
-                        ng.links.new(innode.outputs[0], ng.nodes['Group Output'].inputs[0])
-                    
-                    #assign values
-                    for inpt,val in zip(innode.inputs, set_value):
-                        inpt.default_value = val
-
-                elif (set_type in 'NodeSocketMatrix'):
-
-                    innode = ng.nodes.get('MatInput')
-
-                    #We cleanup nodetree and set up our input special.
-                    if (innode is None):    
-                        for node in list(ng.nodes).copy():
-                            if node.type not in {'GROUP_INPUT', 'GROUP_OUTPUT'}:
-                                ng.nodes.remove(node)
-                        innode = ng.nodes.new("FunctionNodeCombineMatrix")
-                        innode.name = 'MatInput'
-                        ng.links.new(innode.outputs[0], ng.nodes['Group Output'].inputs[0])
-                        #we also need to clean the default node values back to 0
-                        for inp in innode.inputs:
-                            inp.default_value = 0
-
-                    #assign flatten values
-                    for inpt,val in zip(innode.inputs, [value for row in set_value for value in row] ):
-                        inpt.default_value = val
-
-                else:
-
-                    if (len(ng.nodes)!=2):
-                        for node in list(ng.nodes).copy():
-                            if node.type not in {'GROUP_INPUT', 'GROUP_OUTPUT'}:
-                                ng.nodes.remove(node)
-
-                    set_socket_defvalue(ng,0, value=set_value ,)            
+                set_socket_defvalue(ng,0, value=set_value ,)            
 
             return None
 

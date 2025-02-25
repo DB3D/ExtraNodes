@@ -81,14 +81,59 @@ def get_socket_defvalue(ng, idx, in_out='OUTPUT',):
 def set_socket_defvalue(ng, idx, in_out='OUTPUT', value=None,):
     """set the value of the given nodegroups output at given socket idx"""
     
-    match in_out:
-        case 'OUTPUT':
-            ng.nodes["Group Output"].inputs[idx].default_value = value 
-        case 'INPUT':
-            ng.nodes["Group Input"].outputs[idx].default_value = value 
-        case _:
-            raise Exception("get_socket_defvalue(): in_out arg not valid")
-        
+    assert in_out in {'INPUT','OUTPUT'}, "get_socket_defvalue(): in_out arg not valid"
+    
+    node = ng.nodes["Group Output"] if (in_out=='OUTPUT') else ng.nodes["Group Input"]
+    sockets = node.inputs if (in_out=='OUTPUT') else node.outputs
+    socket = sockets[idx]
+
+    if (in_out=='INPUT'):
+        socket.default_value = value
+        return None
+    
+    # for some socket types, they don't have any default_values property.
+    # so we need to improvise
+    if (in_out=='OUTPUT'):
+        match socket.type:
+
+            case 'ROTATION':
+                #NOTE if you want to pass a vec3 to a rotation socket, don't.
+                defnodname = f"DEFVAL{idx}_{socket.type}"
+                defnod = ng.nodes.get(defnodname)
+                #We cleanup nodetree and set up our input special.
+                if (defnod is None):
+                    defnod = ng.nodes.new('FunctionNodeQuaternionToRotation')
+                    defnod.name = defnod.label = defnodname
+                    defnod.location = (node.location.x, node.location.y + 150)
+                    ng.links.new(defnod.outputs[0], socket)
+                #assign values
+                for inpt,val in zip(defnod.inputs, value):
+                    inpt.default_value = val
+
+            case 'MATRIX':
+                defnodname = f"DEFVAL{idx}_{socket.type}"
+                defnod = ng.nodes.get(defnodname)
+                #We cleanup nodetree and set up our input special.
+                if (defnod is None):
+                    defnod = ng.nodes.new('FunctionNodeCombineMatrix')
+                    defnod.name = defnod.label = defnodname
+                    defnod.location = (node.location.x + 150, node.location.y + 150)
+                    ng.links.new(defnod.outputs[0], socket)
+                    #the node comes with tainted default values
+                    for inp in defnod.inputs:
+                        inp.default_value = 0
+                #assign flatten values
+                for inpt,val in zip(defnod.inputs, [val for row in value for val in row] ):
+                    inpt.default_value = val
+
+            case _:
+                #we remove any unwanted links, if exists
+                if (socket.links):
+                    for l in socket.links:
+                        ng.links.remove(l)
+                #we set def value, simply..
+                socket.default_value = value
+
     return None
 
 
@@ -101,11 +146,13 @@ def set_socket_label(ng, idx, in_out='OUTPUT', label=None,):
     return None  
 
 
-def get_socket_type(ng, idx, in_out='OUTPUT',):
-    """return the type of the given nodegroups output at given socket idx"""
+# unused so far
+# NOTE hmm problem, will return the ui type, not what we might need
+# def get_socket_type(ng, idx, in_out='OUTPUT',):
+#     """return the type of the given nodegroups output at given socket idx"""
     
-    itm = get_socketui_from_socket_idx(ng, idx, in_out=in_out,)
-    return itm.socket_type
+#     itm = get_socketui_from_socket_idx(ng, idx, in_out=in_out,)
+#     return itm.socket_type
 
 
 def set_socket_type(ng, idx, in_out='OUTPUT', socket_type="NodeSocketFloat",):

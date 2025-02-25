@@ -392,7 +392,6 @@ class NODEBOOSTER_PT_tool_frame(bpy.types.Panel):
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
     bl_order = 3
-    bl_options = {'DEFAULT_CLOSED'} 
 
     @classmethod
     def poll(cls, context):
@@ -428,6 +427,7 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
     bl_order = 4
+    bl_options = {'DEFAULT_CLOSED'} 
 
     @classmethod
     def poll(cls, context):
