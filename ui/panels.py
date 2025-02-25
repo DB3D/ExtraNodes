@@ -62,7 +62,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     col = panel.column(align=True)
                     row = col.row(align=True)
                     row.alert = bool(n.error_message)
-                    row.prop(n,"user_mathexp", text="",)
+                    row.prop(n, "user_mathexp", placeholder="(a + sin(b)/c)²", text="",)
 
                     panel.prop(n, "use_algrebric_multiplication",)
                     panel.prop(n, "use_macros",)
@@ -169,7 +169,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     row = col.row(align=True)
                     row.alert = n.evaluation_error
                     icon = 'ERROR' if n.evaluation_error else 'SCRIPT'
-                    row.prop(n,"user_expression", text="", icon=icon,)
+                    row.prop(n, "user_expression", placeholder="Python Expression", text="", icon=icon,)
 
                 header, panel = layout.panel("prefs_panelid", default_closed=True,)
                 header.label(text="Preferences",)
