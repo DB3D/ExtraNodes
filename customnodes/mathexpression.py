@@ -929,7 +929,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         elemVar, elemConst = self.elemVar, self.elemConst
         
         # Clear node tree
-        for node in list(ng.nodes):
+        for node in list(ng.nodes).copy():
             if node.type not in {'GROUP_INPUT', 'GROUP_OUTPUT'}:
                 ng.nodes.remove(node)
                 

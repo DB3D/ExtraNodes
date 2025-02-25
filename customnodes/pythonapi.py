@@ -5,11 +5,13 @@
 import bpy 
 
 from ..__init__ import get_addon_prefs
-from ..utils.str_utils import word_wrap
-from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue, get_socket_type, set_socket_type, set_socket_label, get_socket_defvalue
+from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue, set_socket_type, set_socket_label
 
 from mathutils import * ; from math import * # Conveniences vars! Needed to evaluate the user python expression. 
                                              # Must be done in global space, wild cards not supported within classes.
+
+from collections import namedtuple
+RGBAColor = namedtuple('RGBAColor', ['r','g','b','a'])
 
 
 class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
@@ -31,18 +33,14 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     error_message : bpy.props.StringProperty(
         description="user interface error message",
         )
-    socket_type : bpy.props.StringProperty(
-        default="NodeSocketBool",
-        description="maint output socket type",
-        )
-    debug_update_counter : bpy.props.IntProperty(
+    debug_evaluation_counter : bpy.props.IntProperty(
         name="debug counter",
         default=0,
         )
 
     def update_signal(self,context):
         """evaluate user expression and change the socket output type implicitly"""
-        self.evaluate_python_expression(implicit_conversion=True)
+        self.evaluate_python_expression(define_socketype=True)
         return None 
 
     user_pyapiexp : bpy.props.StringProperty(
@@ -86,17 +84,15 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
 
     def update(self):
         """generic update function"""
-        
-        self.evaluate_python_expression()
-        self.debug_update_counter +=1
 
         return None
 
-    def evaluate_python_expression(self, implicit_conversion=False,):
+    def evaluate_python_expression(self, define_socketype=False,):
         """evaluate the user string and assign value to output node"""
 
         ng = self.node_tree
         sett_plugin = get_addon_prefs()
+        self.debug_evaluation_counter += 1
 
         #check if string is empty first, perhaps user didn't input anything yet 
         if (self.user_pyapiexp==""):
@@ -120,7 +116,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
             namespace["scene"] = bpy.context.scene
             namespace.update(vars(__import__('mathutils')))
             namespace.update(vars(__import__('math')))
-            
+
             #recognize self as object using this node? only if valid and not ambiguous
             node_obj_users = self.get_objects_from_node_instance()
             if (len(node_obj_users)==1):
@@ -135,119 +131,168 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
             #evaluated exprtession
             evalexp = eval(self.user_pyapiexp, {}, namespace,)
 
-            #translate to list when possible
-            if type(evalexp) in (Vector, Euler, bpy.types.bpy_prop_array, tuple,):
-                evalexp = list(evalexp)
+            #we sanatize out possible types depending on their length
+            matrix_special_label = ''
+            if (type(evalexp) in {tuple, list, set, Vector, Euler, bpy.types.bpy_prop_array}):
 
+                evalexp = list(evalexp)
+                n = len(evalexp)
+
+                if (n == 1):
+                    evalexp = float(evalexp[0])
+
+                elif (n <= 3):
+                    evalexp = Vector(evalexp + [0.0]*(3 - n))
+
+                elif (n == 4):
+                    evalexp = RGBAColor(*evalexp)
+
+                elif (4 < n <= 16):
+                    if (n < 16):
+                        matrix_special_label = f'List[{len(evalexp)}]'
+                        nulmatrix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                        evalexp.extend(nulmatrix[len(evalexp):])
+                    evalexp =  Matrix([evalexp[i*4:(i+1)*4] for i in range(4)])
+
+                else:
+                    raise TypeError(f"'{type(evalexp).__name__.title()}' of len {n} not supported")
+
+            #gather the value, label and type we need to set
+            set_type = set_value = set_label = None
             match evalexp:
 
-                # TODO could support Quaternion rotation & Matrix evaluation???
-                # Would be quite nice to directly execute matrix math code in there..
-                
-                # TODO could support numpy as well? Hmm.
-
                 case bool():
-
-                    if implicit_conversion and (get_socket_type(ng,0)!="BOOLEAN"):
-                        set_socket_type(ng,0, socket_type="NodeSocketBool")
-                        self.socket_type = "NodeSocketBool"
-                    set_socket_defvalue(ng,0, value=evalexp ,)
-                    set_socket_label(ng,0, label=evalexp ,)
+                    set_value = evalexp
+                    set_label = str(evalexp)
+                    set_type = 'NodeSocketBool'
 
                 case int():
-
-                    if implicit_conversion and (get_socket_type(ng,0)!="INT"):
-                        set_socket_type(ng,0, socket_type="NodeSocketInt")
-                        self.socket_type = "NodeSocketInt"
-                    set_socket_defvalue(ng,0, value=evalexp ,)
-                    set_socket_label(ng,0, label=evalexp ,)
+                    set_value = evalexp
+                    set_label = str(evalexp)
+                    set_type = 'NodeSocketInt'
 
                 case float():
-
-                    if implicit_conversion and (get_socket_type(ng,0)!="VALUE"):
-                        set_socket_type(ng,0, socket_type="NodeSocketFloat")
-                        self.socket_type = "NodeSocketFloat"
-                    set_socket_defvalue(ng,0, value=evalexp ,)
-                    set_socket_label(ng,0, label=round(evalexp,4) ,)
+                    set_value = evalexp
+                    set_label = str(round(evalexp,4))
+                    set_type = 'NodeSocketFloat'
                 
-                case list():
-
-                    #evaluate as vector?
-                    if (len(evalexp)==3):
-
-                        if implicit_conversion and (get_socket_type(ng,0)!="VECTOR"):
-                            set_socket_type(ng,0, socket_type="NodeSocketVector")
-                            self.socket_type = "NodeSocketVector"
-                        set_socket_defvalue(ng,0, value=evalexp ,)
-                        set_socket_label(ng,0, label=[round(n,4) for n in evalexp] ,)
-                    
-                    #evaluate as color? 
-                    elif (len(evalexp)==4):
-
-                        if implicit_conversion and (get_socket_type(ng,0)!="RGBA"):
-                            set_socket_type(ng,0, socket_type="NodeSocketColor")
-                            self.socket_type = "NodeSocketColor"
-                        set_socket_defvalue(ng,0, value=evalexp ,)
-                        set_socket_label(ng,0, label=[round(n,4) for n in evalexp] ,)
-
-                    #only vec3 and vec4 are supported
-                    else:
-                        self.evaluation_error = True
-                        raise Exception(f"TypeError: 'List{len(evalexp)}' not supported")
-
                 case str():
+                    set_value = evalexp
+                    set_label = '"'+evalexp+'"'
+                    set_type = 'NodeSocketString'
 
-                    if implicit_conversion and (get_socket_type(ng,0)!="STRING"):
-                        set_socket_type(ng,0, socket_type="NodeSocketString")
-                        self.socket_type = "NodeSocketString"
-                    set_socket_defvalue(ng,0, value=evalexp ,)
-                    set_socket_label(ng,0, label='"'+evalexp+'"' ,)
+                case Vector():
+                    set_value = evalexp
+                    set_label = str(tuple(round(n,4) for n in evalexp))
+                    set_type = 'NodeSocketVector'
+                    
+                case RGBAColor():
+                    set_value = evalexp
+                    set_label = str(tuple(round(n,4) for n in evalexp))
+                    set_type = 'NodeSocketColor'
 
+                case Quaternion():
+                    set_value = evalexp
+                    set_label = str(tuple(round(n,4) for n in evalexp))
+                    set_type = 'NodeSocketRotation'
+                    
+                case Matrix():
+                    set_value = evalexp
+                    set_label = "MatrixValue" if (not matrix_special_label) else matrix_special_label
+                    set_type = 'NodeSocketMatrix'
+                    
                 case bpy.types.Object():
-
-                    if implicit_conversion and (get_socket_type(ng,0)!="OBJECT"):
-                        set_socket_type(ng,0, socket_type="NodeSocketObject")
-                        self.socket_type = "NodeSocketObject"
-                    set_socket_defvalue(ng,0, value=evalexp,)
-                    set_socket_label(ng,0, label=f'D.objects["{evalexp.name}"]',)
+                    set_value = evalexp
+                    set_label = f'D.objects["{evalexp.name}"]'
+                    set_type = 'NodeSocketObject'
 
                 case bpy.types.Collection():
-
-                    if implicit_conversion and (get_socket_type(ng,0)!="COLLECTION"):
-                        set_socket_type(ng,0, socket_type="NodeSocketCollection")
-                        self.socket_type = "NodeSocketCollection"
-                    set_socket_defvalue(ng,0, value=evalexp,)
-                    set_socket_label(ng,0, label=f'D.collections["{evalexp.name}"]',)
+                    set_value = evalexp
+                    set_label = f'D.collections["{evalexp.name}"]'
+                    set_type = 'NodeSocketCollection'
 
                 case bpy.types.Material():
-
-                    if implicit_conversion and (get_socket_type(ng,0)!="MATERIAL"):
-                        set_socket_type(ng,0, socket_type="NodeSocketMaterial")
-                        self.socket_type = "NodeSocketMaterial"
-                    set_socket_defvalue(ng,0, value=evalexp,)
-                    set_socket_label(ng,0, label=f'D.materials["{evalexp.name}"]',)
+                    set_value = evalexp
+                    set_label = f'D.materials["{evalexp.name}"]'
+                    set_type = 'NodeSocketMaterial'
 
                 case bpy.types.Image():
-
-                    if implicit_conversion and (get_socket_type(ng,0)!="IMAGE"):
-                        set_socket_type(ng,0, socket_type="NodeSocketImage")
-                        self.socket_type = "NodeSocketImage"
-                    set_socket_defvalue(ng,0, value=evalexp,)
-                    set_socket_label(ng,0, label=f'D.images["{evalexp.name}"]',)
+                    set_value = evalexp
+                    set_label = f'D.images["{evalexp.name}"]'
+                    set_type = 'NodeSocketImage'
 
                 case _:
                     raise TypeError(f"'{type(evalexp).__name__.title()}' not supported")
 
-            return get_socket_defvalue(ng,0)
+                # case .. TODO could support numpy types as well? Hmm..
+
+            #set the values!
+            
+            if (define_socketype):
+                if (set_type is not None):
+                    set_socket_type(ng,0, socket_type=set_type,)
+
+            if (set_label is not None):
+                set_socket_label(ng,0, label=set_label ,)
+
+            if (set_value is not None):
+                
+                if (set_type in 'NodeSocketRotation'):
+
+                    innode = ng.nodes.get('QuatInput')
+
+                    #We cleanup nodetree and set up our input special.
+                    if (innode is None):    
+                        for node in list(ng.nodes).copy():
+                            if node.type not in {'GROUP_INPUT', 'GROUP_OUTPUT'}:
+                                ng.nodes.remove(node)
+                        innode = ng.nodes.new("FunctionNodeQuaternionToRotation")
+                        innode.name = 'QuatInput'
+                        ng.links.new(innode.outputs[0], ng.nodes['Group Output'].inputs[0])
+                    
+                    #assign values
+                    for inpt,val in zip(innode.inputs, set_value):
+                        inpt.default_value = val
+
+                elif (set_type in 'NodeSocketMatrix'):
+
+                    innode = ng.nodes.get('MatInput')
+
+                    #We cleanup nodetree and set up our input special.
+                    if (innode is None):    
+                        for node in list(ng.nodes).copy():
+                            if node.type not in {'GROUP_INPUT', 'GROUP_OUTPUT'}:
+                                ng.nodes.remove(node)
+                        innode = ng.nodes.new("FunctionNodeCombineMatrix")
+                        innode.name = 'MatInput'
+                        ng.links.new(innode.outputs[0], ng.nodes['Group Output'].inputs[0])
+                        #we also need to clean the default node values back to 0
+                        for inp in innode.inputs:
+                            inp.default_value = 0
+
+                    #assign flatten values
+                    for inpt,val in zip(innode.inputs, [value for row in set_value for value in row] ):
+                        inpt.default_value = val
+
+                else:
+
+                    if (len(ng.nodes)!=2):
+                        for node in list(ng.nodes).copy():
+                            if node.type not in {'GROUP_INPUT', 'GROUP_OUTPUT'}:
+                                ng.nodes.remove(node)
+
+                    set_socket_defvalue(ng,0, value=set_value ,)            
+
+            return None
 
         except Exception as e:
 
             print(f"{self.bl_idname}: Exception:\n{e}")
-            
+
             msg = str(e)
             if ("name 'self' is not defined" in msg):
                 msg = "'self' is not Available in this Context"
-            
+
             #display error to user
             self.error_message = msg
             set_socket_label(ng,0, label=type(e).__name__,)
@@ -299,6 +344,6 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         """search for all nodes of this type and update them"""
 
         for n in [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]:
-            n.update()
+            n.evaluate_python_expression()
 
         return None

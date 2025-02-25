@@ -226,7 +226,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     col.label(text="Debugging:")
                     row = col.row()
                     row.enabled = False
-                    row.prop(n, "debug_update_counter",)
+                    row.prop(n, "debug_evaluation_counter",)
 
             case 'GeometryNodeNodeBoosterSequencerVolume':
 
@@ -384,6 +384,42 @@ class NODEBOOSTER_PT_tool_color_palette(bpy.types.Panel,BrushPanel):
         return None 
 
 
+class NODEBOOSTER_PT_tool_frame(bpy.types.Panel):
+
+    bl_idname = "NODEBOOSTER_PT_tool_frame"
+    bl_label = "Draw Frame"
+    bl_category = "Node Booster"
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
+    bl_order = 3
+    bl_options = {'DEFAULT_CLOSED'} 
+
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
+
+    def draw(self, context):
+
+        sett_scene = context.scene.nodebooster
+
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        col = layout.column()
+        col.prop(sett_scene,"frame_label")
+        col.prop(sett_scene,"frame_label_size")
+        col.prop(sett_scene,"frame_use_custom_color")
+
+        col = col.column()
+        col.prop(sett_scene,"frame_sync_color")
+        col.separator(factor=0.25)
+        col.active = sett_scene.frame_use_custom_color
+        col.prop(sett_scene,"frame_color")
+
+        return None
+
+
 class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
 
     bl_idname = "NODEBOOSTER_PT_shortcuts_memo"
@@ -391,7 +427,7 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
     bl_category = "Node Booster"
     bl_space_type = "NODE_EDITOR"
     bl_region_type = "UI"
-    bl_order = 3
+    bl_order = 4
 
     @classmethod
     def poll(cls, context):
@@ -498,39 +534,5 @@ class NODEBOOSTER_PT_shortcuts_memo(bpy.types.Panel):
 
             continue
 
-        return None 
-
-
-class NODEBOOSTER_PT_tool_frame(bpy.types.Panel):
-
-    bl_idname = "NODEBOOSTER_PT_tool_frame"
-    bl_label = "Draw Frame"
-    bl_category = "Node Booster"
-    bl_space_type = "NODE_EDITOR"
-    bl_region_type = "UI"
-    bl_order = 4
-
-    @classmethod
-    def poll(cls, context):
-        return (context.space_data.type=='NODE_EDITOR') and (context.space_data.node_tree is not None)
-
-    def draw(self, context):
-
-        sett_scene = context.scene.nodebooster
-
-        layout = self.layout
-        layout.use_property_split = True
-        layout.use_property_decorate = False
-
-        col = layout.column()
-        col.prop(sett_scene,"frame_label")
-        col.prop(sett_scene,"frame_label_size")
-        col.prop(sett_scene,"frame_use_custom_color")
-
-        col = col.column()
-        col.prop(sett_scene,"frame_sync_color")
-        col.separator(factor=0.25)
-        col.active = sett_scene.frame_use_custom_color
-        col.prop(sett_scene,"frame_color")
-
         return None
+
