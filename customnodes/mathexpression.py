@@ -7,11 +7,7 @@
 # 1- Find the variables or constants with regex
 # 2- dynamically remove/create sockets accordingly
 # 3- transform the algebric expression into 'function expressions' using 'transform_math_expression'
-# 4- execute the function expression with 'NodeSetter' using exec(), which will set the nodes in place.
-
-# NOTE / TODO: @JacquesLucke told me we could replace fully use the ast module
-# to execute the functions of NodeSetter instead of using exec(). 
-# Perhaps it would be a nice rework for a later update.
+# 4- execute the function expression with using exec() with the namespace from nex.nodesetter, which will set the nodes in place.
 
 # TODO later support multi type operation with blender with int/vector/bool operator?  and other math operation?
 #     - right now we only support the float math node.. we could support these other nodes
@@ -24,6 +20,18 @@
 # TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
 # TODO would be nice to go back and forth from bake to custom node again..
 
+#TODO add dynamic output type?
+#  - int(a) & all round, floor, ceil, trunc should return int then
+#  - bool(a)
+#  - sign(a) (to int)
+#  - isneg(a) (== boolcompar, will return bool)
+#  - ispair(a)
+#  - isimpair(a)
+#  - ismultiple(a,b)
+#  - comparison <>== to bool
+# NOTE if we do so, then how can we support other nodetree later on?????
+# NOTE perhaps it is best to limit this to float for now. Rename it Float Math Expression?
+
 
 import bpy 
 
@@ -33,16 +41,16 @@ from functools import partial
 from ..__init__ import get_addon_prefs
 from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, word_wrap
 from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, frame_nodes
+from ..nex.nodesetter import get_user_functions
 
-sfloat = bpy.types.NodeSocketFloat
 
-
-NODE_YOFF, NODE_XOFF = 120, 70
 DIGITS = '0123456789'
 ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+
 IRRATIONALS = {'π':'3.1415927','𝑒':'2.7182818','φ':'1.6180339',}
 MACROS = {'Pi':'π','eNum':'𝑒','Gold':'φ',}
 SUPERSCRIPTS = {'⁰':'0', '¹':'1', '²':'2', '³':'3', '⁴':'4', '⁵':'5', '⁶':'6', '⁷':'7', '⁸':'8', '⁹':'9',}
+
 DOCSYMBOLS = {
     '+':{'name':"Addition",'desc':""},
     '-':{'name':"Subtraction.",'desc':"Can be used to negate as well ex: -x"},
@@ -56,7 +64,10 @@ DOCSYMBOLS = {
     '𝑒':{'name':"EulerNumber.",'desc':"Represented as 2.7182818 float value.\nInvoked using the 'eNum' Macro."}, #Supported during sanatization
     'φ':{'name':"GoldenRation.",'desc':"Represented as 1.6180339 float value.\nInvoked using the 'Gold' Macro."}, #Supported during sanatization
 }
-USER_FUNCTIONS, USER_FNAMES = [], [] #Store the math function used by NodeSetter, will be all funcs available for user. Will be stored at regtime.
+
+#Store the math function used to set the nodetree
+USER_FUNCTIONS = get_user_functions(return_types='float')
+USER_FNAMES = [f.__name__ for f in USER_FUNCTIONS]
 
 
 def replace_superscript_exponents(expr: str, algebric_notation:bool=False,) -> str:
@@ -110,501 +121,81 @@ def get_socket_python_api(node, identifier) -> str:
     return f"ng.nodes['{node.name}'].{in_out_api}[{idx}]"
 
 
-class NodeSetter():
-    """Set the nodes depending on a given function expression."""
-    #NOTE this class is never initialized
+def execute_math_function_expression(customnode=None, expression:str=None, 
+    node_tree=None, varsapi:dict=None, constapi:dict=None,) -> None | Exception:
+    """Execute the functions to arrange the node_tree"""
+
+    # Replace the constants or variable with sockets API
+    # ex 'a' will become 'ng.nodes["foo"].outputs[1]'
+    api_expression = replace_exact_tokens(expression, {**varsapi, **constapi},)
+
+    # Define the namespace of the execution, and include our functions
+    local_vars = {}
+    local_vars["ng"] = node_tree
+    local_vars.update({f.__name__:f for f in USER_FUNCTIONS})
+
+    # we get rid of any blender builtin functions.
+    global_vars = {"__builtins__": {}}
+
+    # Try to execute the functions:
+    try:
+        exec(api_expression, global_vars, local_vars)
+        #NOTE: the execution here is sanatized, user only have access to the given namespace.
+
+    except TypeError as e:
+        print(f"TypeError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
+
+        #Cook better error message to end user
+        # TODO TODO TODO TODO TODO 
+        # e = str(e)
+        # if e.startswith("NodeSetter."):
+        #     fname = str(e).split('NodeSetter.')[1].split('()')[0]
+
+        #     if ('() missing' in e):
+        #         nbr = e.split('() missing ')[1][0]
+        #         return Exception(f"Function '{fname}' needs {nbr} more Params")                    
+        #     elif ('() takes' in e):
+        #         return Exception(f"Function '{fname}' recieved Extra Params")
         
-    def taguser(func):
-        """decorator to easily store NodeSetter on an orderly manner at runtime"""
-        USER_FUNCTIONS.append(func)
-        USER_FNAMES.append(func.__name__)
-        return classmethod(func)
-
-    @classmethod
-    def execute_math_function_expression(cls, customnode=None, expression:str=None, node_tree=None, varsapi:dict=None, constapi:dict=None,) -> None | Exception:
-        """Execute the functions to arrange the node_tree"""
-
-        # Replace the constants or variable with sockets API
-        # ex 'a' will become 'ng.nodes["foo"].outputs[1]'
-        api_expression = replace_exact_tokens(expression, {**varsapi, **constapi},)
-
-        # Define the namespace of the execution, and include our functions
-        local_vars = {}
-        local_vars["ng"] = node_tree
-        for f in USER_FUNCTIONS:
-            local_vars[f.__name__] = partial(f, cls)
-        # we get rid of any blender builtin functions.
-        global_vars = {"__builtins__": {}}
-
-        # Try to execute the functions:
-        try:
-            exec(api_expression, global_vars, local_vars)
-            #NOTE: the execution here is sanatized, user only have access to the given namespace.
-
-        except TypeError as e:
-            print(f"TypeError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
-
-            #Cook better error message to end user
-            e = str(e)
-            if e.startswith("NodeSetter."):
-                fname = str(e).split('NodeSetter.')[1].split('()')[0]
-
-                if ('() missing' in e):
-                    nbr = e.split('() missing ')[1][0]
-                    return Exception(f"Function '{fname}' needs {nbr} more Params")                    
-                elif ('() takes' in e):
-                    return Exception(f"Function '{fname}' recieved Extra Params")
-            
-            return Exception("Wrong Arguments Given")
-        
-        except Exception as e:
-            print(f"ExecutionError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
-            
-            #Cook better error message to end user
-            if ("'tuple' object" in str(e)):
-                return Exception("Wrong use of '( , )' Synthax")
-            if ('too many nested parentheses' in str(e)):
-                return Exception("Expression too Large") #User really need to have a VERY LONG expression to reach to that point..
-            
-            return Exception("Error on Execution")
-        
-        # When executing, the last one created should be the active node, 
-        # We still need to connect it to the ng output
-        try:
-            last = node_tree.nodes.active
-            
-            #this can only mean one thing, the user only inputed one single variable or constant
-            if (last is None):
-                if (customnode.elemVar):
-                    last = node_tree.nodes['Group Input']
-                elif (customnode.elemConst):
-                    for n in node_tree.nodes:
-                        if (n.type=='VALUE'):
-                            last = n
-                            break
-                
-            out_node = node_tree.nodes['Group Output']
-            out_node.location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-            
-            sock1, sock2 = last.outputs[0], out_node.inputs[0]
-            link_sockets(sock1, sock2)
-            
-        except Exception as e:
-            print(f"FinalLinkError:\n  {e}")
-            return Exception("Error on Final Link")
-        
-        return None            
-
-    @classmethod
-    def _floatmath(cls, operation_type:str, sock1:sfloat, sock2:sfloat=None, sock3:sfloat=None,) -> sfloat:
-        """generic operation for adding a float math node and linking"""
-        
-        ng = sock1.id_data
-        last = ng.nodes.active
-
-        location = (0,200,)
-        if (last):
-            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-        node = ng.nodes.new('ShaderNodeMath')
-        node.operation = operation_type
-        node.use_clamp = False
-        
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-                
-        link_sockets(sock1, node.inputs[0])
-        if (sock2):
-            link_sockets(sock2, node.inputs[1])
-        if (sock3):
-            link_sockets(sock3, node.inputs[2])
-
-        return node.outputs[0]
-
-    @taguser
-    def add(cls, a:sfloat, b:sfloat,) -> sfloat:
-        """Addition.\nEquivalent to the '+' symbol."""
-        return cls._floatmath('ADD',a,b)
-
-    @taguser
-    def subtract(cls, a:sfloat, b:sfloat,) -> sfloat:
-        """Subtraction.\nEquivalent to the '-' symbol."""
-        return cls._floatmath('SUBTRACT',a,b)
-
-    @taguser
-    def mult(cls, a:sfloat, b:sfloat,) -> sfloat:
-        """Multiplications.\nEquivalent to the '*' symbol."""
-        return cls._floatmath('MULTIPLY',a,b)
-
-    @taguser
-    def div(cls, a:sfloat, b:sfloat,) -> sfloat:
-        """Division.\nEquivalent to the '/' symbol."""
-        return cls._floatmath('DIVIDE',a,b)
-
-    @taguser
-    def pow(cls, a:sfloat, n:sfloat,) -> sfloat:
-        """A Power n.\nEquivalent to the 'a**n' and '²' symbol."""
-        return cls._floatmath('POWER',a,n)
-
-    @taguser
-    def log(cls, a:sfloat, b:sfloat,) -> sfloat:
-        """Logarithm A base B."""
-        return cls._floatmath('LOGARITHM',a,b)
-
-    @taguser
-    def sqrt(cls, a:sfloat,) -> sfloat:
-        """Square Root of A."""
-        return cls._floatmath('SQRT',a)
-
-    @taguser
-    def invsqrt(cls, a:sfloat,) -> sfloat:
-        """1/ Square Root of A."""
-        return cls._floatmath('INVERSE_SQRT',a)
-
-    @classmethod
-    def _floatmath_nroot(cls, sock1:sfloat, sock2:sfloat,) -> sfloat:
-        """special operation to calculate custom root x**(1/n)"""
-
-        ng = sock1.id_data
-        last = ng.nodes.active
-
-        location = (0,200,)
-        if (last):
-            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-        divnode = ng.nodes.new('ShaderNodeMath')
-        divnode.operation = 'DIVIDE'
-        divnode.use_clamp = False
-
-        divnode.location = location
-        ng.nodes.active = divnode #Always set the last node active for the final link
-
-        divnode.inputs[0].default_value = 1.0
-        link_sockets(sock2, divnode.inputs[1])
-
-        pnode = ng.nodes.new('ShaderNodeMath')
-        pnode.operation = 'POWER'
-        pnode.use_clamp = False
-
-        last = divnode
-        location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-        pnode.location = location
-        ng.nodes.active = pnode #Always set the last node active for the final link
-
-        link_sockets(sock1, pnode.inputs[0])
-        link_sockets(divnode.outputs[0], pnode.inputs[1])
-        frame_nodes(ng, divnode, pnode, label='nRoot')
-        
-        return pnode.outputs[0]
-
-    @taguser
-    def nroot(cls, a:sfloat, n:sfloat,) -> sfloat:
-        """A Root N. a**(1/n.)"""
-        return cls._floatmath_nroot(a,n,)
-
-    @taguser
-    def abs(cls, a:sfloat,) -> sfloat:
-        """Absolute of A."""
-        return cls._floatmath('ABSOLUTE',a)
-
-    @classmethod
-    def _floatmath_neg(cls, sock1:sfloat,) -> sfloat:
-        """special operation for negative -1 -x ect"""
-
-        ng = sock1.id_data
-        last = ng.nodes.active
-
-        location = (0,200,)
-        if (last):
-            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-        node = ng.nodes.new('ShaderNodeMath')
-        node.operation = 'SUBTRACT'
-        node.use_clamp = False
-        node.label = 'Negate'
-
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-
-        node.inputs[0].default_value = 0.0
-        link_sockets(sock1, node.inputs[1])
-        
-        return node.outputs[0]
-
-    @taguser
-    def neg(cls, a:sfloat,) -> sfloat:
-        """Negate the value of A.\nEquivalent to the symbol '-x.'"""
-        return cls._floatmath_neg(a)
-
-    @taguser
-    def min(cls, a:sfloat, b:sfloat,) -> sfloat:
-        """Minimum between A & B."""
-        return cls._floatmath('MINIMUM',a,b)
-
-    @taguser
-    def smin(cls, a:sfloat, b:sfloat, dist:sfloat,) -> sfloat:
-        """Minimum between A & B considering a smoothing distance."""
-        return cls._floatmath('SMOOTH_MIN',a,b,dist)
-
-    @taguser
-    def max(cls, a:sfloat, b:sfloat,) -> sfloat:
-        """Maximum between A & B."""
-        return cls._floatmath('MAXIMUM',a,b)
-
-    @taguser
-    def smax(cls, a:sfloat, b:sfloat, dist:sfloat,) -> sfloat:
-        """Maximum between A & B considering a smoothing distance."""
-        return cls._floatmath('SMOOTH_MAX',a,b,dist)
-
-    @taguser
-    def round(cls, a:sfloat,) -> sfloat:
-        """Round a Float to an Integer."""
-        return cls._floatmath('ROUND',a)
-
-    @taguser
-    def floor(cls, a:sfloat,) -> sfloat:
-        """Floor a Float to an Integer."""
-        return cls._floatmath('FLOOR',a)
-
-    @taguser
-    def ceil(cls, a:sfloat,) -> sfloat:
-        """Ceil a Float to an Integer."""
-        return cls._floatmath('CEIL',a)
-
-    @taguser
-    def trunc(cls, a:sfloat,) -> sfloat:
-        """Trunc a Float to an Integer."""
-        return cls._floatmath('TRUNC',a)
-
-    @taguser
-    def frac(cls, a:sfloat,) -> sfloat:
-        """Fraction.\nThe fraction part of A."""
-        return cls._floatmath('FRACT',a)
-
-    @taguser
-    def mod(cls, a:sfloat, b:sfloat,) -> sfloat:
-        """Modulo.\nEquivalent to the '%' symbol."""
-        return cls._floatmath('MODULO',a,b)
-
-    @taguser
-    def fmod(cls, a:sfloat, b:sfloat,) -> sfloat:
-        """Floored Modulo."""
-        return cls._floatmath('FLOORED_MODULO',a,b)
-
-    @taguser
-    def wrap(cls, v:sfloat, a:sfloat, b:sfloat,) -> sfloat:
-        """Wrap value to Range A B."""
-        return cls._floatmath('WRAP',v,a,b)
-
-    @taguser
-    def snap(cls, v:sfloat, i:sfloat,) -> sfloat:
-        """Snap to Increment."""
-        return cls._floatmath('SNAP',v,i)
-
-    @taguser
-    def pingpong(cls, v:sfloat, scale:sfloat,) -> sfloat:
-        """PingPong. Wrap a value and every other cycles at cycle Scale."""
-        return cls._floatmath('PINGPONG',v,scale)
-
-    @taguser
-    def floordiv(cls, a:sfloat, b:sfloat,) -> sfloat: #Custom
-        """Floor Division.\nEquivalent to the '//' symbol."""
-        _r = cls.div(a,b)
-        r = cls.floor(_r)
-        frame_nodes(a.id_data, _r.node, r.node, label='FloorDiv')
-        return r
-
-    @taguser
-    def sin(cls, a:sfloat,) -> sfloat:
-        """The Sine of A."""
-        return cls._floatmath('SINE',a)
-
-    @taguser
-    def cos(cls, a:sfloat,) -> sfloat:
-        """The Cosine of A."""
-        return cls._floatmath('COSINE',a)
-
-    @taguser
-    def tan(cls, a:sfloat,) -> sfloat:
-        """The Tangent of A."""
-        return cls._floatmath('TANGENT',a)
-
-    @taguser
-    def asin(cls, a:sfloat,) -> sfloat:
-        """The Arcsine of A."""
-        return cls._floatmath('ARCSINE',a)
-
-    @taguser
-    def acos(cls, a:sfloat,) -> sfloat:
-        """The Arccosine of A."""
-        return cls._floatmath('ARCCOSINE',a)
-
-    @taguser
-    def atan(cls, a:sfloat,) -> sfloat:
-        """The Arctangent of A."""
-        return cls._floatmath('ARCTANGENT',a)
-
-    @taguser
-    def hsin(cls, a:sfloat,) -> sfloat:
-        """The Hyperbolic Sine of A."""
-        return cls._floatmath('SINH',a)
-
-    @taguser
-    def hcos(cls, a:sfloat,) -> sfloat:
-        """The Hyperbolic Cosine of A."""
-        return cls._floatmath('COSH',a)
-
-    @taguser
-    def htan(cls, a:sfloat,) -> sfloat:
-        """The Hyperbolic Tangent of A."""
-        return cls._floatmath('TANH',a)
-
-    @taguser
-    def rad(cls, a:sfloat,) -> sfloat:
-        """Convert from Degrees to Radians."""
-        return cls._floatmath('RADIANS',a)
-
-    @taguser
-    def deg(cls, a:sfloat,) -> sfloat:
-        """Convert from Radians to Degrees."""
-        return cls._floatmath('DEGREES',a)
-
-    @classmethod
-    def _mix(cls, data_type:str, sock1:sfloat, sock2:sfloat, sock3:sfloat,) -> sfloat:
-        """generic operation for adding a mix node and linking"""
-
-        ng = sock1.id_data
-        last = ng.nodes.active
-
-        location = (0,200,)
-        if (last):
-            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-        node = ng.nodes.new('ShaderNodeMix')
-        node.data_type = data_type
-        node.clamp_factor = False
-
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-
-        link_sockets(sock1, node.inputs[0])
-
-        # Need to choose socket depending on node data_type (hidden sockets)
-        match data_type:
-            case 'FLOAT':
-                link_sockets(sock2, node.inputs[2])
-                link_sockets(sock3, node.inputs[3])
-            case _:
-                raise Exception("Integration Needed")
-
-        return node.outputs[0]
-
-    @taguser
-    def lerp(cls, f:sfloat, a:sfloat, b:sfloat,) -> sfloat:
-        """Mix.\nLinear Interpolation of value A and B from given factor."""
-        return cls._mix('FLOAT',f,a,b)
+        return Exception("Wrong Arguments Given")
     
-    @taguser
-    def mix(cls, f:sfloat, a:sfloat, b:sfloat,) -> sfloat: 
-        """Alternative notation to lerp() function."""
-        return cls.lerp(f,a,b)
-
-    @classmethod
-    def _floatclamp(cls, clamp_type:str, sock1:sfloat, sock2:sfloat, sock3:sfloat,) -> sfloat:
-        """generic operation for adding a mix node and linking"""
+    except Exception as e:
+        print(f"ExecutionError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
         
-        ng = sock1.id_data
-        last = ng.nodes.active
+        #Cook better error message to end user
+        if ("'tuple' object" in str(e)):
+            return Exception("Wrong use of '( , )' Synthax")
+        if ('too many nested parentheses' in str(e)):
+            return Exception("Expression too Large") #User really need to have a VERY LONG expression to reach to that point..
         
-        location = (0,200,)
-        if (last):
-            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-        node = ng.nodes.new('ShaderNodeClamp')
-        node.clamp_type = clamp_type
-
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-
-        link_sockets(sock1, node.inputs[0])
-        link_sockets(sock2, node.inputs[1])
-        link_sockets(sock3, node.inputs[2])
-
-        return node.outputs[0]
-
-    @taguser
-    def clamp(cls, v:sfloat, a:sfloat, b:sfloat,) -> sfloat:
-        """Clamp value between min an max."""
-        return cls._floatclamp('MINMAX',v,a,b)
+        return Exception("Error on Execution")
     
-    @taguser
-    def clampr(cls, v:sfloat, a:sfloat, b:sfloat,) -> sfloat:
-        """Clamp value between auto-defined min/max."""
-        return cls._floatclamp('RANGE',v,a,b)
-
-    @classmethod
-    def _maprange(cls, data_type:str, interpolation_type:str, sock1:sfloat, sock2:sfloat, sock3:sfloat, sock4:sfloat, sock5:sfloat, sock6:sfloat=None,) -> sfloat:
-        """generic operation for adding a remap node and linking"""
-
-        ng = sock1.id_data
-        last = ng.nodes.active
-
-        location = (0,200,)
-        if (last):
-            location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-        node = ng.nodes.new('ShaderNodeMapRange')
-        node.data_type = data_type
-        node.interpolation_type = interpolation_type
-        node.clamp = False
-
-        node.location = location
-        ng.nodes.active = node #Always set the last node active for the final link
-
-        link_sockets(sock1, node.inputs[0])
-        link_sockets(sock2, node.inputs[1])
-        link_sockets(sock3, node.inputs[2])
-        link_sockets(sock4, node.inputs[3])
-        link_sockets(sock5, node.inputs[4])
-        if (sock6):
-            link_sockets(sock6, node.inputs[5])
+    # When executing, the last one created should be the active node, 
+    # We still need to connect it to the ng output
+    try:
+        last = node_tree.nodes.active
         
-        return node.outputs[0]
-
-    @taguser
-    def map(cls, val:sfloat, a:sfloat, b:sfloat, x:sfloat, y:sfloat,) -> sfloat:
-        """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
-        return cls._maprange('FLOAT','LINEAR',val,a,b,x,y)
-
-    @taguser
-    def mapst(cls, val:sfloat, a:sfloat, b:sfloat, x:sfloat, y:sfloat, step:sfloat,) -> sfloat:
-        """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
-        return cls._maprange('FLOAT','STEPPED',val,a,b,x,y,step)
-
-    @taguser
-    def mapsmo(cls, val:sfloat, a:sfloat, b:sfloat, x:sfloat, y:sfloat,) -> sfloat:
-        """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
-        return cls._maprange('FLOAT','SMOOTHSTEP',val,a,b,x,y)
-
-    @taguser
-    def mapsmoo(cls, val:sfloat, a:sfloat, b:sfloat, x:sfloat, y:sfloat,) -> sfloat:
-        """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
-        return cls._maprange('FLOAT','SMOOTHERSTEP',val,a,b,x,y)
-
-    #TODO add more functions
-    #   NOTE compariosn <>==
-    #TODO add dynamic output type?
-    #   NOTE if we do so, then how can we support other nodetree later on?????
-    #   NOTE perhaps it is best to limit this to float for now. Rename it Float Math Expression?
-    #   TODO int(a) & all round, floor, ceil, trunc should return int then
-    #   TODO bool(a)
-    #   TODO sign(a) (to int)
-    #   TODO isneg(a) (== boolcompar, will return bool)
-    #   TODO ispair(a)
-    #   TODO isimpair(a)
-    #   TODO ismultiple(a,b)
-    #   TODO comparison <>== to bool
+        #this can only mean one thing, the user only inputed one single variable or constant
+        if (last is None):
+            if (customnode.elemVar):
+                last = node_tree.nodes['Group Input']
+            elif (customnode.elemConst):
+                for n in node_tree.nodes:
+                    if (n.type=='VALUE'):
+                        last = n
+                        break
+            
+        out_node = node_tree.nodes['Group Output']
+        out_node.location = (last.location.x+last.width+70, last.location.y-120,)
+        
+        sock1, sock2 = last.outputs[0], out_node.inputs[0]
+        link_sockets(sock1, sock2)
+        
+    except Exception as e:
+        print(f"FinalLinkError:\n  {e}")
+        return Exception("Error on Final Link")
+    
+    return None     
 
 
 class FunctionTransformer(ast.NodeTransformer):
@@ -1003,7 +594,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         self.debug_fctexp = fctexp
         
         # Execute the function expression to arrange the user nodetree
-        rval = NodeSetter.execute_math_function_expression(
+        rval = execute_math_function_expression(
             customnode=self, expression=fctexp, node_tree=ng, varsapi=vareq, constapi=consteq,
             )
         
