@@ -14,6 +14,7 @@ from ..utils.node_utils import (
     set_socket_type,
     create_socket,
     remove_socket,
+    set_socket_label,
 )
 
 
@@ -25,6 +26,8 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
     # Could even go harder, and user could call the math expression node within the script to mix with arguments. 
     # Admitting we implement a 'Advanced Math Expression' node that supports Vec/Rot/Matrix ect..
     # Note that if this happens, it would be nicer to have some sort of create_expression_nodetree(mathexpression, modify_node_tree=None, create_node_tree=True,)
+
+    #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
 
     bl_idname = "GeometryNodeNodeBoosterPythonScript"
     bl_label = "Python Constants"
@@ -39,6 +42,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
     user_textdata : bpy.props.PointerProperty(
         type=bpy.types.Text,
         update=lambda self, context: self.evaluate_python_script(),
+        poll=lambda self,data: not data.name.startswith('.'),
         name="TextData",
         description="Blender Text datablock to execute",
         )
@@ -91,7 +95,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         for idx,socket in enumerate(out_nod.inputs):
             if ((socket.type!='CUSTOM') and (idx!=0)):
                 idx_to_del.append(idx)
-                
+
         for idx in reversed(idx_to_del):
             remove_socket(ng, idx, in_out='OUTPUT')
 
@@ -106,27 +110,31 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         self.debug_evaluation_counter += 1
         self.error_message = ''
 
+        #we reset the Error status back to false
+        set_socket_label(ng,0, label="NoErrors",)
+        set_socket_defvalue(ng,0, value=False,)
+        self.error_message = ''
+        
         # Check if a Blender Text datablock has been specified
         if (self.user_textdata is None):
             # if not, remove unused vars sockets
             self.cleanse_outputs()
             # set error to True
+            set_socket_label(ng,0, label="EmptyTextError",)
             set_socket_defvalue(ng,0, value=True,)
             return None
-
-        # set error status back to False
-        set_socket_defvalue(ng,0, value=False,)
 
         # Execute the script and capture its local variables
         script_vars = {}
         try:
             exec(self.user_textdata.as_string(), {}, script_vars)
         except Exception as e:
-            print(f"{self.bl_idname} Exception:\n{e}")
+            print(f"{self.bl_idname} Execution Exception '{type(e).__name__}':\n{e}")
             # set error to True
+            set_socket_label(ng,0, label="ExecutionError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = f'An Error Occured on Script Execution\n{e}'
+            self.error_message = f"Script Execution Error.\n{e}"
             return None
 
         # Filter for variables that start with 'out_'
@@ -135,33 +143,37 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
             # if not, remove unused vars sockets
             self.cleanse_outputs()
             # set error to True
+            set_socket_label(ng,0, label="NoVarFoundError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = f"No Variables Starting with 'out_' Found in your Script!"
+            self.error_message = f"No 'out_' Variables Found in your Script!"
             return None
 
         # Transform all py values to values we can use
+        # {sockname: sockval, socklbl, socktype}
+        out_elems = {}
         try:
-            # sockname: sockval, socklbl, socktype
-            out_vars = {k:convert_pyvar_to_data(v) for k,v in out_vars.items()}
+            for k,v in out_vars.items():
+                out_elems[k] = convert_pyvar_to_data(v)
         except Exception as e:
-            print(f"{self.bl_idname} Exception:\n{e}")
+            print(f"{self.bl_idname} Parsing Exception '{type(e).__name__}':\n   for variable '{k}' | value '{v}' | type '{type(v)}'\n{e}")
             # set error to True
+            set_socket_label(ng,0, label="ParsingError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message =type(e).__name__ +"\n"+ str(e)
+            self.error_message = f"{type(e).__name__} for var {k}.\n{str(e)}"
             return None
 
         # Create new sockets depending on vars
         current_vars = [s.name for s in out_nod.inputs]
-        for sockname, (_, socklbl, socktype) in out_vars.items():
+        for sockname, (_, socklbl, socktype) in out_elems.items():
             if (sockname not in current_vars):
                 create_socket(ng, in_out='OUTPUT', socket_type=socktype, socket_name=sockname,)
 
         # Remove unused vars sockets
         idx_to_del = []
         for idx,socket in enumerate(out_nod.inputs):
-            if (socket.name not in out_vars.keys()):
+            if (socket.name not in out_elems.keys()):
                 if ((socket.type!='CUSTOM') and (idx!=0)):
                     idx_to_del.append(idx)
         for idx in reversed(idx_to_del):
@@ -173,7 +185,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         # Make sure socket types are corresponding to their python evaluated values
         for idx,socket in enumerate(out_nod.inputs):
             if ((socket.type!='CUSTOM') and (idx!=0)):
-                _, _, socktype = out_vars[socket.name]
+                _, _, socktype = out_elems[socket.name]
                 current_type = get_socket_type(ng, idx, in_out='OUTPUT')
                 if (current_type!=socktype):
                     set_socket_type(ng, idx, in_out='OUTPUT', socket_type=socktype,)
@@ -181,7 +193,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         # Assign the values to sockets
         for idx,socket in enumerate(out_nod.inputs):
             if ((socket.type!='CUSTOM') and (idx!=0)):
-                sockval, _, _ = out_vars[socket.name]
+                sockval, _, _ = out_elems[socket.name]
                 set_socket_defvalue(ng, idx, value=sockval,)
                 
         return None

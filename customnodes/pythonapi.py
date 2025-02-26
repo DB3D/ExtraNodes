@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+
 import bpy 
 
 from ..__init__ import get_addon_prefs
@@ -115,6 +116,8 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     The evaluated type can be of type 'float', 'int', 'string', 'object', 'collection', 'material'.
     By default the values will be updated automatically on each on depsgraph post and frame_pre signals"""
 
+    #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
+    
     bl_idname = "GeometryNodeNodeBoosterPythonApi"
     bl_label = "Python Constant"
 
@@ -175,77 +178,95 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         ng = self.node_tree
         sett_plugin = get_addon_prefs()
         self.debug_evaluation_counter += 1
+        
+        #we reset the Error status back to false
+        set_socket_label(ng,1, label="NoErrors",)
+        set_socket_defvalue(ng,1, value=False,)
         self.error_message = ''
         
         #check if string is empty first, perhaps user didn't input anything yet 
         if (self.user_pyapiexp==""):
             set_socket_label(ng,0, label="Waiting for Input" ,)
+            set_socket_label(ng,1, label="EmptyFieldError",)
             set_socket_defvalue(ng,1, value=True,)
             return None
 
-        #we reset the Error status back to false
-        set_socket_defvalue(ng,1, value=False,)
+        to_evaluate = self.user_pyapiexp
 
+        #support for macros
+        if ('#frame' in to_evaluate):
+            to_evaluate = to_evaluate.replace('#frame','scene.frame_current')
+
+        #define user namespace
+        namespace = {}
+        namespace["bpy"] = bpy
+        namespace["D"] = bpy.data
+        namespace["C"] = bpy.context
+        namespace["context"] = bpy.context
+        namespace["scene"] = bpy.context.scene
+        namespace.update(vars(__import__('mathutils')))
+        namespace.update(vars(__import__('math')))
+
+        #'self' as object using this node? only if valid and not ambiguous
+        node_obj_users = self.get_objects_from_node_instance()
+        if (len(node_obj_users)==1):
+            namespace["self"] = list(node_obj_users)[0]
+            
+        #NOTE, maybe the execution need to check for some sort of blender checks before allowing execution?
+        # a little like the driver python expression, there's a global setting for that. Unsure if it's needed.
+        
+        #convenience namespace execution for user
+        # NOTE Need sanatization layer here? Hmmmm. Maybe we can forbid access to the os module?
+        # but well, the whole concept of this node is to execute python lines of code..
         try:
-            #NOTE, maybe the execution need to check for some sort of blender checks before allowing execution?
-            # a little like the driver python expression, there's a global setting for that. Unsure if it's needed.
-
-            to_evaluate = self.user_pyapiexp
-
-            #support for macros
-            if ('#frame' in to_evaluate):
-                to_evaluate = to_evaluate.replace('#frame','scene.frame_current')
-
-            #define user namespace
-            namespace = {}
-            namespace["bpy"] = bpy
-            namespace["D"] = bpy.data
-            namespace["C"] = bpy.context
-            namespace["context"] = bpy.context
-            namespace["scene"] = bpy.context.scene
-            namespace.update(vars(__import__('mathutils')))
-            namespace.update(vars(__import__('math')))
-
-            #'self' as object using this node? only if valid and not ambiguous
-            node_obj_users = self.get_objects_from_node_instance()
-            if (len(node_obj_users)==1):
-                namespace["self"] = list(node_obj_users)[0]
-
-            #convenience namespace execution for user
-            # NOTE Need sanatization layer here? Hmmmm. Maybe we can forbid access to the os module?
-            # but well, the whole concept of this node is to execute python lines of code..
             if (sett_plugin.node_pyapi_namespace1!=""): exec(sett_plugin.node_pyapi_namespace1, {}, namespace,)
             if (sett_plugin.node_pyapi_namespace2!=""): exec(sett_plugin.node_pyapi_namespace2, {}, namespace,)
             if (sett_plugin.node_pyapi_namespace3!=""): exec(sett_plugin.node_pyapi_namespace3, {}, namespace,)
+        except Exception as e:
+            print(f"{self.bl_idname} UserNameSpace Exception '{type(e).__name__}':\n{e}")
 
-            #evaluated exprtession
-            evaluated_pyvalue = eval(to_evaluate, {}, namespace,)
-
-            #python to actual values we can use
-            set_value, set_label, socktype = convert_pyvar_to_data(evaluated_pyvalue)
-
-            #set values
-            if (define_socketype):
-                set_socket_type(ng,0, socket_type=socktype,)
-                #HERE maybe we can simply check type and replace if not
-            set_socket_label(ng,0, label=set_label ,)
-            set_socket_defvalue(ng,0, value=set_value ,)            
-
+            #display error to user
+            self.error_message = str(e)
+            set_socket_label(ng,0, label=type(e).__name__,)
+            set_socket_label(ng,1, label="NameSpaceError",)
+            set_socket_defvalue(ng,1, value=True,)
             return None
 
+        #evaluated the user expression
+        try:
+            evaluated_pyvalue = eval(to_evaluate, {}, namespace,)
         except Exception as e:
-            print(f"{self.bl_idname} Exception:\n{e}")
+            print(f"{self.bl_idname} Evaluation Exception '{type(e).__name__}':\n{e}")
 
             msg = str(e)
             if ("name 'self' is not defined" in msg):
-                msg = "'self' is not Available in this Context"
+                msg = "'self' not Available in this Context."
 
             #display error to user
             self.error_message = msg
             set_socket_label(ng,0, label=type(e).__name__,)
-
-            #set error socket output to True
+            set_socket_label(ng,1, label="ExecutionError",)
             set_socket_defvalue(ng,1, value=True,)
+            return None
+
+        #python to actual values we can use
+        try:
+            set_value, set_label, socktype = convert_pyvar_to_data(evaluated_pyvalue)
+        except Exception as e:
+            print(f"{self.bl_idname} Parsing Exception '{type(e).__name__}':\n{e}")
+
+            #display error to user
+            self.error_message = str(e)
+            set_socket_label(ng,0, label=type(e).__name__,)
+            set_socket_label(ng,1, label="ParsingError",)
+            set_socket_defvalue(ng,1, value=True,)
+            return None
+    
+        #set values
+        if (define_socketype):
+            set_socket_type(ng,0, socket_type=socktype,)
+        set_socket_label(ng,0, label=set_label ,)
+        set_socket_defvalue(ng,0, value=set_value ,)
 
         return None
 
