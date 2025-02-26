@@ -5,13 +5,110 @@
 import bpy 
 
 from ..__init__ import get_addon_prefs
-from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue, set_socket_type, set_socket_label
+from ..utils.node_utils import (
+    create_new_nodegroup,
+    set_socket_defvalue,
+    set_socket_type,
+    set_socket_label,
+)
 
-from mathutils import * ; from math import * # Conveniences vars! Needed to evaluate the user python expression. 
-                                             # Must be done in global space, wild cards not supported within classes.
-
+from mathutils import Color, Euler, Matrix, Quaternion, Vector
 from collections import namedtuple
+
 RGBAColor = namedtuple('RGBAColor', ['r','g','b','a'])
+
+
+def convert_pyvar_to_data(py_variable):
+    """Convert a given python variable into data we can use to create and assign sockets"""
+    #TODO do we want to support numpy as well? or else?
+    
+    value = py_variable
+    
+    #we sanatize out possible types depending on their length
+    matrix_special_label = ''
+    if (type(value) in {tuple, list, set, Vector, Euler, bpy.types.bpy_prop_array}):
+
+        value = list(value)
+        n = len(value)
+
+        if (n == 1):
+            value = float(value[0])
+
+        elif (n <= 3):
+            value = Vector(value + [0.0]*(3 - n))
+
+        elif (n == 4):
+            value = RGBAColor(*value)
+
+        elif (4 < n <= 16):
+            if (n < 16):
+                matrix_special_label = f'List[{len(value)}]'
+                nulmatrix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                value.extend(nulmatrix[len(value):])
+            value =  Matrix([value[i*4:(i+1)*4] for i in range(4)])
+
+        else:
+            raise TypeError(f"'{type(value).__name__.title()}' of len {n} not supported")
+
+    match value:
+
+        case bool():
+            repr_label = str(value)
+            socket_type = 'NodeSocketBool'
+
+        case int():
+            repr_label = str(value)
+            socket_type = 'NodeSocketInt'
+
+        case float():
+            repr_label = str(round(value,4))
+            socket_type = 'NodeSocketFloat'
+
+        case str():
+            repr_label = '"'+value+'"'
+            socket_type = 'NodeSocketString'
+
+        case Vector():
+            repr_label = str(tuple(round(n,4) for n in value))
+            socket_type = 'NodeSocketVector'
+
+        case Color():
+            value = RGBAColor(*value,1) #add alpha channel
+            repr_label = str(tuple(round(n,4) for n in value))
+            socket_type = 'NodeSocketColor'
+            
+        case RGBAColor():
+            repr_label = str(tuple(round(n,4) for n in value))
+            socket_type = 'NodeSocketColor'
+
+        case Quaternion():
+            repr_label = str(tuple(round(n,4) for n in value))
+            socket_type = 'NodeSocketRotation'
+
+        case Matrix():
+            repr_label = "MatrixValue" if (not matrix_special_label) else matrix_special_label
+            socket_type = 'NodeSocketMatrix'
+
+        case bpy.types.Object():
+            repr_label = f'D.objects["{value.name}"]'
+            socket_type = 'NodeSocketObject'
+
+        case bpy.types.Collection():
+            repr_label = f'D.collections["{value.name}"]'
+            socket_type = 'NodeSocketCollection'
+
+        case bpy.types.Material():
+            repr_label = f'D.materials["{value.name}"]'
+            socket_type = 'NodeSocketMaterial'
+
+        case bpy.types.Image():
+            repr_label = f'D.images["{value.name}"]'
+            socket_type = 'NodeSocketImage'
+
+        case _:
+            raise TypeError(f"'{type(value).__name__.title()}' not supported")
+    
+    return value, repr_label, socket_type
 
 
 class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
@@ -37,14 +134,8 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         name="debug counter",
         default=0,
         )
-
-    def update_signal(self,context):
-        """evaluate user expression and change the socket output type implicitly"""
-        self.evaluate_python_expression(define_socketype=True)
-        return None 
-
     user_pyapiexp : bpy.props.StringProperty(
-        update=update_signal,
+        update=lambda self, context: self.evaluate_python_expression(define_socketype=True),
         description="type the expression you wish to evaluate right here",
         )
 
@@ -93,7 +184,8 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         ng = self.node_tree
         sett_plugin = get_addon_prefs()
         self.debug_evaluation_counter += 1
-
+        self.error_message = ''
+        
         #check if string is empty first, perhaps user didn't input anything yet 
         if (self.user_pyapiexp==""):
             set_socket_label(ng,0, label="Waiting for Input" ,)
@@ -102,12 +194,18 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
 
         #we reset the Error status back to false
         set_socket_defvalue(ng,1, value=False,)
-        self.error_message = ""
 
         try:
             #NOTE, maybe the execution need to check for some sort of blender checks before allowing execution?
             # a little like the driver python expression, there's a global setting for that. Unsure if it's needed.
 
+            to_evaluate = self.user_pyapiexp
+
+            #support for macros
+            if ('#frame' in to_evaluate):
+                to_evaluate = to_evaluate.replace('#frame','scene.frame_current')
+
+            #define user namespace
             namespace = {}
             namespace["bpy"] = bpy
             namespace["D"] = bpy.data
@@ -117,132 +215,35 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
             namespace.update(vars(__import__('mathutils')))
             namespace.update(vars(__import__('math')))
 
-            #recognize self as object using this node? only if valid and not ambiguous
+            #'self' as object using this node? only if valid and not ambiguous
             node_obj_users = self.get_objects_from_node_instance()
             if (len(node_obj_users)==1):
                 namespace["self"] = list(node_obj_users)[0]
 
-            #convenience execution for user (he can customize this in plugin preference)
-            # NOTE Need sanatization layer here? Hmm
-            if (sett_plugin.pynode_namespace1!=""): exec(sett_plugin.pynode_namespace1, {}, namespace,)
-            if (sett_plugin.pynode_namespace2!=""): exec(sett_plugin.pynode_namespace2, {}, namespace,)
-            if (sett_plugin.pynode_namespace3!=""): exec(sett_plugin.pynode_namespace3, {}, namespace,)
+            #convenience namespace execution for user
+            # NOTE Need sanatization layer here? Hmmmm. Maybe we can forbid access to the os module?
+            # but well, the whole concept of this node is to execute python lines of code..
+            if (sett_plugin.node_pyapi_namespace1!=""): exec(sett_plugin.node_pyapi_namespace1, {}, namespace,)
+            if (sett_plugin.node_pyapi_namespace2!=""): exec(sett_plugin.node_pyapi_namespace2, {}, namespace,)
+            if (sett_plugin.node_pyapi_namespace3!=""): exec(sett_plugin.node_pyapi_namespace3, {}, namespace,)
 
             #evaluated exprtession
-            evalexp = eval(self.user_pyapiexp, {}, namespace,)
+            evaluated_pyvalue = eval(to_evaluate, {}, namespace,)
 
-            #we sanatize out possible types depending on their length
-            matrix_special_label = ''
-            if (type(evalexp) in {tuple, list, set, Vector, Euler, bpy.types.bpy_prop_array}):
+            #python to actual values we can use
+            set_value, set_label, socktype = convert_pyvar_to_data(evaluated_pyvalue)
 
-                evalexp = list(evalexp)
-                n = len(evalexp)
-
-                if (n == 1):
-                    evalexp = float(evalexp[0])
-
-                elif (n <= 3):
-                    evalexp = Vector(evalexp + [0.0]*(3 - n))
-
-                elif (n == 4):
-                    evalexp = RGBAColor(*evalexp)
-
-                elif (4 < n <= 16):
-                    if (n < 16):
-                        matrix_special_label = f'List[{len(evalexp)}]'
-                        nulmatrix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                        evalexp.extend(nulmatrix[len(evalexp):])
-                    evalexp =  Matrix([evalexp[i*4:(i+1)*4] for i in range(4)])
-
-                else:
-                    raise TypeError(f"'{type(evalexp).__name__.title()}' of len {n} not supported")
-
-            #gather the value, label and type we need to set
-            set_type = set_value = set_label = None
-            match evalexp:
-
-                case bool():
-                    set_value = evalexp
-                    set_label = str(evalexp)
-                    set_type = 'NodeSocketBool'
-
-                case int():
-                    set_value = evalexp
-                    set_label = str(evalexp)
-                    set_type = 'NodeSocketInt'
-
-                case float():
-                    set_value = evalexp
-                    set_label = str(round(evalexp,4))
-                    set_type = 'NodeSocketFloat'
-                
-                case str():
-                    set_value = evalexp
-                    set_label = '"'+evalexp+'"'
-                    set_type = 'NodeSocketString'
-
-                case Vector():
-                    set_value = evalexp
-                    set_label = str(tuple(round(n,4) for n in evalexp))
-                    set_type = 'NodeSocketVector'
-                    
-                case RGBAColor():
-                    set_value = evalexp
-                    set_label = str(tuple(round(n,4) for n in evalexp))
-                    set_type = 'NodeSocketColor'
-
-                case Quaternion():
-                    set_value = evalexp
-                    set_label = str(tuple(round(n,4) for n in evalexp))
-                    set_type = 'NodeSocketRotation'
-                    
-                case Matrix():
-                    set_value = evalexp
-                    set_label = "MatrixValue" if (not matrix_special_label) else matrix_special_label
-                    set_type = 'NodeSocketMatrix'
-                    
-                case bpy.types.Object():
-                    set_value = evalexp
-                    set_label = f'D.objects["{evalexp.name}"]'
-                    set_type = 'NodeSocketObject'
-
-                case bpy.types.Collection():
-                    set_value = evalexp
-                    set_label = f'D.collections["{evalexp.name}"]'
-                    set_type = 'NodeSocketCollection'
-
-                case bpy.types.Material():
-                    set_value = evalexp
-                    set_label = f'D.materials["{evalexp.name}"]'
-                    set_type = 'NodeSocketMaterial'
-
-                case bpy.types.Image():
-                    set_value = evalexp
-                    set_label = f'D.images["{evalexp.name}"]'
-                    set_type = 'NodeSocketImage'
-
-                case _:
-                    raise TypeError(f"'{type(evalexp).__name__.title()}' not supported")
-
-                # case .. TODO could support numpy types as well? Hmm..
-
-            #set the values!
-            
+            #set values
             if (define_socketype):
-                if (set_type is not None):
-                    set_socket_type(ng,0, socket_type=set_type,)
-
-            if (set_label is not None):
-                set_socket_label(ng,0, label=set_label ,)
-
-            if (set_value is not None):
-                set_socket_defvalue(ng,0, value=set_value ,)            
+                set_socket_type(ng,0, socket_type=socktype,)
+                #HERE maybe we can simply check type and replace if not
+            set_socket_label(ng,0, label=set_label ,)
+            set_socket_defvalue(ng,0, value=set_value ,)            
 
             return None
 
         except Exception as e:
-
-            print(f"{self.bl_idname}: Exception:\n{e}")
+            print(f"{self.bl_idname} Exception:\n{e}")
 
             msg = str(e)
             if ("name 'self' is not defined" in msg):

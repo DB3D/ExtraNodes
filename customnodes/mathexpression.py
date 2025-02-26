@@ -3,11 +3,26 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
-#How does it works?
+# NOTE How does it works?
 # 1- Find the variables or constants with regex
 # 2- dynamically remove/create sockets accordingly
 # 3- transform the algebric expression into 'function expressions' using 'transform_math_expression'
 # 4- execute the function expression with 'NodeSetter' using exec(), which will set the nodes in place.
+
+# NOTE / TODO: @JacquesLucke told me we could replace fully use the ast module
+# to execute the functions of NodeSetter instead of using exec(). 
+# Perhaps it would be a nice rework for a later update.
+
+# TODO later support multi type operation with blender with int/vector/bool operator?  and other math operation?
+#     - right now we only support the float math node.. we could support these other nodes
+#     - all vars could start with 'v' 'f' 'i' 'b' to designate their types?
+#     - could procedurally change sockets input/outputs depending on type
+#     - however, there will be a lot of checks required to see if the user is using valid types.. quite annoying. Perhaps could be done by checking 'is_valid'
+#     Or maybe create a separate 'ComplexMath' node and keep this simple one?
+# Inspiration https://extensions.blender.org/add-ons/math-formula/ 
+
+# TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
+# TODO would be nice to go back and forth from bake to custom node again..
 
 
 import bpy 
@@ -681,17 +696,6 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     Please See the 'Node > Properties > Glossary' panel to see all functions and notation available and their descriptions.
     If you wish to bake this node into a nodegroup, a bake operator is available in the 'Node > Properties' panel.
     Under the hood, on each string field edit, the expression will be sanarized, then transformed into functions that will be executed to create a nodetree."""
-
-    #TODO later support multi type operation with blender with int/vector/bool operator?  and other math operation?
-    #     - right now we only support the float math node.. we could support these other nodes
-    #     - all vars could start with 'v' 'f' 'i' 'b' to designate their types?
-    #     - could procedurally change sockets input/outputs depending on type
-    #     - however, there will be a lot of checks required to see if the user is using valid types.. quite annoying. Perhaps could be done by checking 'is_valid'
-    #     Or maybe create a separate 'ComplexMath' node and keep this simple one?
-    # Inspiration https://extensions.blender.org/add-ons/math-formula/ 
-
-    #TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
-    #TODO would be nice to go back and forth from bake to custom node again..
 
     bl_idname = "GeometryNodeNodeBoosterMathExpression"
     bl_label = "Math Expression"

@@ -8,8 +8,14 @@ import bpy
 from collections.abc import Iterable
 
 from .__init__ import get_addon_prefs
-from .customnodes import NODEBOOSTER_NG_camerainfo, NODEBOOSTER_NG_pythonapi, NODEBOOSTER_NG_sequencervolume, NODEBOOSTER_NG_isrenderedview
 from .operators.palette import msgbus_palette_callback
+from .customnodes import (
+    NODEBOOSTER_NG_camerainfo,
+    NODEBOOSTER_NG_pythonapi,
+    NODEBOOSTER_NG_sequencervolume,
+    NODEBOOSTER_NG_isrenderedview,
+    NODEBOOSTER_NG_pythonscript,
+)
 
 
 # We start with msgbusses
@@ -40,7 +46,6 @@ def register_msgbusses():
         args=(None,),
         options={"PERSISTENT"},
         )
-    
     bpy.msgbus.subscribe_rna(
         key=bpy.types.PaletteColor,
         owner=MSGBUSOWNER_PALETTE,
@@ -68,14 +73,16 @@ def nodebooster_handler_depspost(scene,desp):
     """update on depsgraph change"""
     
     sett_plugin = get_addon_prefs()
-    
+
     if (sett_plugin.debug_depsgraph):
         print("nodebooster_handler_depspost(): depsgraph signal")
 
-    #automatic update for Python Api Node?
-    if (sett_plugin.pynode_depseval):
+    #automatic update for Python node
+    if (sett_plugin.node_pyapi_depseval):
         NODEBOOSTER_NG_pythonapi.update_all()
-            
+    if (sett_plugin.node_pyscript_depseval):
+        NODEBOOSTER_NG_pythonscript.update_all()
+        
     #need to update camera nodes outputs
     NODEBOOSTER_NG_camerainfo.update_all()
 
@@ -91,13 +98,15 @@ def nodebooster_handler_framepre(scene,desp):
     if (sett_plugin.debug_depsgraph):
         print("nodebooster_handler_framepre(): frame_pre signal")
 
-    #automatic update for Python Api Node?
-    if (sett_plugin.pynode_depseval):
+    #automatic update for Python node
+    if (sett_plugin.node_pyapi_depseval):
         NODEBOOSTER_NG_pythonapi.update_all()
+    if (sett_plugin.node_pyscript_depseval):
+        NODEBOOSTER_NG_pythonscript.update_all()
 
     #need to update camera nodes outputs
     NODEBOOSTER_NG_camerainfo.update_all()
-    
+
     #need to update all volume sequencer nodes output value
     NODEBOOSTER_NG_sequencervolume.update_all()
 
@@ -109,7 +118,7 @@ def nodebooster_handler_loadpost(scene,desp):
     """Handler function when user is loading a file"""
     
     sett_plugin = get_addon_prefs()
-    
+
     if (sett_plugin.debug_depsgraph):
         print("nodebooster_handler_framepre(): frame_pre signal")
 

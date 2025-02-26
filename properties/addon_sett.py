@@ -19,22 +19,27 @@ class NODEBOOSTER_AddonPref(bpy.types.AddonPreferences):
         name="Depsgraph Debug",
         default=False,
         )
-    pynode_depseval : bpy.props.BoolProperty(
+    node_pyscript_depseval : bpy.props.BoolProperty(
         name="Depsgraph Evaluation",
         description="Automatically evaluate these nodes python expression on every depsgraph update signal",
         default=True,
         )
-    pynode_namespace1 : bpy.props.StringProperty(
+    node_pyapi_depseval : bpy.props.BoolProperty(
+        name="Depsgraph Evaluation",
+        description="Automatically evaluate these nodes python expression on every depsgraph update signal",
+        default=True,
+        )
+    node_pyapi_namespace1 : bpy.props.StringProperty(
         default="",
         name="User Defined Namespace",
         description="Define Custom Variables and macros that will be evaluated in your expression field",
         )
-    pynode_namespace2 : bpy.props.StringProperty(
+    node_pyapi_namespace2 : bpy.props.StringProperty(
         default="",
         name="User Defined Namespace",
         description="Define Custom Variables and macros that will be evaluated in your expression field",
         )
-    pynode_namespace3 : bpy.props.StringProperty(
+    node_pyapi_namespace3 : bpy.props.StringProperty(
         default="",
         name="User Defined Namespace",
         description="Define Custom Variables and macros that will be evaluated in your expression field",

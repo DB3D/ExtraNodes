@@ -183,7 +183,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                 header.label(text="Preferences",)
                 if (panel):
                     
-                    panel.prop(sett_plugin, "pynode_depseval",)
+                    panel.prop(sett_plugin, "node_pyapi_depseval",)
                     panel.separator(factor=0.3)
                     
                     col = panel.column(align=True)
@@ -194,16 +194,65 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                         "from math import *",
                         "context = bpy.context",
                         "scene = context.scene",
+                        "#frame = scene.frame_current",
                         "D = bpy.data ; C = bpy.context",
                         "self = NodeUserObject",
                         ):
                         row = col.row(align=True).box()
                         row.scale_y = 0.65
                         row.label(text=info)
-                    col.prop(sett_plugin, "pynode_namespace1", text="", placeholder="MyObj = D.objects['Foo']",)
-                    col.prop(sett_plugin, "pynode_namespace2", text="", placeholder="import random",)
-                    col.prop(sett_plugin, "pynode_namespace3", text="", placeholder="R = random.randint(0,100)",)
+                    col.prop(sett_plugin, "node_pyapi_namespace1", text="", placeholder="MyObj = D.objects['Foo']",)
+                    col.prop(sett_plugin, "node_pyapi_namespace2", text="", placeholder="import random",)
+                    col.prop(sett_plugin, "node_pyapi_namespace3", text="", placeholder="R = random.randint(0,100)",)
                     panel.separator(factor=0.6)
+
+                header, panel = layout.panel("doc_panelid", default_closed=True,)
+                header.label(text="Documentation",)
+                if (panel):
+                    word_wrap(layout=panel, alert=False, active=True, max_char='auto',
+                        char_auto_sidepadding=0.9, context=context, string=n.bl_description,
+                        )
+                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-extra-nodes-and-functionalities-for-nodeeditors"
+
+                header, panel = layout.panel("dev_panelid", default_closed=True,)
+                header.label(text="Development",)
+                if (panel):
+                    panel.active = False
+                                    
+                    col = panel.column(align=True)
+                    col.label(text="NodeTree:")
+                    col.template_ID(n, "node_tree")
+                    
+                    col = panel.column(align=True)
+                    col.label(text="Debugging:")
+                    row = col.row()
+                    row.enabled = False
+                    row.prop(n, "debug_evaluation_counter",)
+
+            case 'GeometryNodeNodeBoosterPythonScript':
+
+                is_error = bool(n.error_message)
+
+                col = layout.column(align=True)
+                row = col.row(align=True)
+
+                field = row.row(align=True)
+                field.alert = is_error
+                field.prop(n, "user_textdata", text="", icon="TEXT", placeholder="MyScript",)
+
+                row.prop(n, "launch_script", text="", icon="PLAY", invert_checkbox=n.launch_script,)
+
+                if (is_error):
+                    lbl = col.row()
+                    lbl.alert = is_error
+                    lbl.label(text=n.error_message)
+            
+                header, panel = layout.panel("prefs_panelid", default_closed=True,)
+                header.label(text="Preferences",)
+                if (panel):
+                    panel.separator(factor=0.3)
+                    panel.prop(sett_plugin, "node_pyscript_depseval",)
+                    panel.separator(factor=0.3)
 
                 header, panel = layout.panel("doc_panelid", default_closed=True,)
                 header.label(text="Documentation",)
