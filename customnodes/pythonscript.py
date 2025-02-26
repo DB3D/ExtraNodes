@@ -36,7 +36,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         description="User interface error message"
         )
     debug_evaluation_counter : bpy.props.IntProperty(
-        name="debug counter",
+        name="Execution Counter",
         default=0
         )
     user_textdata : bpy.props.PointerProperty(
@@ -101,6 +101,24 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
+    def store_text_data_as_frame(self, text):
+        """we store the user text data as a frame"""
+        ng = self.node_tree
+
+        frame = ng.nodes.get("ScriptStorage")
+        if (frame is None):
+            frame = ng.nodes.new('NodeFrame')
+            frame.name = frame.label = "ScriptStorage"
+            frame.width = 500
+            frame.height = 1500
+            frame.location.x = -750
+            frame.label_size = 8
+
+        if (frame.text!=text):
+            frame.text = text
+
+        return None
+
     def evaluate_python_script(self):
         """Execute the Python script from a Blender Text datablock, capture local variables whose names start with "out_",
         and update the node group's output sockets accordingly."""
@@ -114,6 +132,8 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         set_socket_label(ng,0, label="NoErrors",)
         set_socket_defvalue(ng,0, value=False,)
         self.error_message = ''
+        
+        self.store_text_data_as_frame(self.user_textdata)
         
         # Check if a Blender Text datablock has been specified
         if (self.user_textdata is None):
@@ -134,7 +154,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
             set_socket_label(ng,0, label="ExecutionError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = f"Script Execution Error.\n{e}"
+            self.error_message = f"Script Execution Error. {e}"
             return None
 
         # Filter for variables that start with 'out_'
@@ -161,7 +181,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
             set_socket_label(ng,0, label="ParsingError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = f"{type(e).__name__} for var {k}.\n{str(e)}"
+            self.error_message = f"Socket '{k}' {type(e).__name__}. {str(e)}"
             return None
 
         # Create new sockets depending on vars

@@ -125,7 +125,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         description="user interface error message",
         )
     debug_evaluation_counter : bpy.props.IntProperty(
-        name="debug counter",
+        name="Execution Counter",
         default=0,
         )
     user_pyapiexp : bpy.props.StringProperty(
