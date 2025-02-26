@@ -10,6 +10,20 @@ import re
 from .. import get_addon_prefs
 
 
+
+def is_float_compatible(string):
+    """ check if a string can be converted to a float value"""
+
+    assert type(string) is str
+    if (string[0]=='.'):
+        return False
+    try:
+        float(string)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
 def match_exact_tokens(string:str, tokenlist:list) -> list:
     """
     Get a list of matching token, if any token in our token list match in our string list
@@ -124,3 +138,4 @@ def word_wrap(string="", layout=None, alignment="CENTER", max_char=70, char_auto
             continue 
     
     return wrapped
+    

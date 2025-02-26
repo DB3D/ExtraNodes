@@ -39,8 +39,8 @@ import re, ast
 from functools import partial
 
 from ..__init__ import get_addon_prefs
-from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, word_wrap
-from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, frame_nodes
+from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, is_float_compatible
+from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets
 from ..nex.nodesetter import get_user_functions
 
 
@@ -122,7 +122,7 @@ def get_socket_python_api(node, identifier) -> str:
 
 
 def execute_math_function_expression(customnode=None, expression:str=None, 
-    node_tree=None, varsapi:dict=None, constapi:dict=None,) -> None | Exception:
+    node_tree=None, varsapi:dict=None, constapi:dict=None,) -> None:
     """Execute the functions to arrange the node_tree"""
 
     # Replace the constants or variable with sockets API
@@ -133,16 +133,14 @@ def execute_math_function_expression(customnode=None, expression:str=None,
     local_vars = {}
     local_vars["ng"] = node_tree
     local_vars.update({f.__name__:f for f in USER_FUNCTIONS})
-
-    # we get rid of any blender builtin functions.
+    # we get rid of any blender builtin functions
     global_vars = {"__builtins__": {}}
 
-    # Try to execute the functions:
     try:
         exec(api_expression, global_vars, local_vars)
 
     except TypeError as e:
-        print(f"TypeError: GeometryNodeNodeBoosterMathExpression - execute_math_function_expression():\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
+        print(f"TypeError: execute_math_function_expression():\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
 
         #Cook better error message to end user
         e = str(e)
@@ -150,23 +148,23 @@ def execute_math_function_expression(customnode=None, expression:str=None,
             fname = e.split('()')[0]
             if ('() missing' in e) and ('required positional argument' in e):
                 nbr = e.split('() missing ')[1][0]
-                return Exception(f"Function '{fname}' needs {nbr} more Params")                    
+                raise Exception(f"Function '{fname}' needs {nbr} more Params")                    
             elif ('() takes' in e) and ('positional argument' in e):
-                return Exception(f"Function '{fname}' recieved Extra Params")
+                raise Exception(f"Function '{fname}' recieved Extra Params")
         
-        return Exception("Wrong Arguments Given")
+        raise Exception("Wrong Arguments Given")
     
     except Exception as e:
-        print(f"{type(e).__name__}: GeometryNodeNodeBoosterMathExpression - execute_math_function_expression():\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
-        
+        print(f"{type(e).__name__}: execute_math_function_expression():\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
+
         #Cook better error message to end user
         if ("'tuple' object" in str(e)):
-            return Exception("Wrong use of '( , )' Synthax")
+            raise Exception("Wrong use of '( , )' Synthax")
         #User really need to have a VERY LONG expression to reach to that point..
         if ('too many nested parentheses' in str(e)):
-            return Exception("Expression too Large")
+            raise Exception("Expression too Large")
         
-        return Exception("Error on Execution")
+        raise Exception("Error on Execution")
     
     # When executing, the last one created should be the active node, 
     # We still need to connect it to the ng output
@@ -190,8 +188,8 @@ def execute_math_function_expression(customnode=None, expression:str=None,
         link_sockets(sock1, sock2)
         
     except Exception as e:
-        print(f"{type(e).__name__} FinalLinkError: GeometryNodeNodeBoosterMathExpression - execute_math_function_expression():\n  {e}")
-        return Exception("Error on Final Link")
+        print(f"{type(e).__name__} FinalLinkError: execute_math_function_expression():\n  {e}")
+        raise Exception("Error on Final Link")
     
     return None     
 
@@ -224,7 +222,8 @@ class FunctionTransformer(ast.NodeTransformer):
             case ast.FloorDiv():
                 func_name = 'floordiv'
             case _:
-                raise NotImplementedError(f"Operator {node.op} not supported")
+                print(f"FunctionTransformer `{node.op}` NotImplementedError")
+                raise Exception(f"Operator {node.op} not supported")
         
         self.functions_used.add(func_name)
         
@@ -266,7 +265,7 @@ class FunctionTransformer(ast.NodeTransformer):
     def visit_Constant(self, node):
         return node
 
-    def transform_math_expression(self, math_express: str) -> str | Exception:
+    def transform_math_expression(self, math_express: str) -> str:
         """Transforms a math expression into a function-call expression.
         Example: 'x*2 + (3-4/5)/3 + (x+y)**2' becomes 'add(mult(x,2),div(subtract(3,div(4,5)),3),exp(add(x,y),2))'"""
         
@@ -275,14 +274,14 @@ class FunctionTransformer(ast.NodeTransformer):
             tree = ast.parse(math_express, mode='eval')
             transformed_node = self.visit(tree.body)
         except Exception as e:
-            print(f"FunctionTransformerParsingError: {type(e).__name__} of `{math_express}`:\n{e}")
-            return Exception("Math Expression Not Recognized")
+            print(f"FunctionTransformer ParsingError {type(e).__name__}:\n  Expression: `{math_express}`\n{e}")
+            raise Exception("Math Expression Not Recognized")
         
         # Ensure all functions used are available valid
         for fname in self.functions_used:
             if fname not in USER_FNAMES:
-                print(f"FunctionTransformerNamespaceError: of `{math_express}`")
-                return Exception(f"'{fname}' Function Not Recognized")
+                print(f"FunctionTransformer NamespaceError:\n  Element '{fname}' not in available functions.\n  Expression: `{math_express}`")
+                raise Exception(f"Unknown Function '{fname}'")
         
         # Then transform the ast into a function call sequence
         func_express = str(ast.unparse(transformed_node))
@@ -365,9 +364,11 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 
         return None
     
-    def sanatize_math_expression(self, expression) -> str | Exception:
+    def sanatize_math_expression(self, expression) -> str:
         """ensure the user expression is correct, sanatized it, and collect its element"""
 
+        authorized_symbols = ALPHABET + DIGITS + '/*-+%.,()'
+        
         # Remove white spaces char
         expression = expression.replace(' ','')
         expression = expression.replace('	','')
@@ -415,7 +416,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         self.elemComp = set()
 
         match self.use_algrebric_multiplication:
-            
+
             case True:
                 for e in self.elemTotal:
                     
@@ -425,16 +426,23 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                             self.elemFct.add(e)
                             continue
                     
-                    #we have float or int
+                    #we have float or int?
                     if (e.replace('.','').isdigit()):
+                        if (not is_float_compatible(e)):
+                            raise Exception(f"Unrecognized Float '{e}'")
                         self.elemConst.add(e)
                         continue
                     
                     #we have a single char alphabetical variable a,x,E ect..
-                    if (e.isalpha() and len(e)==1):
+                    if (len(e)==1 and (e in ALPHABET)):
                         self.elemVar.add(e)
                         continue
-                        
+                    
+                    #check if user varnames is ok
+                    for c in list(e):
+                        if (c not in list(authorized_symbols) + list(IRRATIONALS.keys())):
+                            raise Exception(f"Unauthorized Symbol '{c}'")
+                            
                     # Then it means we have a composite element (ex 2ab)
                     self.elemComp.add(e)
                     
@@ -449,7 +457,9 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                         elif (esub.isalpha() and len(esub)==1):
                             self.elemVar.add(esub)
                         else:
-                            raise Exception(f"Unknown Element '{esub}' of Composite '{e}'")
+                            msg = f"Unknown Element '{esub}' of Composite '{e}'"
+                            print(f"Exception: sanatize_math_expression():\n{msg}")
+                            raise Exception(msg)
                             
                     # Insert inplicit multiplications
                     expression = replace_exact_tokens(expression,{e:'*'.join(esplit)})
@@ -457,35 +467,42 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 
             case False:
                 for e in self.elemTotal:
-                    
+
                     #we have a function
                     if (e in USER_FNAMES):
-                        self.elemFct.add(e)
-                        continue
+                        if f'{e}(' in expression:
+                            self.elemFct.add(e)
+                            continue
                     
-                    #we have float or int
+                    #we have float or int?
                     if (e.replace('.','').isdigit()):
+                        if (not is_float_compatible(e)):
+                            raise Exception(f"Unrecognized Float '{e}'")
                         self.elemConst.add(e)
                         continue
-                    
+
                     #we have a variable (ex 'ab' or 'x')
-                    if e.isalpha():
+                    if all(c in ALPHABET for c in list(e)):
                         if (e in USER_FNAMES):
-                            return Exception(f"Variable '{e}' is Taken")
+                            raise Exception(f"Variable '{e}' is Taken")
                         self.elemVar.add(e)
                         continue
                     
-                    #We have an urecognized element
-                    return Exception(f"Unrecorgnized Variable '{e}'")
+                    #check for bad symbols
+                    for c in list(e):
+                        if (c not in authorized_symbols):
+                            raise Exception(f"Unauthorized Symbol '{c}'")
+                    
+                    #unauthorized variable? technically, it's unrecognized
+                    raise Exception(f"Unauthorized Variable '{e}'")
         
         #Order our variable alphabetically
         self.elemVar = sorted(self.elemVar)
 
-        # Ensure user is using correct symbols
-        authorized_symbols = ALPHABET + DIGITS + '/*-+%.,()'
+        # Ensure user is using correct symbols #NOTE we do that 3 times already tho.. reperitive.
         for char in expression:
             if (char not in authorized_symbols):
-                return Exception(f"Unrecorgnized Symbol '{char}'")
+                raise Exception(f"Unauthorized Symbol '{char}'")
         
         return expression
     
@@ -543,9 +560,10 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         self.store_equation_as_frame(self.user_mathexp)
         
         # First we make sure the user expression is correct
-        rval = self.sanatize_math_expression(self.user_mathexp)
-        if (type(rval) is Exception):
-            self.error_message = str(rval)
+        try:
+            rval = self.sanatize_math_expression(self.user_mathexp)
+        except Exception as e:
+            self.error_message = str(e)
             self.debug_sanatized = 'Failed'
             return None
         
@@ -604,23 +622,23 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             return None
         
         # Transform user expression into pure function expression
-        transformer = FunctionTransformer()
-        fctexp = transformer.transform_math_expression(sanatized_expr)
-
-        if (type(fctexp) is Exception):
-            self.error_message = str(fctexp)
+        try:
+            transformer = FunctionTransformer()
+            fctexp = transformer.transform_math_expression(sanatized_expr)
+        except Exception as e:
+            self.error_message = str(e)
             self.debug_fctexp = 'Failed'
             return None
         
         self.debug_fctexp = fctexp
         
         # Execute the function expression to arrange the user nodetree
-        rval = execute_math_function_expression(
-            customnode=self, expression=fctexp, node_tree=ng, varsapi=vareq, constapi=consteq,
-            )
-        
-        if (type(rval) is Exception):
-            self.error_message = str(rval)
+        try:
+            execute_math_function_expression(
+                customnode=self, expression=fctexp, node_tree=ng, varsapi=vareq, constapi=consteq,
+                )
+        except Exception as e:
+            self.error_message = str(e)
             return None
         
         return None
