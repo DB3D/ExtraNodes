@@ -103,6 +103,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
 
     def store_text_data_as_frame(self, text):
         """we store the user text data as a frame"""
+
         ng = self.node_tree
 
         frame = ng.nodes.get("ScriptStorage")

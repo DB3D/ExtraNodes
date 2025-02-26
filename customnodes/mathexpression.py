@@ -33,7 +33,7 @@
 # NOTE perhaps it is best to limit this to float for now. Rename it Float Math Expression?
 
 
-import bpy 
+import bpy
 
 import re, ast
 from functools import partial
@@ -140,33 +140,31 @@ def execute_math_function_expression(customnode=None, expression:str=None,
     # Try to execute the functions:
     try:
         exec(api_expression, global_vars, local_vars)
-        #NOTE: the execution here is sanatized, user only have access to the given namespace.
 
     except TypeError as e:
-        print(f"TypeError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
+        print(f"TypeError: GeometryNodeNodeBoosterMathExpression - execute_math_function_expression():\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
 
         #Cook better error message to end user
-        # TODO TODO TODO TODO TODO 
-        # e = str(e)
-        # if e.startswith("NodeSetter."):
-        #     fname = str(e).split('NodeSetter.')[1].split('()')[0]
-
-        #     if ('() missing' in e):
-        #         nbr = e.split('() missing ')[1][0]
-        #         return Exception(f"Function '{fname}' needs {nbr} more Params")                    
-        #     elif ('() takes' in e):
-        #         return Exception(f"Function '{fname}' recieved Extra Params")
+        e = str(e)
+        if ('()' in e):
+            fname = e.split('()')[0]
+            if ('() missing' in e) and ('required positional argument' in e):
+                nbr = e.split('() missing ')[1][0]
+                return Exception(f"Function '{fname}' needs {nbr} more Params")                    
+            elif ('() takes' in e) and ('positional argument' in e):
+                return Exception(f"Function '{fname}' recieved Extra Params")
         
         return Exception("Wrong Arguments Given")
     
     except Exception as e:
-        print(f"ExecutionError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
+        print(f"{type(e).__name__}: GeometryNodeNodeBoosterMathExpression - execute_math_function_expression():\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
         
         #Cook better error message to end user
         if ("'tuple' object" in str(e)):
             return Exception("Wrong use of '( , )' Synthax")
+        #User really need to have a VERY LONG expression to reach to that point..
         if ('too many nested parentheses' in str(e)):
-            return Exception("Expression too Large") #User really need to have a VERY LONG expression to reach to that point..
+            return Exception("Expression too Large")
         
         return Exception("Error on Execution")
     
@@ -192,7 +190,7 @@ def execute_math_function_expression(customnode=None, expression:str=None,
         link_sockets(sock1, sock2)
         
     except Exception as e:
-        print(f"FinalLinkError:\n  {e}")
+        print(f"{type(e).__name__} FinalLinkError: GeometryNodeNodeBoosterMathExpression - execute_math_function_expression():\n  {e}")
         return Exception("Error on Final Link")
     
     return None     
@@ -277,12 +275,13 @@ class FunctionTransformer(ast.NodeTransformer):
             tree = ast.parse(math_express, mode='eval')
             transformed_node = self.visit(tree.body)
         except Exception as e:
-            print(e)
+            print(f"FunctionTransformerParsingError: {type(e).__name__} of `{math_express}`:\n{e}")
             return Exception("Math Expression Not Recognized")
         
         # Ensure all functions used are available valid
         for fname in self.functions_used:
             if fname not in USER_FNAMES:
+                print(f"FunctionTransformerNamespaceError: of `{math_express}`")
                 return Exception(f"'{fname}' Function Not Recognized")
         
         # Then transform the ast into a function call sequence
@@ -503,6 +502,25 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             
         return modified_expression
     
+    def store_equation_as_frame(self, text):
+        """we store the user text data as a frame"""
+
+        ng = self.node_tree
+
+        frame = ng.nodes.get("EquationStorage")
+        if (frame is None):
+            frame = ng.nodes.new('NodeFrame')
+            frame.name = "EquationStorage"
+            frame.width = 750
+            frame.height = 50
+            frame.location.x = -1000
+            frame.label_size = 20
+
+        if (frame.label!=text):
+            frame.label = text
+
+        return None
+
     def apply_math_expression(self) -> None:
         """transform the math expression into sockets and nodes arrangements"""
         
@@ -520,7 +538,10 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         
         # Reset error message
         self.error_message = self.debug_sanatized = self.debug_fctexp = ""
-
+        
+        # Keepsafe the math expression within the group
+        self.store_equation_as_frame(self.user_mathexp)
+        
         # First we make sure the user expression is correct
         rval = self.sanatize_math_expression(self.user_mathexp)
         if (type(rval) is Exception):
@@ -534,7 +555,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         
         # Clear node tree
         for node in list(ng.nodes).copy():
-            if node.type not in {'GROUP_INPUT', 'GROUP_OUTPUT'}:
+            if (node.name not in {"Group Input", "Group Output", "EquationStorage",}):
                 ng.nodes.remove(node)
                 
         # Create new sockets depending on vars
