@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 
-import bpy 
+import bpy
 
 from .pythonapi import convert_pyvar_to_data
 from ..utils.str_utils import word_wrap
@@ -19,10 +19,15 @@ from ..utils.node_utils import (
 
 class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
     """Custom NodeGroup: Executes a Python script from a Blender Text datablock and creates output sockets
-    dynamically based on local variables whose names start with 'OUT_' in the script."""
-    
+    dynamically based on local variables whose names start with 'out_' in the script."""
+
+    #TODO 
+    # Could even go harder, and user could call the math expression node within the script to mix with arguments. 
+    # Admitting we implement a 'Advanced Math Expression' node that supports Vec/Rot/Matrix ect..
+    # Note that if this happens, it would be nicer to have some sort of create_expression_nodetree(mathexpression, modify_node_tree=None, create_node_tree=True,)
+
     bl_idname = "GeometryNodeNodeBoosterPythonScript"
-    bl_label = "Python Script"
+    bl_label = "Python Constants"
 
     error_message : bpy.props.StringProperty(
         description="User interface error message"
@@ -93,7 +98,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         return None
 
     def evaluate_python_script(self):
-        """Execute the Python script from a Blender Text datablock, capture local variables whose names start with "OUT_",
+        """Execute the Python script from a Blender Text datablock, capture local variables whose names start with "out_",
         and update the node group's output sockets accordingly."""
 
         ng = self.node_tree
@@ -124,15 +129,15 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
             self.error_message = f'An Error Occured on Script Execution\n{e}'
             return None
 
-        # Filter for variables that start with 'OUT_'
-        out_vars = {k.replace("OUT_","").replace("_"," "): v for k, v in script_vars.items() if k.startswith("OUT_") and (k!="OUT_")}
+        # Filter for variables that start with 'out_'
+        out_vars = {k.replace("out_","").replace("_"," "): v for k, v in script_vars.items() if k.startswith("out_") and (k!="out_")}
         if (not out_vars):
             # if not, remove unused vars sockets
             self.cleanse_outputs()
             # set error to True
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = f"No Variables Starting with 'OUT_' Found in your Script!"
+            self.error_message = f"No Variables Starting with 'out_' Found in your Script!"
             return None
 
         # Transform all py values to values we can use

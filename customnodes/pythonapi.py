@@ -14,7 +14,6 @@ from ..utils.node_utils import (
 
 from mathutils import Color, Euler, Matrix, Quaternion, Vector
 from collections import namedtuple
-
 RGBAColor = namedtuple('RGBAColor', ['r','g','b','a'])
 
 
@@ -116,16 +115,8 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     The evaluated type can be of type 'float', 'int', 'string', 'object', 'collection', 'material'.
     By default the values will be updated automatically on each on depsgraph post and frame_pre signals"""
 
-    #TODO we could expand this functionality and let user select a python script datablock.
-    # the script could automatically recognize some vars from the execution namespace and output them?
-    # ex: the user define some global variables starting with 'NODEOUTPUT_' and they become output values automatically.
-    # ...
-    # Could even go harder, and user could call the math expression node within the script to mix with arguments. 
-    # Admitting we implement a 'Advanced Math Expression' node that supports Vec/Rot/Matrix ect..
-    # Note that if this happens, it would be nicer to have some sort of create_expression_nodetree(mathexpression, modify_node_tree=None, create_node_tree=True,)
-
     bl_idname = "GeometryNodeNodeBoosterPythonApi"
-    bl_label = "Python Api"
+    bl_label = "Python Constant"
 
     error_message : bpy.props.StringProperty(
         description="user interface error message",

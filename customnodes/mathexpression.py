@@ -376,7 +376,7 @@ class NodeSetter():
     def frac(cls,a):
         """Fraction.\nThe fraction part of A."""
         return cls._floatmath('FRACT',a)
-    
+
     @taguser
     def mod(cls,a,b):
         """Modulo.\nEquivalent to the '%' symbol."""
@@ -391,7 +391,7 @@ class NodeSetter():
     def wrap(cls,v,a,b):
         """Wrap value to Range A B."""
         return cls._floatmath('WRAP',v,a,b)
-    
+
     @taguser
     def snap(cls,v,i):
         """Snap to Increment."""
@@ -401,7 +401,7 @@ class NodeSetter():
     def pingpong(cls,v,scale):
         """PingPong. Wrap a value and every other cycles at cycle Scale."""
         return cls._floatmath('PINGPONG',v,scale)
-    
+
     @taguser
     def floordiv(cls,a,b): #Custom
         """Floor Division.\nEquivalent to the '//' symbol."""
@@ -409,7 +409,7 @@ class NodeSetter():
         r = cls.floor(_r)
         frame_nodes(a.id_data, _r.node, r.node, label='FloorDiv')
         return r
-    
+
     @taguser
     def sin(cls,a):
         """The Sine of A."""
@@ -419,7 +419,7 @@ class NodeSetter():
     def cos(cls,a):
         """The Cosine of A."""
         return cls._floatmath('COSINE',a)
-    
+
     @taguser
     def tan(cls,a):
         """The Tangent of A."""
@@ -434,12 +434,12 @@ class NodeSetter():
     def acos(cls,a):
         """The Arccosine of A."""
         return cls._floatmath('ARCCOSINE',a)
-    
+
     @taguser
     def atan(cls,a):
         """The Arctangent of A."""
         return cls._floatmath('ARCTANGENT',a)
-    
+
     @taguser
     def hsin(cls,a):
         """The Hyperbolic Sine of A."""
@@ -449,17 +449,17 @@ class NodeSetter():
     def hcos(cls,a):
         """The Hyperbolic Cosine of A."""
         return cls._floatmath('COSH',a)
-    
+
     @taguser
     def htan(cls,a):
         """The Hyperbolic Tangent of A."""
         return cls._floatmath('TANH',a)
-    
+
     @taguser
     def rad(cls,a):
         """Convert from Degrees to Radians."""
         return cls._floatmath('RADIANS',a)
-    
+
     @taguser
     def deg(cls,a):
         """Convert from Radians to Degrees."""
@@ -586,17 +586,20 @@ class NodeSetter():
     def mapsmoo(cls,val,a,b,x,y):
         """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
         return cls._maprange('FLOAT','SMOOTHERSTEP',val,a,b,x,y)
-
-    #TODO add dynamic output type
+    
+    #TODO add more functions
+    #   NOTE compariosn <>==
+    #TODO add dynamic output type?
     #   NOTE if we do so, then how can we support other nodetree later on?????
-    #   TODO int
-    #   TODO bool
-    #   TODO sign (to int)
-    #   TODO isneg == boolcompar
-    #   TODO ispair
-    #   TODO isimpair
-    #   TODO ismultiple
-    #   TODO bool <>== comparison
+    #   NOTE perhaps it is best to limit this to float for now. Rename it Float Math Expression?
+    #   TODO int(a) & all round, floor, ceil, trunc should return int then
+    #   TODO bool(a)
+    #   TODO sign(a) (to int)
+    #   TODO isneg(a) (== boolcompar, will return bool)
+    #   TODO ispair(a)
+    #   TODO isimpair(a)
+    #   TODO ismultiple(a,b)
+    #   TODO comparison <>== to bool
 
 
 class FunctionTransformer(ast.NodeTransformer):
@@ -693,6 +696,7 @@ class FunctionTransformer(ast.NodeTransformer):
 
 class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate a math expression, internally it will use various math nodes automatically.
+    The sockets are limited to Float types. Consider this node a 'Float Math Expression' node.
     Please See the 'Node > Properties > Glossary' panel to see all functions and notation available and their descriptions.
     If you wish to bake this node into a nodegroup, a bake operator is available in the 'Node > Properties' panel.
     Under the hood, on each string field edit, the expression will be sanarized, then transformed into functions that will be executed to create a nodetree."""
