@@ -289,11 +289,11 @@ class FunctionTransformer(ast.NodeTransformer):
 
 
 class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
-    """Custom Nodgroup: Evaluate a math expression, internally it will use various math nodes automatically.
-    The sockets are limited to Float types. Consider this node a 'Float Math Expression' node.
-    Please See the 'Node > Properties > Glossary' panel to see all functions and notation available and their descriptions.
-    If you wish to bake this node into a nodegroup, a bake operator is available in the 'Node > Properties' panel.
-    Under the hood, on each string field edit, the expression will be sanarized, then transformed into functions that will be executed to create a nodetree."""
+    """Custom Nodgroup: Evaluate a float math equation.
+    • The sockets are limited to Float types. Consider this node a 'Float Math Expression' node.
+    • Please See the 'NodeBooster > Active Node > Glossary' panel to see all functions and notation available and their descriptions.
+    • If you wish to bake this node into a nodegroup, a bake operator is available in the 'NodeBooster > Active Node' panel.
+    • Under the hood, on each string field edit, the expression will be sanarized, then transformed into functions that will be executed to create a nodetree, see the breakdown of the process in the 'NodeBooster > Active Node > Development' panel."""
 
     bl_idname = "GeometryNodeNodeBoosterMathExpression"
     bl_label = "Math Expression"

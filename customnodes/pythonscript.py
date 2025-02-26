@@ -19,8 +19,9 @@ from ..utils.node_utils import (
 
 
 class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
-    """Custom NodeGroup: Executes a Python script from a Blender Text datablock and creates output sockets
-    dynamically based on local variables whose names start with 'out_' in the script."""
+    """Custom NodeGroup: Executes a Python script from a Blender Text datablock and creates output sockets\
+    dynamically based on local variables whose names start with 'out_' in the script.
+    • The evaluated values can be of type 'float', 'int', 'Vector', 'Color', 'Quaternion', 'Matrix', 'String', 'Object', 'Collection', 'Material' & 'list/tuple/set' up to len 16"""
 
     #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
     #TODO maybe should add a nodebooster panel in text editor for quick execution?

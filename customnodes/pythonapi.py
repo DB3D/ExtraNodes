@@ -16,8 +16,7 @@ from ..utils.node_utils import (
 
 class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate a python expression as a single value output.
-    The evaluated type can be of type 'float', 'int', 'string', 'object', 'collection', 'material'.
-    By default the values will be updated automatically on each on depsgraph post and frame_pre signals"""
+    • The evaluated values can be of type 'float', 'int', 'Vector', 'Color', 'Quaternion', 'Matrix', 'String', 'Object', 'Collection', 'Material' & 'list/tuple/set' up to len 16"""
 
     #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
     

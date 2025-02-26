@@ -19,9 +19,10 @@ from ..utils.node_utils import (
 
 
 class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
-    """Custom NodeGroup: Executes a Python script containing 'Nex' language. 'Nex' stands for nodal expression.
-    With Nex, you can efficiently and easily interpret python code into Geometry-Node nodal languages.
-    Ect... Still Need to add more descriptions, about synthax, and how it works behind the scenes"""
+    """Custom NodeGroup: Executes a Python script containing 'Nex' language. 'Nex' stands for nodal expression.\
+    With Nex, you can efficiently and easily interpret python code into Geometry-Node nodal programming.
+    • WIP text about synthax.
+    • WIP text about how it works"""
 
     #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
     #TODO maybe should add a nodebooster panel in text editor for quick execution?

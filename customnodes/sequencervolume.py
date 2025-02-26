@@ -11,8 +11,8 @@ from ..utils.node_utils import create_new_nodegroup, set_socket_defvalue
 
 
 class NODEBOOSTER_NG_sequencervolume(bpy.types.GeometryNodeCustomGroup):
-    """Custom Nodgroup: Evaluate the sound level of the VideoSequencer editor.
-    Expect the value to be automatically updated on each on depsgraph post signals"""
+    """Custom Nodgroup: Evaluate the active sound level of the VideoSequencer editor.
+    • Expect the value to be automatically updated on each on depsgraph post signals"""
     
     bl_idname = "GeometryNodeNodeBoosterSequencerVolume"
     bl_label = "Sequencer Volume"
