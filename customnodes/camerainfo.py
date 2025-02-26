@@ -1,6 +1,7 @@
-# SPDX-FileCopyrightText: 2025 BD3D DIGITAL DESIGN, Andrew Stevenson
+# SPDX-FileCopyrightText: 2025 BD3D DIGITAL DESIGN (Dorian B.), Andrew Stevenson
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
+
 
 import bpy 
 

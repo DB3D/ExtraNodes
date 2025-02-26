@@ -1,6 +1,7 @@
-# SPDX-FileCopyrightText: 2025 BD3D DIGITAL DESIGN
+# SPDX-FileCopyrightText: 2025 BD3D DIGITAL DESIGN (Dorian B.)
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
+
 
 #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
 

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 BD3D DIGITAL DESIGN
+# SPDX-FileCopyrightText: 2025 BD3D DIGITAL DESIGN (Dorian B.)
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
