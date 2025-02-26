@@ -34,6 +34,9 @@ from ..__init__ import get_addon_prefs
 from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, word_wrap
 from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, frame_nodes
 
+sfloat = bpy.types.NodeSocketFloat
+
+
 NODE_YOFF, NODE_XOFF = 120, 70
 DIGITS = '0123456789'
 ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
@@ -62,7 +65,6 @@ def replace_superscript_exponents(expr: str, algebric_notation:bool=False,) -> s
     """
     
     # Pattern for alphanumeric base followed by superscripts.
-    
     if (algebric_notation):
           pattern_base = r'([A-Za-z0-9π𝑒φ])([⁰¹²³⁴⁵⁶⁷⁸⁹]+)'
     else: pattern_base = r'([A-Za-z0-9π𝑒φ]+)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)'
@@ -121,24 +123,27 @@ class NodeSetter():
     @classmethod
     def execute_math_function_expression(cls, customnode=None, expression:str=None, node_tree=None, varsapi:dict=None, constapi:dict=None,) -> None | Exception:
         """Execute the functions to arrange the node_tree"""
-        
+
         # Replace the constants or variable with sockets API
+        # ex 'a' will become 'ng.nodes["foo"].outputs[1]'
         api_expression = replace_exact_tokens(expression, {**varsapi, **constapi},)
-        
+
         # Define the namespace of the execution, and include our functions
-        namespace = {}
-        namespace["ng"] = node_tree
+        local_vars = {}
+        local_vars["ng"] = node_tree
         for f in USER_FUNCTIONS:
-            namespace[f.__name__] = partial(f, cls)
-        
+            local_vars[f.__name__] = partial(f, cls)
+        # we get rid of any blender builtin functions.
+        global_vars = {"__builtins__": {}}
+
         # Try to execute the functions:
         try:
-            exec(api_expression, namespace)
+            exec(api_expression, global_vars, local_vars)
             #NOTE: the execution here is sanatized, user only have access to the given namespace.
-            
+
         except TypeError as e:
             print(f"TypeError:\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
-            
+
             #Cook better error message to end user
             e = str(e)
             if e.startswith("NodeSetter."):
@@ -191,9 +196,9 @@ class NodeSetter():
         return None            
 
     @classmethod
-    def _floatmath(cls, operation_type, sock1, sock2=None, sock3=None,):
+    def _floatmath(cls, operation_type:str, sock1:sfloat, sock2:sfloat=None, sock3:sfloat=None,) -> sfloat:
         """generic operation for adding a float math node and linking"""
-
+        
         ng = sock1.id_data
         last = ng.nodes.active
 
@@ -217,47 +222,47 @@ class NodeSetter():
         return node.outputs[0]
 
     @taguser
-    def add(cls,a,b):
+    def add(cls, a:sfloat, b:sfloat,) -> sfloat:
         """Addition.\nEquivalent to the '+' symbol."""
         return cls._floatmath('ADD',a,b)
 
     @taguser
-    def subtract(cls,a,b):
+    def subtract(cls, a:sfloat, b:sfloat,) -> sfloat:
         """Subtraction.\nEquivalent to the '-' symbol."""
         return cls._floatmath('SUBTRACT',a,b)
 
     @taguser
-    def mult(cls,a,b):
+    def mult(cls, a:sfloat, b:sfloat,) -> sfloat:
         """Multiplications.\nEquivalent to the '*' symbol."""
         return cls._floatmath('MULTIPLY',a,b)
 
     @taguser
-    def div(cls,a,b):
+    def div(cls, a:sfloat, b:sfloat,) -> sfloat:
         """Division.\nEquivalent to the '/' symbol."""
         return cls._floatmath('DIVIDE',a,b)
 
     @taguser
-    def pow(cls,a,n):
+    def pow(cls, a:sfloat, n:sfloat,) -> sfloat:
         """A Power n.\nEquivalent to the 'a**n' and '²' symbol."""
         return cls._floatmath('POWER',a,n)
 
     @taguser
-    def log(cls,a,b):
+    def log(cls, a:sfloat, b:sfloat,) -> sfloat:
         """Logarithm A base B."""
         return cls._floatmath('LOGARITHM',a,b)
 
     @taguser
-    def sqrt(cls,a):
+    def sqrt(cls, a:sfloat,) -> sfloat:
         """Square Root of A."""
         return cls._floatmath('SQRT',a)
 
     @taguser
-    def invsqrt(cls,a):
+    def invsqrt(cls, a:sfloat,) -> sfloat:
         """1/ Square Root of A."""
         return cls._floatmath('INVERSE_SQRT',a)
 
     @classmethod
-    def _floatmath_nroot(cls, sock1, sock2):
+    def _floatmath_nroot(cls, sock1:sfloat, sock2:sfloat,) -> sfloat:
         """special operation to calculate custom root x**(1/n)"""
 
         ng = sock1.id_data
@@ -294,17 +299,17 @@ class NodeSetter():
         return pnode.outputs[0]
 
     @taguser
-    def nroot(cls,a,n):
+    def nroot(cls, a:sfloat, n:sfloat,) -> sfloat:
         """A Root N. a**(1/n.)"""
         return cls._floatmath_nroot(a,n,)
 
     @taguser
-    def abs(cls,a):
+    def abs(cls, a:sfloat,) -> sfloat:
         """Absolute of A."""
         return cls._floatmath('ABSOLUTE',a)
 
     @classmethod
-    def _floatmath_neg(cls, sock1,):
+    def _floatmath_neg(cls, sock1:sfloat,) -> sfloat:
         """special operation for negative -1 -x ect"""
 
         ng = sock1.id_data
@@ -328,82 +333,82 @@ class NodeSetter():
         return node.outputs[0]
 
     @taguser
-    def neg(cls, a):
+    def neg(cls, a:sfloat,) -> sfloat:
         """Negate the value of A.\nEquivalent to the symbol '-x.'"""
         return cls._floatmath_neg(a)
 
     @taguser
-    def min(cls,a,b):
+    def min(cls, a:sfloat, b:sfloat,) -> sfloat:
         """Minimum between A & B."""
         return cls._floatmath('MINIMUM',a,b)
 
     @taguser
-    def smin(cls,a,b,dist):
+    def smin(cls, a:sfloat, b:sfloat, dist:sfloat,) -> sfloat:
         """Minimum between A & B considering a smoothing distance."""
         return cls._floatmath('SMOOTH_MIN',a,b,dist)
 
     @taguser
-    def max(cls,a,b):
+    def max(cls, a:sfloat, b:sfloat,) -> sfloat:
         """Maximum between A & B."""
         return cls._floatmath('MAXIMUM',a,b)
 
     @taguser
-    def smax(cls,a,b,dist):
+    def smax(cls, a:sfloat, b:sfloat, dist:sfloat,) -> sfloat:
         """Maximum between A & B considering a smoothing distance."""
         return cls._floatmath('SMOOTH_MAX',a,b,dist)
 
     @taguser
-    def round(cls,a):
+    def round(cls, a:sfloat,) -> sfloat:
         """Round a Float to an Integer."""
         return cls._floatmath('ROUND',a)
 
     @taguser
-    def floor(cls,a):
+    def floor(cls, a:sfloat,) -> sfloat:
         """Floor a Float to an Integer."""
         return cls._floatmath('FLOOR',a)
 
     @taguser
-    def ceil(cls,a):
+    def ceil(cls, a:sfloat,) -> sfloat:
         """Ceil a Float to an Integer."""
         return cls._floatmath('CEIL',a)
 
     @taguser
-    def trunc(cls,a):
+    def trunc(cls, a:sfloat,) -> sfloat:
         """Trunc a Float to an Integer."""
         return cls._floatmath('TRUNC',a)
 
     @taguser
-    def frac(cls,a):
+    def frac(cls, a:sfloat,) -> sfloat:
         """Fraction.\nThe fraction part of A."""
         return cls._floatmath('FRACT',a)
 
     @taguser
-    def mod(cls,a,b):
+    def mod(cls, a:sfloat, b:sfloat,) -> sfloat:
         """Modulo.\nEquivalent to the '%' symbol."""
         return cls._floatmath('MODULO',a,b)
 
     @taguser
-    def fmod(cls,a,b):
+    def fmod(cls, a:sfloat, b:sfloat,) -> sfloat:
         """Floored Modulo."""
         return cls._floatmath('FLOORED_MODULO',a,b)
 
     @taguser
-    def wrap(cls,v,a,b):
+    def wrap(cls, v:sfloat, a:sfloat, b:sfloat,) -> sfloat:
         """Wrap value to Range A B."""
         return cls._floatmath('WRAP',v,a,b)
 
     @taguser
-    def snap(cls,v,i):
+    def snap(cls, v:sfloat, i:sfloat,) -> sfloat:
         """Snap to Increment."""
         return cls._floatmath('SNAP',v,i)
 
     @taguser
-    def pingpong(cls,v,scale):
+    def pingpong(cls, v:sfloat, scale:sfloat,) -> sfloat:
         """PingPong. Wrap a value and every other cycles at cycle Scale."""
         return cls._floatmath('PINGPONG',v,scale)
 
     @taguser
-    def floordiv(cls,a,b): #Custom
+    def floordiv(cls, a:sfloat, b:sfloat,) -> sfloat: #Custom
         """Floor Division.\nEquivalent to the '//' symbol."""
         _r = cls.div(a,b)
         r = cls.floor(_r)
@@ -411,62 +416,62 @@ class NodeSetter():
         return r
 
     @taguser
-    def sin(cls,a):
+    def sin(cls, a:sfloat,) -> sfloat:
         """The Sine of A."""
         return cls._floatmath('SINE',a)
 
     @taguser
-    def cos(cls,a):
+    def cos(cls, a:sfloat,) -> sfloat:
         """The Cosine of A."""
         return cls._floatmath('COSINE',a)
 
     @taguser
-    def tan(cls,a):
+    def tan(cls, a:sfloat,) -> sfloat:
         """The Tangent of A."""
         return cls._floatmath('TANGENT',a)
 
     @taguser
-    def asin(cls,a):
+    def asin(cls, a:sfloat,) -> sfloat:
         """The Arcsine of A."""
         return cls._floatmath('ARCSINE',a)
 
     @taguser
-    def acos(cls,a):
+    def acos(cls, a:sfloat,) -> sfloat:
         """The Arccosine of A."""
         return cls._floatmath('ARCCOSINE',a)
 
     @taguser
-    def atan(cls,a):
+    def atan(cls, a:sfloat,) -> sfloat:
         """The Arctangent of A."""
         return cls._floatmath('ARCTANGENT',a)
 
     @taguser
-    def hsin(cls,a):
+    def hsin(cls, a:sfloat,) -> sfloat:
         """The Hyperbolic Sine of A."""
         return cls._floatmath('SINH',a)
 
     @taguser
-    def hcos(cls,a):
+    def hcos(cls, a:sfloat,) -> sfloat:
         """The Hyperbolic Cosine of A."""
         return cls._floatmath('COSH',a)
 
     @taguser
-    def htan(cls,a):
+    def htan(cls, a:sfloat,) -> sfloat:
         """The Hyperbolic Tangent of A."""
         return cls._floatmath('TANH',a)
 
     @taguser
-    def rad(cls,a):
+    def rad(cls, a:sfloat,) -> sfloat:
         """Convert from Degrees to Radians."""
         return cls._floatmath('RADIANS',a)
 
     @taguser
-    def deg(cls,a):
+    def deg(cls, a:sfloat,) -> sfloat:
         """Convert from Radians to Degrees."""
         return cls._floatmath('DEGREES',a)
 
     @classmethod
-    def _mix(cls, data_type, sock1, sock2, sock3,):
+    def _mix(cls, data_type:str, sock1:sfloat, sock2:sfloat, sock3:sfloat,) -> sfloat:
         """generic operation for adding a mix node and linking"""
 
         ng = sock1.id_data
@@ -496,17 +501,17 @@ class NodeSetter():
         return node.outputs[0]
 
     @taguser
-    def lerp(cls,f,a,b):
+    def lerp(cls, f:sfloat, a:sfloat, b:sfloat,) -> sfloat:
         """Mix.\nLinear Interpolation of value A and B from given factor."""
         return cls._mix('FLOAT',f,a,b)
     
     @taguser
-    def mix(cls,f,a,b): 
+    def mix(cls, f:sfloat, a:sfloat, b:sfloat,) -> sfloat: 
         """Alternative notation to lerp() function."""
         return cls.lerp(f,a,b)
 
     @classmethod
-    def _floatclamp(cls, clamp_type, sock1, sock2, sock3,):
+    def _floatclamp(cls, clamp_type:str, sock1:sfloat, sock2:sfloat, sock3:sfloat,) -> sfloat:
         """generic operation for adding a mix node and linking"""
         
         ng = sock1.id_data
@@ -529,17 +534,17 @@ class NodeSetter():
         return node.outputs[0]
 
     @taguser
-    def clamp(cls,v,a,b):
+    def clamp(cls, v:sfloat, a:sfloat, b:sfloat,) -> sfloat:
         """Clamp value between min an max."""
         return cls._floatclamp('MINMAX',v,a,b)
     
     @taguser
-    def clampr(cls,v,a,b):
+    def clampr(cls, v:sfloat, a:sfloat, b:sfloat,) -> sfloat:
         """Clamp value between auto-defined min/max."""
         return cls._floatclamp('RANGE',v,a,b)
 
     @classmethod
-    def _maprange(cls, data_type, interpolation_type, sock1, sock2, sock3, sock4, sock5, sock6=None,):
+    def _maprange(cls, data_type:str, interpolation_type:str, sock1:sfloat, sock2:sfloat, sock3:sfloat, sock4:sfloat, sock5:sfloat, sock6:sfloat=None,) -> sfloat:
         """generic operation for adding a remap node and linking"""
 
         ng = sock1.id_data
@@ -568,25 +573,25 @@ class NodeSetter():
         return node.outputs[0]
 
     @taguser
-    def map(cls,val,a,b,x,y):
+    def map(cls, val:sfloat, a:sfloat, b:sfloat, x:sfloat, y:sfloat,) -> sfloat:
         """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
         return cls._maprange('FLOAT','LINEAR',val,a,b,x,y)
 
     @taguser
-    def mapst(cls,val,a,b,x,y,step):
+    def mapst(cls, val:sfloat, a:sfloat, b:sfloat, x:sfloat, y:sfloat, step:sfloat,) -> sfloat:
         """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
         return cls._maprange('FLOAT','STEPPED',val,a,b,x,y,step)
 
     @taguser
-    def mapsmo(cls,val,a,b,x,y):
+    def mapsmo(cls, val:sfloat, a:sfloat, b:sfloat, x:sfloat, y:sfloat,) -> sfloat:
         """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
         return cls._maprange('FLOAT','SMOOTHSTEP',val,a,b,x,y)
 
     @taguser
-    def mapsmoo(cls,val,a,b,x,y):
+    def mapsmoo(cls, val:sfloat, a:sfloat, b:sfloat, x:sfloat, y:sfloat,) -> sfloat:
         """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
         return cls._maprange('FLOAT','SMOOTHERSTEP',val,a,b,x,y)
-    
+
     #TODO add more functions
     #   NOTE compariosn <>==
     #TODO add dynamic output type?
