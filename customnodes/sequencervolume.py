@@ -145,10 +145,11 @@ class NODEBOOSTER_NG_sequencervolume(bpy.types.GeometryNodeCustomGroup):
         return None 
     
     @classmethod
-    def update_all(cls):
+    def update_all_instances(cls, from_depsgraph=False,):
         """search for all nodes of this type and update them"""
 
-        for n in [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]:
+        all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
+        for n in all_instances:
             n.update()
 
         return None

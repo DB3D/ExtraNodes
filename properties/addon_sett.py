@@ -19,16 +19,6 @@ class NODEBOOSTER_AddonPref(bpy.types.AddonPreferences):
         name="Depsgraph Debug",
         default=False,
         )
-    node_pyscript_depseval : bpy.props.BoolProperty(
-        name="Depsgraph Evaluation",
-        description="Automatically evaluate these nodes python expression on every depsgraph update signal",
-        default=True,
-        )
-    node_pyapi_depseval : bpy.props.BoolProperty(
-        name="Depsgraph Evaluation",
-        description="Automatically evaluate these nodes python expression on every depsgraph update signal",
-        default=True,
-        )
     node_pyapi_namespace1 : bpy.props.StringProperty(
         default="",
         name="User Defined Namespace",

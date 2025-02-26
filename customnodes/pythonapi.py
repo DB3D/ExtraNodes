@@ -6,110 +6,13 @@
 import bpy 
 
 from ..__init__ import get_addon_prefs
+from ..nex.pytonode import convert_pyvar_to_data
 from ..utils.node_utils import (
     create_new_nodegroup,
     set_socket_defvalue,
     set_socket_type,
     set_socket_label,
 )
-
-from mathutils import Color, Euler, Matrix, Quaternion, Vector
-from collections import namedtuple
-RGBAColor = namedtuple('RGBAColor', ['r','g','b','a'])
-
-
-def convert_pyvar_to_data(py_variable):
-    """Convert a given python variable into data we can use to create and assign sockets"""
-    #TODO do we want to support numpy as well? or else?
-    
-    value = py_variable
-    
-    #we sanatize out possible types depending on their length
-    matrix_special_label = ''
-    if (type(value) in {tuple, list, set, Vector, Euler, bpy.types.bpy_prop_array}):
-
-        value = list(value)
-        n = len(value)
-
-        if (n == 1):
-            value = float(value[0])
-
-        elif (n <= 3):
-            value = Vector(value + [0.0]*(3 - n))
-
-        elif (n == 4):
-            value = RGBAColor(*value)
-
-        elif (4 < n <= 16):
-            if (n < 16):
-                matrix_special_label = f'List[{len(value)}]'
-                nulmatrix = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-                value.extend(nulmatrix[len(value):])
-            value =  Matrix([value[i*4:(i+1)*4] for i in range(4)])
-
-        else:
-            raise TypeError(f"'{type(value).__name__.title()}' of len {n} not supported")
-
-    match value:
-
-        case bool():
-            repr_label = str(value)
-            socket_type = 'NodeSocketBool'
-
-        case int():
-            repr_label = str(value)
-            socket_type = 'NodeSocketInt'
-
-        case float():
-            repr_label = str(round(value,4))
-            socket_type = 'NodeSocketFloat'
-
-        case str():
-            repr_label = '"'+value+'"'
-            socket_type = 'NodeSocketString'
-
-        case Vector():
-            repr_label = str(tuple(round(n,4) for n in value))
-            socket_type = 'NodeSocketVector'
-
-        case Color():
-            value = RGBAColor(*value,1) #add alpha channel
-            repr_label = str(tuple(round(n,4) for n in value))
-            socket_type = 'NodeSocketColor'
-            
-        case RGBAColor():
-            repr_label = str(tuple(round(n,4) for n in value))
-            socket_type = 'NodeSocketColor'
-
-        case Quaternion():
-            repr_label = str(tuple(round(n,4) for n in value))
-            socket_type = 'NodeSocketRotation'
-
-        case Matrix():
-            repr_label = "MatrixValue" if (not matrix_special_label) else matrix_special_label
-            socket_type = 'NodeSocketMatrix'
-
-        case bpy.types.Object():
-            repr_label = f'D.objects["{value.name}"]'
-            socket_type = 'NodeSocketObject'
-
-        case bpy.types.Collection():
-            repr_label = f'D.collections["{value.name}"]'
-            socket_type = 'NodeSocketCollection'
-
-        case bpy.types.Material():
-            repr_label = f'D.materials["{value.name}"]'
-            socket_type = 'NodeSocketMaterial'
-
-        case bpy.types.Image():
-            repr_label = f'D.images["{value.name}"]'
-            socket_type = 'NodeSocketImage'
-
-        case _:
-            raise TypeError(f"'{type(value).__name__.title()}' not supported")
-    
-    return value, repr_label, socket_type
-
 
 class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     """Custom Nodgroup: Evaluate a python expression as a single value output.
@@ -131,6 +34,12 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     user_pyapiexp : bpy.props.StringProperty(
         update=lambda self, context: self.evaluate_python_expression(define_socketype=True),
         description="type the expression you wish to evaluate right here",
+        )
+    execute_at_depsgraph : bpy.props.BoolProperty(
+        name="Depsgraph Evaluation",
+        description="Synchronize the python values on each depsgraph frame and interaction with the outputs. By toggling your feature, your script will be executed constantly.",
+        default=True,
+        update=lambda self, context: self.evaluate_python_expression(),
         )
 
     @classmethod
@@ -177,8 +86,8 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
 
         ng = self.node_tree
         sett_plugin = get_addon_prefs()
-        self.debug_evaluation_counter += 1
-        
+        self.debug_evaluation_counter += 1 # potential issue with int limit here? idk how blender handle this
+
         #we reset the Error status back to false
         set_socket_label(ng,1, label="NoErrors",)
         set_socket_defvalue(ng,1, value=False,)
@@ -287,6 +196,8 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         field.alert = is_error
         field.prop(self, "user_pyapiexp", placeholder="C.object.name", text="",)
 
+        row.prop(self, "execute_at_depsgraph", text="", icon="TEMP",)
+        
         if (is_error):
             lbl = col.row()
             lbl.alert = is_error
@@ -308,10 +219,14 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         return users
 
     @classmethod
-    def update_all(cls):
+    def update_all_instances(cls, from_depsgraph=False,):
         """search for all nodes of this type and update them"""
 
-        for n in [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]:
+        all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
+        for n in all_instances:
+            if (from_depsgraph and not n.execute_at_depsgraph):
+                continue
             n.evaluate_python_expression()
+            continue
 
         return None

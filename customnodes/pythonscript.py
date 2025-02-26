@@ -5,7 +5,7 @@
 
 import bpy
 
-from .pythonapi import convert_pyvar_to_data
+from ..nex.pytonode import convert_pyvar_to_data
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     create_new_nodegroup,
@@ -28,9 +28,10 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
     # Note that if this happens, it would be nicer to have some sort of create_expression_nodetree(mathexpression, modify_node_tree=None, create_node_tree=True,)
 
     #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
+    #TODO maybe should add a nodebooster panel in text editor for quick execution?
 
     bl_idname = "GeometryNodeNodeBoosterPythonScript"
-    bl_label = "Python Constants"
+    bl_label = "Python Constant Script"
 
     error_message : bpy.props.StringProperty(
         description="User interface error message"
@@ -41,15 +42,21 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         )
     user_textdata : bpy.props.PointerProperty(
         type=bpy.types.Text,
-        update=lambda self, context: self.evaluate_python_script(),
-        poll=lambda self,data: not data.name.startswith('.'),
         name="TextData",
         description="Blender Text datablock to execute",
-        )
-    launch_script : bpy.props.BoolProperty(
+        poll=lambda self,data: not data.name.startswith('.'),
         update=lambda self, context: self.evaluate_python_script(),
+        )
+    execute_script : bpy.props.BoolProperty(
         name="Execute",
         description="Click here to execute the script",
+        update=lambda self, context: self.evaluate_python_script(),
+        )
+    execute_at_depsgraph : bpy.props.BoolProperty(
+        name="Depsgraph Evaluation",
+        description="Synchronize the python values on each depsgraph frame and interaction with the outputs. By toggling your feature, your script will be executed constantly.",
+        default=True,
+        update=lambda self, context: self.evaluate_python_script(),
         )
 
     def init(self, context):
@@ -126,7 +133,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
 
         ng = self.node_tree
         in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
-        self.debug_evaluation_counter += 1
+        self.debug_evaluation_counter += 1 # potential issue with int limit here? idk how blender handle this
         self.error_message = ''
 
         #we reset the Error status back to false
@@ -187,7 +194,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
 
         # Create new sockets depending on vars
         current_vars = [s.name for s in out_nod.inputs]
-        for sockname, (_, socklbl, socktype) in out_elems.items():
+        for sockname, (_, _, socktype) in out_elems.items():
             if (sockname not in current_vars):
                 create_socket(ng, in_out='OUTPUT', socket_type=socktype, socket_name=sockname,)
 
@@ -200,7 +207,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         for idx in reversed(idx_to_del):
             remove_socket(ng, idx, in_out='OUTPUT')
 
-        # Give it a refresh signal, when we remove/create a lot of sockets, the customnode inputs/outputs needs a kick
+        # Give it a refresh signal, when we remove/create a lot of sockets, the customnode inputs/outputs need a kick
         self.update()
 
         # Make sure socket types are corresponding to their python evaluated values
@@ -236,7 +243,8 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         field.alert = is_error
         field.prop(self, "user_textdata", text="", icon="TEXT", placeholder="MyScript",)
         
-        row.prop(self, "launch_script", text="", icon="PLAY", invert_checkbox=self.launch_script,)
+        row.prop(self, "execute_at_depsgraph", text="", icon="TEMP",)
+        row.prop(self, "execute_script", text="", icon="PLAY", invert_checkbox=self.execute_script,)
 
         if (is_error):
             col = col.column(align=True)
@@ -245,11 +253,15 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         return None
 
     @classmethod
-    def update_all(cls):
+    def update_all_instances(cls, from_depsgraph=False,):
         """search for all nodes of this type and update them"""
 
-        for n in [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]:
+        all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
+        for n in all_instances:
+            if (from_depsgraph and not n.execute_at_depsgraph):
+                continue
             n.evaluate_python_script()
+            continue
 
         return None
 

@@ -32,7 +32,7 @@ def msgbus_viewportshading_callback(*args):
     if (sett_plugin.debug_depsgraph):
         print("msgbus_viewportshading_callback(): msgbus signal")
 
-    NODEBOOSTER_NG_isrenderedview.update_all()
+    NODEBOOSTER_NG_isrenderedview.update_all_instances(from_depsgraph=True)
 
     return None 
 
@@ -77,14 +77,12 @@ def nodebooster_handler_depspost(scene,desp):
     if (sett_plugin.debug_depsgraph):
         print("nodebooster_handler_depspost(): depsgraph signal")
 
-    #automatic update for Python node
-    if (sett_plugin.node_pyapi_depseval):
-        NODEBOOSTER_NG_pythonapi.update_all()
-    if (sett_plugin.node_pyscript_depseval):
-        NODEBOOSTER_NG_pythonscript.update_all()
+    #automatic update for Python nodes
+    NODEBOOSTER_NG_pythonapi.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_pythonscript.update_all_instances(from_depsgraph=True)
         
     #need to update camera nodes outputs
-    NODEBOOSTER_NG_camerainfo.update_all()
+    NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
 
     return None
 
@@ -99,16 +97,14 @@ def nodebooster_handler_framepre(scene,desp):
         print("nodebooster_handler_framepre(): frame_pre signal")
 
     #automatic update for Python node
-    if (sett_plugin.node_pyapi_depseval):
-        NODEBOOSTER_NG_pythonapi.update_all()
-    if (sett_plugin.node_pyscript_depseval):
-        NODEBOOSTER_NG_pythonscript.update_all()
+    NODEBOOSTER_NG_pythonapi.update_all_instances(from_depsgraph=True)
+    NODEBOOSTER_NG_pythonscript.update_all_instances(from_depsgraph=True)
 
     #need to update camera nodes outputs
-    NODEBOOSTER_NG_camerainfo.update_all()
+    NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
 
     #need to update all volume sequencer nodes output value
-    NODEBOOSTER_NG_sequencervolume.update_all()
+    NODEBOOSTER_NG_sequencervolume.update_all_instances(from_depsgraph=True)
 
     return None
 

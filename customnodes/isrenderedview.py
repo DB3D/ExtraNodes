@@ -78,12 +78,11 @@ class NODEBOOSTER_NG_isrenderedview(bpy.types.GeometryNodeCustomGroup):
         return None 
     
     @classmethod
-    def update_all(cls):
+    def update_all_instances(cls, from_depsgraph=False,):
         """search for all nodes of this type and update them"""
         
-        name = f".{cls.bl_idname}"
-        
         #actually there's only one instance of this node nodetree
+        name = f".{cls.bl_idname}"
         ng = bpy.data.node_groups.get(name)
         if (ng):
             set_socket_defvalue(ng, 0, value=is_rendered_view(),)

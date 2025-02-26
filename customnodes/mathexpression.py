@@ -490,7 +490,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                     
                     #check for bad symbols
                     for c in list(e):
-                        if (c not in authorized_symbols):
+                        if (c not in list(authorized_symbols) + list(IRRATIONALS.keys())):
                             raise Exception(f"Unauthorized Symbol '{c}'")
                     
                     #unauthorized variable? technically, it's unrecognized
@@ -614,8 +614,8 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                 # Also fill const to socket equivalence dict
                 consteq[const] = get_socket_python_api(con_nod, con_nod.outputs[0].identifier)
         
-        # Give it a refresh signal, when we remove/create a lot of sockets, the customnode inputs/outputs needs a kick
-        self.update_all()
+        # Give it a refresh signal, when we remove/create a lot of sockets, the customnode inputs/outputs need a kick
+        self.update()
         
         # if we don't have any elements to work with, quit
         if not (elemVar or elemConst):
@@ -678,10 +678,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         return None
     
     @classmethod
-    def update_all(cls):
+    def update_all_instances(cls, from_depsgraph=False,):
         """search for all nodes of this type and update them"""
-        
-        for n in [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]:
-            n.update()
-            
+
         return None

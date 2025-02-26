@@ -60,7 +60,6 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                 if (panel):
 
                     is_error = bool(n.error_message)
-
                     col = panel.column(align=True)
                     row = col.row(align=True)
                     row.alert = is_error
@@ -166,28 +165,27 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                 header, panel = layout.panel("params_panelid", default_closed=False,)
                 header.label(text="Parameters",)
                 if (panel):
-
+                    
                     is_error = bool(n.error_message)
-
                     col = panel.column(align=True)
                     row = col.row(align=True)
                     row.alert = is_error
                     row.prop(n, "user_pyapiexp", placeholder="C.object.name", text="",)
 
-                    if (is_error):
-                        lbl = col.row()
-                        lbl.alert = is_error
-                        lbl.label(text=n.error_message)
+                    panel.prop(n,"execute_at_depsgraph")
+                
+                if (is_error):
+                    lbl = col.row()
+                    lbl.alert = is_error
+                    lbl.label(text=n.error_message)
             
                 header, panel = layout.panel("prefs_panelid", default_closed=True,)
-                header.label(text="Preferences",)
+                header.label(text="Namespace",)
                 if (panel):
                     
-                    panel.prop(sett_plugin, "node_pyapi_depseval",)
                     panel.separator(factor=0.3)
                     
                     col = panel.column(align=True)
-                    col.label(text="Namespace:")
                     for info in (
                         "import bpy",
                         "from mathutils import *",
@@ -204,6 +202,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     col.prop(sett_plugin, "node_pyapi_namespace1", text="", placeholder="MyObj = D.objects['Foo']",)
                     col.prop(sett_plugin, "node_pyapi_namespace2", text="", placeholder="import random",)
                     col.prop(sett_plugin, "node_pyapi_namespace3", text="", placeholder="R = random.randint(0,100)",)
+
                     panel.separator(factor=0.6)
 
                 header, panel = layout.panel("doc_panelid", default_closed=True,)
@@ -231,28 +230,24 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
 
             case 'GeometryNodeNodeBoosterPythonScript':
 
-                is_error = bool(n.error_message)
-
-                col = layout.column(align=True)
-                row = col.row(align=True)
-
-                field = row.row(align=True)
-                field.alert = is_error
-                field.prop(n, "user_textdata", text="", icon="TEXT", placeholder="MyScript",)
-
-                row.prop(n, "launch_script", text="", icon="PLAY", invert_checkbox=n.launch_script,)
-
-                if (is_error):
-                    lbl = col.row()
-                    lbl.alert = is_error
-                    lbl.label(text=n.error_message)
-            
-                header, panel = layout.panel("prefs_panelid", default_closed=True,)
-                header.label(text="Preferences",)
+                header, panel = layout.panel("params_panelid", default_closed=False,)
+                header.label(text="Parameters",)
                 if (panel):
-                    panel.separator(factor=0.3)
-                    panel.prop(sett_plugin, "node_pyscript_depseval",)
-                    panel.separator(factor=0.3)
+                        
+                    is_error = bool(n.error_message)
+                    col = panel.column(align=True)
+                    row = col.row(align=True)
+                    field = row.row(align=True)
+                    field.alert = is_error
+                    field.prop(n, "user_textdata", text="", icon="TEXT", placeholder="MyScript",)
+                    row.prop(n, "execute_script", text="", icon="PLAY", invert_checkbox=n.execute_script,)
+
+                    panel.prop(n,"execute_at_depsgraph")
+                    
+                    if (is_error):
+                        lbl = col.row()
+                        lbl.alert = is_error
+                        lbl.label(text=n.error_message)
 
                 header, panel = layout.panel("doc_panelid", default_closed=True,)
                 header.label(text="Documentation",)
