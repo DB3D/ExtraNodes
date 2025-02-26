@@ -473,7 +473,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                         if f'{e}(' in expression:
                             self.elemFct.add(e)
                             continue
-                    
+
                     #we have float or int?
                     if (e.replace('.','').isdigit()):
                         if (not is_float_compatible(e)):
@@ -487,12 +487,12 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
                             raise Exception(f"Variable '{e}' is Taken")
                         self.elemVar.add(e)
                         continue
-                    
+
                     #check for bad symbols
                     for c in list(e):
                         if (c not in list(authorized_symbols) + list(IRRATIONALS.keys())):
                             raise Exception(f"Unauthorized Symbol '{c}'")
-                    
+
                     #unauthorized variable? technically, it's unrecognized
                     raise Exception(f"Unauthorized Variable '{e}'")
         

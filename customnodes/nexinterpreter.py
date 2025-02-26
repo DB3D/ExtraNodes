@@ -18,15 +18,16 @@ from ..utils.node_utils import (
 )
 
 
-class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
-    """Custom NodeGroup: Executes a Python script from a Blender Text datablock and creates output sockets
-    dynamically based on local variables whose names start with 'out_' in the script."""
+class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
+    """Custom NodeGroup: Executes a Python script containing 'Nex' language. 'Nex' stands for nodal expression.
+    With Nex, you can efficiently and easily interpret python code into Geometry-Node nodal languages.
+    Ect... Still Need to add more descriptions, about synthax, and how it works behind the scenes"""
 
     #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
     #TODO maybe should add a nodebooster panel in text editor for quick execution?
 
-    bl_idname = "GeometryNodeNodeBoosterPythonScript"
-    bl_label = "Python Script"
+    bl_idname = "GeometryNodeNodeBoosterNexInterpreter"
+    bl_label = "Nex Script (WIP)"
 
     error_message : bpy.props.StringProperty(
         description="User interface error message"
@@ -40,18 +41,19 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         name="TextData",
         description="Blender Text datablock to execute",
         poll=lambda self,data: not data.name.startswith('.'),
-        update=lambda self, context: self.evaluate_python_script(),
+        update=lambda self, context: self.evaluate_nex_script(),
         )
     execute_script : bpy.props.BoolProperty(
         name="Execute",
         description="Click here to execute the script",
-        update=lambda self, context: self.evaluate_python_script(),
+        update=lambda self, context: self.evaluate_nex_script(),
         )
     execute_at_depsgraph : bpy.props.BoolProperty(
         name="Depsgraph Evaluation",
-        description="Synchronize the python values with the outputs values on each depsgraph frame and interaction. By toggling this option, your script will be executed constantly.",
+        description="Synchronize the interpreted python constants (if any) with the outputs values on each depsgraph frame and interaction.\
+            By toggling this option, your Nex script will be executed constantly.",
         default=True,
-        update=lambda self, context: self.evaluate_python_script(),
+        update=lambda self, context: self.evaluate_nex_script(),
         )
 
     def init(self, context):
@@ -87,19 +89,21 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
-    def cleanse_outputs(self):
+    def cleanse_sockets(self):
         """remove all our outputs"""
 
         ng = self.node_tree
-        out_nod = ng.nodes["Group Output"]
+        in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
 
-        idx_to_del = []
-        for idx,socket in enumerate(out_nod.inputs):
-            if ((socket.type!='CUSTOM') and (idx!=0)):
-                idx_to_del.append(idx)
+        for sockets, mode in zip((in_nod.outputs, out_nod.inputs),('INPUT','OUTPUT')):
 
-        for idx in reversed(idx_to_del):
-            remove_socket(ng, idx, in_out='OUTPUT')
+            idx_to_del = []
+            for idx,socket in enumerate(sockets):
+                if ((socket.type!='CUSTOM') and (idx!=0)):
+                    idx_to_del.append(idx)
+
+            for idx in reversed(idx_to_del):
+                remove_socket(ng, idx, in_out=mode,)
 
         return None
 
@@ -122,7 +126,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
-    def evaluate_python_script(self):
+    def evaluate_nex_script(self):
         """Execute the Python script from a Blender Text datablock, capture local variables whose names start with "out_",
         and update the node group's output sockets accordingly."""
 
@@ -141,13 +145,14 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         
         # Check if a Blender Text datablock has been specified
         if (self.user_textdata is None):
-            # if not, remove unused vars sockets
-            self.cleanse_outputs()
+            # if not, remove sockets
+            self.cleanse_sockets()
             # set error to True
             set_socket_label(ng,0, label="EmptyTextError",)
             set_socket_defvalue(ng,0, value=True,)
             return None
 
+        """
         # Execute the script and capture its local variables
         script_vars = {}
         try:
@@ -165,7 +170,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         out_vars = {k.replace("out_","").replace("_"," "): v for k, v in script_vars.items() if k.startswith("out_") and (k!="out_")}
         if (not out_vars):
             # if not, remove unused vars sockets
-            self.cleanse_outputs()
+            self.cleanse_sockets()
             # set error to True
             set_socket_label(ng,0, label="NoVarFoundError",)
             set_socket_defvalue(ng,0, value=True,)
@@ -219,7 +224,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
             if ((socket.type!='CUSTOM') and (idx!=0)):
                 sockval, _, _ = out_elems[socket.name]
                 set_socket_defvalue(ng, idx, value=sockval,)
-                
+        """
         return None
 
     def draw_label(self,):
@@ -256,7 +261,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         for n in all_instances:
             if (from_depsgraph and not n.execute_at_depsgraph):
                 continue
-            n.evaluate_python_script()
+            n.evaluate_nex_script()
             continue
 
         return None

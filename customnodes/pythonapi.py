@@ -22,7 +22,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
     
     bl_idname = "GeometryNodeNodeBoosterPythonApi"
-    bl_label = "Python Constant"
+    bl_label = "Python Expression"
 
     error_message : bpy.props.StringProperty(
         description="user interface error message",
@@ -37,7 +37,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         )
     execute_at_depsgraph : bpy.props.BoolProperty(
         name="Depsgraph Evaluation",
-        description="Synchronize the python values on each depsgraph frame and interaction with the outputs. By toggling your feature, your script will be executed constantly.",
+        description="Synchronize the python values with the outputs values on each depsgraph frame and interaction. By toggling this option, your script will be executed constantly.",
         default=True,
         update=lambda self, context: self.evaluate_python_expression(),
         )
