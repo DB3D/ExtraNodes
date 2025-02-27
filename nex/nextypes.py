@@ -57,25 +57,63 @@ class NexError(Exception):
 class Nex:
     """parent class of all Nex subclasses"""
 
-    _instance_counter = 0 #Needed to define nxid
-    node_inst = None
-    node_tree = None
-    nxstype = ''
+    _instance_counter = 0 # - Needed to define nxid, see nxid note.
+    node_inst = None      # - the node affiliated with this Nex type
+    node_tree = None      # - the node.nodetree affiliated with this Nex type
+    nxstype = ''          # - the type of socket the Nex type is using
+    nxshort = ''          # - the short name of the nex type (for display reasons)
 
     def __init__(*args, **kwargs):
-        nxsock = None
-        nxvname = None
-        nxid = None # NOTE What are nex id? well, in order to not constantly rebuild the nodetree, but still update 
-                    # some python evaluated values to the nodetree constants (nodes starting with "C|" in the tree)
-                    # we need to have some sort of stable id for our nex Instances.
-                    # the problem is that these instances can be anonymous. So here i've decided to identify by instance generation count.
-
-        # NOTE we store node_tree and socket blender objects in there. Storing blender object in pyvar is dangerous.
-        # HOWEVER we never re-use the initialized class outside of blender context so its totally fine!
+        nxsock = None  # - The most important part of a NexType, it's association with an output socket!
+        nxvname = None # - The name of the variable, if available. High change the variable will be anonymous. Unsure if it's needed to keep this
+        nxid = None    # - In order to not constantly rebuild the nodetree, but still update 
+                       # some python evaluated values to the nodetree constants (nodes starting with "C|" in the tree)
+                       # we need to have some sort of stable id for our nex Instances.
+                       # the problem is that these instances can be anonymous. So here i've decided to identify by instance generation count.
 
     def __repr__(self):
         return f"<{type(self)}{self.nxid} nxvname='{self.nxvname}'  nxsock=`{self.nxsock}` isoutput={self.nxsock.is_output}' socketnode='{self.nxsock.node.name}''{self.nxsock.node.label}'>"
 
+
+def create_Nex_constant(node_tree, NexType, nodetype:str, value,):
+    """Create a new input node (if not already exist) ensure it's default value, then assign to a NexType & return it."""
+
+    new = NexType(manualdef=True)
+    tag = f"{new.nxshort}{new.nxid}"
+
+    # create_constant_input() is smart it will create the node only if it doesn't exist, & ensure (new?) values
+    newsock = create_constant_input(node_tree, nodetype, value, tag)
+
+    new.nxsock = newsock
+    new.nxvname = 'AnonymousVariable'
+
+    return new
+
+def call_Nex_operand(socketfunction, node_tree, NexType, nxA, nxB):
+    """call the socketfunction related to the operand with sockets of our NexTypes, and return a 
+    new NexType from the newly formed socket.
+    
+    Each new node the socketfunctions will create will be tagged, as it is essential that we don't create & 
+    link the nodes if there's no need to do so, as a Nex script can be executed very frequently. 
+    
+    We tag them using the Nex id and types to ensure uniqueness of our values. If a tag already exists, 
+    then it means the nodetree structure must still be good"""
+
+    print("call_Nex_operand")
+
+    argtags = f"{nxA.nxshort}{nxA.nxid},{nxB.nxshort}{nxB.nxid}"
+    tag = f"F|{NexType.nxshort}.{socketfunction.__name__}({argtags})"
+
+    node = node_tree.nodes.get(tag)
+    if (node is None):
+        newsock = socketfunction(nxA.nxsock,nxB.nxsock)
+        node = newsock.node
+        node.name = node.label = tag
+    else:
+        newsock = node.outputs[0]
+
+    new = NexType(fromsocket=newsock)
+    return new
 
 
 def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsocktype:str='',):
@@ -88,6 +126,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
         node_inst = factor_customnode_instance
         node_tree = node_inst.node_tree
         nxstype = 'NodeSocketFloat'
+        nxshort = 'Nf'
 
         def __init__(self, varname='', value=None, fromsocket=None, manualdef=False):
 
@@ -154,31 +193,18 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                 case 'NexFloat':
                     a = self
                     b = other
+                    socketfunction = ns.add
 
                 case 'int'|'float'|'bool': 
                     a = self
-                    # b is an input socket for a new inpuyt node we need to create
-                    # create_constant_input() is smart it will create the node only if it doesn't exist, & ensure (new?) values
-                    b = NexFloat(manualdef=True)
-                    nodeid = f'{type(b).__name__}{b.nxid}'
-                    newsock = create_constant_input(self.node_tree, 'ShaderNodeValue', float(other), nodeid,) #will create input of name like 'C|Float|{nodeid}'
-                    b.nxsock = newsock
-                    b.nxvname = 'AnonymousVariable'
+                    b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue',  float(other),)
+                    socketfunction = ns.add
 
                 case _:
                     raise NexError(f"NexTypeError. Cannot add '{self.nxvname}' of type 'NexFloat' to '{type(other).__name__}'.")
 
-            #Then we create math node and link (if we didn't already did)
-            nodeid = f'F|Nf.add(Nf{a.nxid},Nf{b.nxid})'
-            node = self.node_tree.nodes.get(nodeid)
-            if (node is None):
-                c = ns.add(a.nxsock,b.nxsock)
-                node = c.node
-                node.name = node.label = nodeid
-            else:
-                c = node.outputs[0]
-
-            return NexFloat(fromsocket=c,)
+            c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
+            return c
 
         def __radd__(self, other):
             """a+b == b+a, we should be fine"""
@@ -193,7 +219,8 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
         node_inst = factor_customnode_instance
         node_tree = node_inst.node_tree
         nxstype = factory_outsocktype
-
+        nxshort = 'Nout'
+        
         outsubtype = nxstype.replace("NodeSocket","")
 
         def __init__(self, varname='', value=0.0):
@@ -232,6 +259,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     except Exception as e:
                         raise NexError(f"NexTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to 'NexOutput' of subtype '{self.outsubtype}'.")
 
+    
     # return the class
     ReturnClass = locals().get(factory_classname)
     if (ReturnClass is None):
