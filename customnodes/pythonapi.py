@@ -22,6 +22,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     
     bl_idname = "GeometryNodeNodeBoosterPythonApi"
     bl_label = "Python Expression"
+    bl_icon = 'SCRIPT'
 
     error_message : bpy.props.StringProperty(
         description="user interface error message",
@@ -35,7 +36,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         description="type the expression you wish to evaluate right here",
         )
     execute_at_depsgraph : bpy.props.BoolProperty(
-        name="Depsgraph Evaluation",
+        name="Automatically Refresh",
         description="Synchronize the python values with the outputs values on each depsgraph frame and interaction. By toggling this option, your script will be executed constantly.",
         default=True,
         update=lambda self, context: self.evaluate_python_expression(assign_socketype=True),

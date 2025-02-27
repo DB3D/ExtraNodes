@@ -28,6 +28,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
 
     bl_idname = "GeometryNodeNodeBoosterPythonScript"
     bl_label = "Python Script"
+    bl_icon = 'SCRIPT'
 
     error_message : bpy.props.StringProperty(
         description="User interface error message"
@@ -49,7 +50,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         update=lambda self, context: self.evaluate_python_script(),
         )
     execute_at_depsgraph : bpy.props.BoolProperty(
-        name="Depsgraph Evaluation",
+        name="Automatically Refresh",
         description="Synchronize the python values with the outputs values on each depsgraph frame and interaction. By toggling this option, your script will be executed constantly.",
         default=True,
         update=lambda self, context: self.evaluate_python_script(),
@@ -71,7 +72,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
         ng = ng.copy() #always using a copy of the original ng
 
         self.node_tree = ng
-        self.width = 200
+        self.width = 185
         self.label = self.bl_label
 
         return None

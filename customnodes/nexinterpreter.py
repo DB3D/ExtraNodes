@@ -31,20 +31,21 @@ def transform_nex_script(pyscript:str, nextypes:list) -> str:
     of the form: varname : TYPE = RESTOFTHELINE
     with: varname = TYPE('varname', RESTOFTHELINE)
     """
-    
+
+    #TODO will ; work in here?
     #TODO(?) support x:infloat notations? to x=infloat('x',None)
-        
+
     # Remove comments: delete anything from a '#' to the end of the line.
     script_no_comments = re.sub(r'#.*', '', pyscript)
-    
+
     # Replacement function to inject the constructor call.
     def replacer(match):
         varname, typename, rest = match.groups()
         return f"{varname} = {typename}('{varname}', {rest.strip()})"
-    
+
     pattern = re.compile(rf"\b(\w+)\s*:\s*({'|'.join(nextypes)})\s*=\s*(.+)")
     transformed = pattern.sub(replacer, script_no_comments)
-    
+
     return transformed
 
 def extract_nex_variables(script:str, nextypes:list) -> str:
@@ -69,9 +70,8 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
     bl_idname = "GeometryNodeNodeBoosterNexInterpreter"
     bl_label = "Nex Script (WIP)"
+    bl_icon = 'SCRIPT'
 
-    script_cache = None
-    
     error_message : bpy.props.StringProperty(
         description="User interface error message"
         )
@@ -98,7 +98,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         update=lambda self, context: self.interpret_nex_script(rebuild=True),
         )
     execute_at_depsgraph : bpy.props.BoolProperty(
-        name="Depsgraph Evaluation",
+        name="Automatically Refresh",
         description="Synchronize the interpreted python constants (if any) with the outputs values on each depsgraph frame and interaction. By toggling this option, your Nex script will be executed constantly on each interaction you have with blender (note that the internal nodetree will not be constantly rebuilt, press the Play button to do so.).",
         default=False,
         update=lambda self, context: self.interpret_nex_script(),
@@ -120,7 +120,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         ng = ng.copy() #always using a copy of the original ng
 
         self.node_tree = ng
-        self.width = 200
+        self.width = 185
         self.label = self.bl_label
 
         return None
@@ -178,15 +178,18 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
-    def cleanse_nodes(self, node_tree):
+    def cleanse_nodes(self):
         """remove any added nodes in the nodetree"""
 
-        for node in list(node_tree.nodes).copy():
+        ng = self.node_tree
+
+        print("////////////////////cleanse_nodes")
+        for node in list(ng.nodes).copy():
             if (node.name not in {"Group Input", "Group Output", "ScriptStorage",}):
-                node_tree.nodes.remove(node)
+                ng.nodes.remove(node)
 
         #move output near to input again..
-        in_nod, out_nod = node_tree.nodes["Group Input"], node_tree.nodes["Group Output"]
+        in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
         out_nod.location = in_nod.location
         out_nod.location.x += 200
 
@@ -231,8 +234,9 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         # Check if a Blender Text datablock has been specified
         if (self.user_textdata is None):
-            #cleanse all sockets then
+            #cleanse all sockets and nodes then
             self.cleanse_sockets()
+            self.cleanse_nodes()
             # set error to True
             set_socket_label(ng,0, label="VoidTextError",)
             set_socket_defvalue(ng,0, value=True,)
@@ -265,6 +269,9 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         #make sure there are Nex types in the user expression
         if not any(t in user_script for t in nextypes.keys()):
+            #cleanse all sockets and nodes then
+            self.cleanse_sockets()
+            self.cleanse_nodes()
             # set error to True
             set_socket_label(ng,0, label="VoidNexError",)
             set_socket_defvalue(ng,0, value=True,)
@@ -280,15 +287,15 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             # Display error
             self.error_message = f"Mandatory Nex Outputs not in Script. An example of Nex code can be found in 'Text Editor > Template > Booster Scripts'"
             return None
-        
+
         #exctract the variables from user script
         nexvars = extract_nex_variables(user_script, nextypes.keys(),)
         nexvarnames = [nm for nm,tp in nexvars]
-        
+
         nexvars = {nm:tp for nm,tp in nexvars}
         nexinvars = {nm:tp for nm,tp in nexvars.items() if tp.startswith('in')}
         nexoutvars = {nm:tp for nm,tp in nexvars.items() if tp.startswith('out')}
-        
+
         #Variables checks..
         #make sure user is not using a protected term
         for name in nexvarnames:
@@ -317,11 +324,16 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         final_script = transform_nex_script(user_script, nextypes.keys(),)
         
         #did the user changes stuff in the script?
-        is_modified = final_script!=self.script_cache
+        cache_script = ''
+        cache_name = f".boostercache.{self.user_textdata.name}"
+        cache_text = bpy.data.texts.get(cache_name)
+        if (cache_text is not None):
+              cache_script = cache_text.as_string()
+        is_dirty = (final_script!=cache_script)
         
         # If user modified the script, we rebuild we ensure sockets are correct, and rebuilt nodetree
-        if (is_modified or rebuild):
-                        
+        if (is_dirty or rebuild):
+
             # Clean up sockets no longer in nex vars
             self.cleanse_sockets(
                 in_protectednames=list(nexinvars.keys()),
@@ -358,8 +370,8 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
                     if (current_type!=correctype):
                         set_socket_type(ng, idx, in_out='OUTPUT', socket_type=correctype,)
             
-            #Clean up nodes.. we'll rebuild the nodetree                    
-            self.cleanse_nodes(ng)
+            #Clean up nodes.. we'll rebuild the nodetree
+            self.cleanse_nodes()
 
         # We set the first node active
         # (node arrangement in nodesetter.py module is based on active)
@@ -399,7 +411,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         #     # Display error
         #     self.error_message = f"{type(e).__name__}. {e}"
         #     # Cleanse nodes, there was an error anyway, the current nodetree is tainted..
-        #     self.cleanse_nodes(ng)
+        #     self.cleanse_nodes()
         #     return None
         
         # except Exception as e:
@@ -412,13 +424,19 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         #     return None
         
         #we cache the script it correspond to current nodetree arrangements.
-        self.script_cache = final_script
-        
+
+        #keep track of modifications
+        if (cache_text is None):
+            cache_text = bpy.data.texts.new(cache_name)
+        if (is_dirty):
+            cache_text.clear()
+            cache_text.write(final_script)
+
         #we count the number of nodes
         self.debug_nodes_quantity = len(ng.nodes)
 
         #Clean up the nodetree spacing a little, for the output node
-        if (is_modified or rebuild):
+        if (is_dirty or rebuild):
             farest = get_farest_node(ng)
             if (farest!=out_nod):
                 out_nod.location.x = farest.location.x + 250
@@ -428,7 +446,6 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
     def free(self):
         """when user delete the node we need to clean up"""
         
-        self.script_cache = None
         self.user_textdata = None
 
         return None
