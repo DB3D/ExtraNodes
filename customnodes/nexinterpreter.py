@@ -8,23 +8,30 @@ import bpy
 import re
 
 from ..__init__ import get_addon_prefs
-from ..nex.nextypes import NexFactory, NexError
+from ..nex.nextypes import NexFactory, NexError, NEXEQUIVALENCE
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
+    get_socket,
+    create_socket,
     create_new_nodegroup,
     set_socket_defvalue,
     remove_socket,
     set_socket_label,
+    get_socket_type,
+    set_socket_type,
+    get_farest_node,
 )
 
 
-def transform_nex_script(pyscript:str, nexames:str) -> str:
+def transform_nex_script(pyscript:str, nextypes:list) -> str:
     """
     Transforms a Nex script by first removing any comments and then replacing type declarations 
     of the form: varname : TYPE = RESTOFTHELINE
     with: varname = TYPE('varname', RESTOFTHELINE)
     """
     
+    #TODO(?) support x:infloat notations? to x=infloat('x',None)
+        
     # Remove comments: delete anything from a '#' to the end of the line.
     script_no_comments = re.sub(r'#.*', '', pyscript)
     
@@ -33,10 +40,20 @@ def transform_nex_script(pyscript:str, nexames:str) -> str:
         varname, typename, rest = match.groups()
         return f"{varname} = {typename}('{varname}', {rest.strip()})"
     
-    pattern = re.compile(rf"\b(\w+)\s*:\s*({'|'.join(nexames)})\s*=\s*(.+)")
+    pattern = re.compile(rf"\b(\w+)\s*:\s*({'|'.join(nextypes)})\s*=\s*(.+)")
     transformed = pattern.sub(replacer, script_no_comments)
     
     return transformed
+
+def extract_nex_variables(script:str, nextypes:list) -> str:
+    """Extracts variable names and their Nex types from the given script."""
+    
+    # Create a regex pattern to match lines like "varname : nexType = ..."
+    pattern = re.compile(
+        r"^\s*(\w+)\s*:\s*(" + "|".join(nextypes) + r")\s*=",
+        re.MULTILINE
+    )
+    return pattern.findall(script)
 
 
 class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
@@ -51,6 +68,8 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
     bl_idname = "GeometryNodeNodeBoosterNexInterpreter"
     bl_label = "Nex Script (WIP)"
 
+    script_cache = None
+    
     error_message : bpy.props.StringProperty(
         description="User interface error message"
         )
@@ -58,6 +77,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         name="Execution Counter",
         default=0
         )
+
     user_textdata : bpy.props.PointerProperty(
         type=bpy.types.Text,
         name="TextData",
@@ -65,6 +85,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         poll=lambda self,data: not data.name.startswith('.'),
         update=lambda self, context: self.interpret_nex_script(build_tree=True),
         )
+
     execute_script : bpy.props.BoolProperty(
         name="Execute",
         description="Click here to execute the Nex script, the",
@@ -110,25 +131,56 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
-    def cleanse_sockets(self):
+    def cleanse_sockets(self, in_protectednames=None, out_protectednames=None,):
         """remove all our outputs"""
 
         ng = self.node_tree
         in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
 
-        for sockets, mode in zip((in_nod.outputs, out_nod.inputs),('INPUT','OUTPUT')):
+        for mode in ('INPUT','OUTPUT'):
+            sockets = in_nod.outputs if (mode=='INPUT') else out_nod.inputs
+            protected = in_protectednames if (mode=='INPUT') else out_protectednames
 
             idx_to_del = []
             for idx,socket in enumerate(sockets):
-                if (mode=='OUTPUT' and idx==0):
-                    continue #skip error socket
+
+                #skip custom sockets
                 if (socket.type=='CUSTOM'):
                     continue
-                idx_to_del.append(idx)
+
+                #skip error socket, is the first output..
+                if (mode=='OUTPUT' and idx==0):
+                    continue
+
+                #deletion by name? if passed
+                if (protected):
+                    if (socket.name not in protected):
+                        idx_to_del.append(idx) ; print('remiving soon (protected):',socket)
+                    continue
+
+                idx_to_del.append(idx) ; print('remiving soon:',socket)
+
+                #protection is only valid once, we do remove doubles
+                if (protected):
+                    protected.remove(socket.name)
+
                 continue
 
             for idx in reversed(idx_to_del):
                 remove_socket(ng, idx, in_out=mode,)
+
+        return None
+
+    def cleanse_nodes(self, node_tree):
+        """remove any added nodes in the nodetree"""
+
+        for node in list(node_tree.nodes).copy():
+            if (node.name not in {"Group Input", "Group Output", "ScriptStorage",}):
+                node_tree.nodes.remove(node)
+
+        in_nod, out_nod = node_tree.nodes["Group Input"], node_tree.nodes["Group Output"]
+        out_nod.location = in_nod.location
+        out_nod.location.x += 200
 
         return None
 
@@ -167,19 +219,13 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         #Keepsafe the text data as extra user
         self.store_text_data_as_frame(self.user_textdata)
-        
-        # Remove all sockets? only for some executions.
-        # we don't want the tree to be constantly rebuilt on each frames
-        # TODO: this is a bit annoying because the users links will all disapear even if vars don't changes..
-        #  maybe it's best to do a prerun of the script and see if the vars are still valid, then then?
-        #  and maybe, the VecTypes should NEVER create new sockets, just link them. Hmm. nice idea.
-        if (build_tree):
-            self.cleanse_sockets()
 
         # Check if a Blender Text datablock has been specified
         if (self.user_textdata is None):
+            #cleanse all sockets then
+            self.cleanse_sockets()
             # set error to True
-            set_socket_label(ng,0, label="EmptyTextError",)
+            set_socket_label(ng,0, label="VoidTextError",)
             set_socket_defvalue(ng,0, value=True,)
             return None
 
@@ -187,8 +233,14 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         #define all possible Nex types user can toy with
         nexintypes = {
+            # NodeSocketBool
+            # NodeSocketInt
             'infloat': NexFactory(self, 'NexFloat', build_tree=build_tree,),
-            # 'inauto': NexFactory(self, 'NexAuto', build_tree=build_tree,), #TODO for later
+            # 'inauto': NexFactory(self, 'NexAuto', build_tree=build_tree,), #TODO for later.. maybe just 'in'.. problem with python linter then..
+            # NodeSocketVector
+            # NodeSocketColor
+            # NodeSocketRotation
+            # NodeSocketMatrix
             }
         nexoutypes = {
             'outbool': NexFactory(self, 'NexOutput', 'NodeSocketBool', build_tree=build_tree,),
@@ -198,7 +250,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             'outcol': NexFactory(self, 'NexOutput', 'NodeSocketColor', build_tree=build_tree,),
             'outquat': NexFactory(self, 'NexOutput', 'NodeSocketRotation', build_tree=build_tree,),
             'outmat': NexFactory(self, 'NexOutput', 'NodeSocketMatrix', build_tree=build_tree,),
-            # 'outauto': NexFactory(self, 'NexOutput', build_tree=build_tree,), #TODO for later
+            # 'outauto': NexFactory(self, 'NexOutput', build_tree=build_tree,), #TODO for later.. maybe just 'out'
             }
         nextypes = {**nexintypes, **nexoutypes}
 
@@ -220,29 +272,91 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             self.error_message = f"No Mandatory Nex Outputs in Script." #TODO tell user they can create a template in text editors headers.
             return None
         
-        #TODO will need to make sure there are no vars with same names!!!!! will cause Errors.
-        # if n...:
-        #     # set error to True
-        #     set_socket_label(ng,0, label="VarsDoubleError",)
-        #     set_socket_defvalue(ng,0, value=True,)
-        #     # Display error
-        #     self.error_message = f"Bla." #TODO tell user they can create a template in text editors headers.
-        #     return None
+        #exctract the variables from user script
+        nexvars = extract_nex_variables(user_script, nextypes.keys(),)
+        nexvarnames = [nm for nm,tp in nexvars]
         
+        nexvars = {nm:tp for nm,tp in nexvars}
+        nexinvars = {nm:tp for nm,tp in nexvars.items() if tp.startswith('in')}
+        nexoutvars = {nm:tp for nm,tp in nexvars.items() if tp.startswith('out')}
+        
+        #Variables checks..
+        #make sure user is not using a protected term
+        for name in nexvarnames:
+            if ('Error' not in name):
+                continue
+            # set error to True
+            set_socket_label(ng,0, label="ProtectedTermError",)
+            set_socket_defvalue(ng,0, value=True,)
+            # Display error
+            self.error_message = f"You cannot use the variable name 'Error'"
+            return None
+        #make sure there's no name collision, will lead to errors
+        if (len(nexvarnames) != len(set(nexvarnames))):
+            # set error to True
+            set_socket_label(ng,0, label="CollisionError",)
+            set_socket_defvalue(ng,0, value=True,)
+            # Display error
+            self.error_message = f"Variables Collision, make sure to use different variable names."
+            return None
+        
+        nexvarnames = nexvars.keys()
+
+        # Synthax:
         # replace varname:infloat=REST with varname=infloat('varname',REST) & remove comments
         # much better workflow for artists to use python type indications IMO
         final_script = transform_nex_script(user_script, nextypes.keys(),)
+
+        # If user modified the script, we rebuild we ensure sockets are correct, and rebuilt nodetree
+        if (final_script!=self.script_cache):
+                        
+            # Clean up sockets no longer in nex vars
+            self.cleanse_sockets(
+                in_protectednames=list(nexinvars.keys()),
+                out_protectednames=list(nexoutvars.keys()),
+                )
+
+            # Create new sockets depending on vars
+            #inputs
+            for nm,tp in nexinvars.items():
+                sock = get_socket(ng, in_out='INPUT', socket_name=nm,)
+                if (sock is None):
+                    socktype = NEXEQUIVALENCE[tp]
+                    create_socket(ng, in_out='INPUT', socket_type=socktype, socket_name=nm,)
+            #outputs
+            for nm,tp in nexoutvars.items():
+                sock = get_socket(ng, in_out='OUTPUT', socket_name=nm,)
+                if (sock is None):
+                    socktype = NEXEQUIVALENCE[tp]
+                    create_socket(ng, in_out='OUTPUT', socket_type=socktype, socket_name=nm,)
+
+            # Make sure socket types are corresponding to their python evaluated values
+            #inputs
+            for idx,socket in enumerate(in_nod.outputs):
+                if (socket.type!='CUSTOM'):
+                    correctype = NEXEQUIVALENCE[nexinvars[socket.name]]
+                    current_type = get_socket_type(ng, idx, in_out='INPUT')
+                    if (current_type!=correctype):
+                        set_socket_type(ng, idx, in_out='INPUT', socket_type=correctype,)
+            #outputs
+            for idx,socket in enumerate(out_nod.inputs):
+                if ((socket.type!='CUSTOM') and (idx!=0)):
+                    correctype = NEXEQUIVALENCE[nexoutvars[socket.name]]
+                    current_type = get_socket_type(ng, idx, in_out='OUTPUT')
+                    if (current_type!=correctype):
+                        set_socket_type(ng, idx, in_out='OUTPUT', socket_type=correctype,)
+            
+            #Clean up nodes.. we'll rebuild the nodetree                    
+            self.cleanse_nodes(ng)
+
+        # We set the first node active
+        # (node arrangement in nodesetter.py module is based on active)
+        ng.nodes.active = in_nod
         
-        # inject Nex types in user namespace
-        # Execute the script and capture its local variables
+        # Namespace, we inject Nex types in user namespace
         exec_namespace = {}
         exec_namespace.update(nextypes)
-
-        #auto type would be nice?
-        #TODO exec_namespace['inauto'] = NexFactory(ng,'NexAny')
-        #TODO exec_namespace['outauto'] = NexFactory(ng,'NexOutput','Anytype')
-
-        script_vars = {}
+        script_vars = {} #catch variables from exec?
 
         # for debug mode, we execute without try except to catch 'real' errors with more details. 
         # the exception we raise are designed for the users, not for ourselves devs
@@ -254,28 +368,38 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             print('"""\n'+final_script+'\n"""')
             print("ERROR(?):")
             exec(final_script, exec_namespace, script_vars)
-            return None
+            #return None
 
-        try:
-            exec(final_script, exec_namespace, script_vars)
-            
-        except NexError as e:
-            print(f"{self.bl_idname} Nex Execution Exception:\n{e}")
-            # set error to True
-            set_socket_label(ng,0, label="NexError",)
-            set_socket_defvalue(ng,0, value=True,)
-            # Display error
-            self.error_message = f"{type(e).__name__}. {e}"
-            return None
+        # try:
+        #     exec(final_script, exec_namespace, script_vars)
+
+        # except NexError as e:
+        #     print(f"{self.bl_idname} Nex Execution Exception:\n{e}")
+        #     # set error to True
+        #     set_socket_label(ng,0, label="NexError",)
+        #     set_socket_defvalue(ng,0, value=True,)
+        #     # Display error
+        #     self.error_message = f"{type(e).__name__}. {e}"
+        #     # Cleanse nodes, there was an error anyway, the current nodetree is tainted..
+        #     self.cleanse_nodes(ng)
+        #     return None
         
-        except Exception as e:
-            print(f"{self.bl_idname} Python Execution Exception '{type(e).__name__}':\n{e}")
-            # set error to True
-            set_socket_label(ng,0, label="PythonError",)
-            set_socket_defvalue(ng,0, value=True,)
-            # Display error
-            self.error_message = f"{type(e).__name__}. {e}"
-            return None
+        # except Exception as e:
+        #     print(f"{self.bl_idname} Python Execution Exception '{type(e).__name__}':\n{e}")
+        #     # set error to True
+        #     set_socket_label(ng,0, label="PythonError",)
+        #     set_socket_defvalue(ng,0, value=True,)
+        #     # Display error
+        #     self.error_message = f"{type(e).__name__}. {e}"
+        #     return None
+        
+        #we cache the script it correspond to current nodetree arrangements.
+        self.script_cache = final_script
+
+        #Clean up the nodetree spacing a little, for the output node
+        farest = get_farest_node(ng)
+        if (farest!=out_nod):
+            out_nod.location.x = farest.location.x + 250
 
         return None
 
@@ -286,6 +410,8 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
     def draw_buttons(self, context, layout,):
         """node interface drawing"""
+
+        layout.separator(factor=0.25)
 
         is_error = bool(self.error_message)
 
@@ -303,6 +429,8 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             col = col.column(align=True)
             word_wrap(layout=col, alert=True, active=True, max_char=self.width/6, string=self.error_message,)
 
+        layout.separator(factor=0.75)
+        
         return None
 
     @classmethod

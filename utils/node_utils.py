@@ -32,6 +32,16 @@ def get_node_absolute_location(node):
     return Vector((x,y))
 
 
+def get_socket(ng, socket_name='Foo', in_out='OUTPUT',):
+    """get a socket object from a nodetree input/output by name"""
+    
+    sockets = ng.nodes["Group Output"].inputs if (in_out=='OUTPUT') else ng.nodes["Group Input"].outputs
+    for socket in sockets:
+        if (socket.name==socket_name):
+            return socket            
+    return None
+
+
 def get_socketui_from_socket_idx(ng, idx, in_out='OUTPUT',):
     """return a given socket index as an interface item, either find the socket by it's index, name or socketidentifier"""
     
@@ -214,6 +224,7 @@ def remove_socket(ng, idx, in_out='OUTPUT',):
     
     return None 
 
+
 def create_constant_input(ng, nodetype, value, identifier, location='auto', width=220,):
     """add a new constant input node in nodetree if not existing, ensure it's value"""
 
@@ -244,6 +255,7 @@ def create_constant_input(ng, nodetype, value, identifier, location='auto', widt
 
     return None
 
+
 def create_new_nodegroup(name, in_sockets={}, out_sockets={},):
     """create new nodegroup with outputs from given dict {"name":"type",}"""
 
@@ -262,6 +274,7 @@ def create_new_nodegroup(name, in_sockets={}, out_sockets={},):
         create_socket(ng, in_out='OUTPUT', socket_type=socket_type, socket_name=socket_name,)
         
     return ng
+
 
 def link_sockets(socket1, socket2):
     """link two nodes together in a nodetree"""
@@ -410,3 +423,24 @@ def get_nearest_node_at_position(nodes, context, event, position=None, allow_rer
         target_node = nearest_node
 
     return target_node
+
+
+def get_farest_node(node_tree):
+    """find the lowest/rightest node in nodetree"""
+    
+    assert node_tree and node_tree.nodes, "Nodetree given is empty?"
+
+    right_bottom_node = None
+    
+    # Initialize to extreme values; adjust if you expect nodes to have negative positions.
+    max_x = -1e6  
+    min_y = 1e6
+
+    for node in node_tree.nodes:
+        x, y = node.location
+        if (x > max_x or (x == max_x and y < min_y)):
+            max_x = x
+            min_y = y
+            right_bottom_node = node
+
+    return right_bottom_node

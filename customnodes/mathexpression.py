@@ -591,7 +591,7 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             for s in in_nod.outputs:
                 if (s.name in elemVar):
                     vareq[s.name] = get_socket_python_api(in_nod, s.identifier)
-                
+
         # Add input for constant right below the vars group input
         if (elemConst):
             xloc, yloc = in_nod.location.x, in_nod.location.y-330
@@ -642,33 +642,33 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
 
     def draw_buttons(self, context, layout,):
         """node interface drawing"""
-                
+
         is_error = bool(self.error_message)
-        
+
         col = layout.column(align=True)
         row = col.row(align=True)
-        
+
         field = row.row(align=True)
         field.alert = is_error
         field.prop(self, "user_mathexp", placeholder="(a + sin(b)/c)²", text="",)
-        
+
         opt = row.row(align=True)
         opt.scale_x = 0.35
         opt.prop(self, "use_algrebric_multiplication", text="ab", toggle=True, )
-        
+
         opt = row.row(align=True)
         opt.scale_x = 0.3
         opt.prop(self, "use_macros", text="π", toggle=True, )
-        
+
         if (is_error):
             lbl = col.row()
             lbl.alert = is_error
             lbl.label(text=self.error_message)
-        
+
         layout.separator(factor=0.75)
-        
+
         return None
-    
+
     @classmethod
     def update_all_instances(cls, from_depsgraph=False,):
         """search for all nodes of this type and update them"""

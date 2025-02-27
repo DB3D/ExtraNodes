@@ -23,6 +23,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
     dynamically based on local variables whose names start with 'out_' in the script.
     • The evaluated values can be of type 'float', 'int', 'Vector', 'Color', 'Quaternion', 'Matrix', 'String', 'Object', 'Collection', 'Material' & 'list/tuple/set' up to len 16"""
 
+    #NOTE the Nex language should cover anything this node is doing and better! but well it's simpler for some.
     #TODO maybe should add a nodebooster panel in text editor for quick execution?
 
     bl_idname = "GeometryNodeNodeBoosterPythonScript"
@@ -144,7 +145,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
             # if not, remove unused vars sockets
             self.cleanse_outputs()
             # set error to True
-            set_socket_label(ng,0, label="EmptyTextError",)
+            set_socket_label(ng,0, label="VoidTextError",)
             set_socket_defvalue(ng,0, value=True,)
             return None
 
@@ -163,6 +164,8 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
 
         # Filter for variables that start with 'out_'
         out_vars = {k.replace("out_","").replace("_"," "): v for k, v in script_vars.items() if k.startswith("out_") and (k!="out_")}
+        
+        # Error if no vars. user should define some! Otherwise he didn't get how it works.
         if (not out_vars):
             # if not, remove unused vars sockets
             self.cleanse_outputs()
