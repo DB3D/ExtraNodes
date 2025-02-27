@@ -225,6 +225,12 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
+    def free(self):
+        """when user delete the node we need to clean up"""
+        
+        self.user_textdata = None
+        return None
+    
     def draw_label(self,):
         """node label"""
 

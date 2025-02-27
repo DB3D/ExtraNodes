@@ -132,7 +132,8 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         return None
 
     def cleanse_sockets(self, in_protectednames=None, out_protectednames=None,):
-        """remove all our outputs"""
+        """remove all our sockets except error socket
+        optional: except give list of names"""
 
         ng = self.node_tree
         in_nod, out_nod = ng.nodes["Group Input"], ng.nodes["Group Output"]
@@ -155,10 +156,10 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
                 #deletion by name? if passed
                 if (protected):
                     if (socket.name not in protected):
-                        idx_to_del.append(idx) ; print('remiving soon (protected):',socket)
+                        idx_to_del.append(idx)
                     continue
 
-                idx_to_del.append(idx) ; print('remiving soon:',socket)
+                idx_to_del.append(idx)
 
                 #protection is only valid once, we do remove doubles
                 if (protected):
@@ -178,6 +179,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             if (node.name not in {"Group Input", "Group Output", "ScriptStorage",}):
                 node_tree.nodes.remove(node)
 
+        #move output near to input again..
         in_nod, out_nod = node_tree.nodes["Group Input"], node_tree.nodes["Group Output"]
         out_nod.location = in_nod.location
         out_nod.location.x += 200
@@ -400,6 +402,14 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         farest = get_farest_node(ng)
         if (farest!=out_nod):
             out_nod.location.x = farest.location.x + 250
+
+        return None
+    
+    def free(self):
+        """when user delete the node we need to clean up"""
+        
+        self.script_cache = None
+        self.user_textdata = None
 
         return None
 
