@@ -29,7 +29,7 @@ import bpy
 import re, ast
 
 from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, is_float_compatible
-from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets
+from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, create_constant_input
 from ..nex.nodesetter import get_user_functions
 
 
@@ -596,16 +596,16 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         if (elemConst):
             xloc, yloc = in_nod.location.x, in_nod.location.y-330
             for const in elemConst:
-                con_nod = ng.nodes.new('ShaderNodeValue')
-                con_nod.outputs[0].default_value = float(const)
-                con_nod.name = const
-                con_nod.label = const
-                con_nod.location.x = xloc
-                con_nod.location.y = yloc
+                con_sck = create_constant_input(
+                    ng, 'ShaderNodeValue', float(const), const,
+                    location=(xloc, yloc),
+                    )
+                con_nod = con_sck.node
                 yloc -= 90
                 # Also fill const to socket equivalence dict
-                consteq[const] = get_socket_python_api(con_nod, con_nod.outputs[0].identifier)
-        
+                consteq[const] = get_socket_python_api(con_nod, con_sck.identifier)
+                continue
+
         # Give it a refresh signal, when we remove/create a lot of sockets, the customnode inputs/outputs need a kick
         self.update()
         

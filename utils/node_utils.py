@@ -91,7 +91,7 @@ def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, 
     # setting a default value of a input is very different from an output.
     #  - set a defaultval input can only be done by changing all node instances input of that nodegroup..
     #  - set a defaultval output can be done within the ng
-    
+
     if (in_out=='OUTPUT'):
         
         outnod = ng.nodes["Group Output"]
@@ -214,6 +214,35 @@ def remove_socket(ng, idx, in_out='OUTPUT',):
     
     return None 
 
+def create_constant_input(ng, nodetype, value, identifier, location='auto', width=220,):
+    """add a new constant input node in nodetree if not existing, ensure it's value"""
+
+    shortype = nodetype.split('Node')[1]
+    constnaming = f'C|{shortype}|{identifier}'
+
+    if (location=='auto'):
+        in_nod = ng.nodes["Group Input"]
+        location = in_nod.location.x, in_nod.location.y-330
+        location[1] += 90*len([C for C in ng.nodes if C.name.startswith('C|')])
+    
+    #initialize the creation of the input node?
+    node = ng.nodes.get(constnaming)
+    if (node is None):
+        node = ng.nodes.new(nodetype)
+        node.label = node.name = constnaming
+        node.width = width
+        if (location):
+            node.location.x = location[0]
+            node.location.y = location[1]
+
+    match nodetype:
+        case 'ShaderNodeValue':
+            node.outputs[0].default_value = value
+            return node.outputs[0]
+        case _:
+            raise Exception(f"{nodetype} Not Implemented Yet")
+
+    return None
 
 def create_new_nodegroup(name, in_sockets={}, out_sockets={},):
     """create new nodegroup with outputs from given dict {"name":"type",}"""

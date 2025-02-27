@@ -25,6 +25,12 @@ def get_addon_prefs():
     """get preferences path from base_package, __package__ path change from submodules"""
     return bpy.context.preferences.addons[__package__].preferences
 
+def isdebug():
+    return get_addon_prefs().debug
+
+def dprint(thing):
+    if isdebug():
+        print(thing)
 
 def cleanse_modules():
     """remove all plugin modules from sys.modules for a clean uninstall (dev hotreload solution)"""

@@ -47,7 +47,7 @@ class NODEBOOSTER_AddonPref(bpy.types.AddonPreferences):
         soft_max=3,
         description="ui 'word_wrap' layout funciton, max height of the lines",
         )
-    
+
     def draw(self,context):
         
         layout = self.layout
