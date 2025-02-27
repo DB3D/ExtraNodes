@@ -31,14 +31,14 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         default=0,
         )
     user_pyapiexp : bpy.props.StringProperty(
-        update=lambda self, context: self.evaluate_python_expression(define_socketype=True),
+        update=lambda self, context: self.evaluate_python_expression(assign_socketype=True),
         description="type the expression you wish to evaluate right here",
         )
     execute_at_depsgraph : bpy.props.BoolProperty(
         name="Depsgraph Evaluation",
         description="Synchronize the python values with the outputs values on each depsgraph frame and interaction. By toggling this option, your script will be executed constantly.",
         default=True,
-        update=lambda self, context: self.evaluate_python_expression(),
+        update=lambda self, context: self.evaluate_python_expression(assign_socketype=True),
         )
 
     @classmethod
@@ -80,7 +80,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
-    def evaluate_python_expression(self, define_socketype=False,):
+    def evaluate_python_expression(self, assign_socketype=False,):
         """evaluate the user string and assign value to output node"""
 
         ng = self.node_tree
@@ -171,7 +171,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
             return None
     
         #set values
-        if (define_socketype):
+        if (assign_socketype):
             set_socket_type(ng,0, socket_type=socktype,)
         set_socket_label(ng,0, label=set_label ,)
         set_socket_defvalue(ng,0, value=set_value ,)
@@ -225,7 +225,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         for n in all_instances:
             if (from_depsgraph and not n.execute_at_depsgraph):
                 continue
-            n.evaluate_python_expression()
+            n.evaluate_python_expression(assign_socketype=False)
             continue
 
         return None

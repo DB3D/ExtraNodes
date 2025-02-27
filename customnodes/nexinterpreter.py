@@ -5,17 +5,38 @@
 
 import bpy
 
-from ..nex.pytonode import convert_pyvar_to_data
+import re
+
+from ..__init__ import get_addon_prefs
+from ..nex.nextypes import NexFactory, NexError
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
     create_new_nodegroup,
     set_socket_defvalue,
-    get_socket_type,
-    set_socket_type,
-    create_socket,
     remove_socket,
     set_socket_label,
 )
+
+
+def transform_nex_script(pyscript:str, nexames:str) -> str:
+    """
+    Transforms a Nex script by first removing any comments and then replacing type declarations 
+    of the form: varname : TYPE = RESTOFTHELINE
+    with: varname = TYPE('varname', RESTOFTHELINE)
+    """
+    
+    # Remove comments: delete anything from a '#' to the end of the line.
+    script_no_comments = re.sub(r'#.*', '', pyscript)
+    
+    # Replacement function to inject the constructor call.
+    def replacer(match):
+        varname, typename, rest = match.groups()
+        return f"{varname} = {typename}('{varname}', {rest.strip()})"
+    
+    pattern = re.compile(rf"\b(\w+)\s*:\s*({'|'.join(nexames)})\s*=\s*(.+)")
+    transformed = pattern.sub(replacer, script_no_comments)
+    
+    return transformed
 
 
 class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
@@ -42,19 +63,18 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         name="TextData",
         description="Blender Text datablock to execute",
         poll=lambda self,data: not data.name.startswith('.'),
-        update=lambda self, context: self.evaluate_nex_script(),
+        update=lambda self, context: self.interpret_nex_script(build_tree=True),
         )
     execute_script : bpy.props.BoolProperty(
         name="Execute",
-        description="Click here to execute the script",
-        update=lambda self, context: self.evaluate_nex_script(),
+        description="Click here to execute the Nex script, the",
+        update=lambda self, context: self.interpret_nex_script(build_tree=True),
         )
     execute_at_depsgraph : bpy.props.BoolProperty(
         name="Depsgraph Evaluation",
-        description="Synchronize the interpreted python constants (if any) with the outputs values on each depsgraph frame and interaction.\
-            By toggling this option, your Nex script will be executed constantly.",
-        default=True,
-        update=lambda self, context: self.evaluate_nex_script(),
+        description="Synchronize the interpreted python constants (if any) with the outputs values on each depsgraph frame and interaction. By toggling this option, your Nex script will be executed constantly on each interaction you have with blender (note that the internal nodetree will not be constantly rebuilt, press the Play button to do so.).",
+        default=False,
+        update=lambda self, context: self.interpret_nex_script(build_tree=False),
         )
 
     def init(self, context):
@@ -100,8 +120,12 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
             idx_to_del = []
             for idx,socket in enumerate(sockets):
-                if ((socket.type!='CUSTOM') and (idx!=0)):
-                    idx_to_del.append(idx)
+                if (mode=='OUTPUT' and idx==0):
+                    continue #skip error socket
+                if (socket.type=='CUSTOM'):
+                    continue
+                idx_to_del.append(idx)
+                continue
 
             for idx in reversed(idx_to_del):
                 remove_socket(ng, idx, in_out=mode,)
@@ -127,7 +151,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
-    def evaluate_nex_script(self):
+    def interpret_nex_script(self, build_tree=False,):
         """Execute the Python script from a Blender Text datablock, capture local variables whose names start with "out_",
         and update the node group's output sockets accordingly."""
 
@@ -140,92 +164,119 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         set_socket_label(ng,0, label="NoErrors",)
         set_socket_defvalue(ng,0, value=False,)
         self.error_message = ''
-        
+
         #Keepsafe the text data as extra user
         self.store_text_data_as_frame(self.user_textdata)
         
+        # Remove all sockets? only for some executions.
+        # we don't want the tree to be constantly rebuilt on each frames
+        # TODO: this is a bit annoying because the users links will all disapear even if vars don't changes..
+        #  maybe it's best to do a prerun of the script and see if the vars are still valid, then then?
+        #  and maybe, the VecTypes should NEVER create new sockets, just link them. Hmm. nice idea.
+        if (build_tree):
+            self.cleanse_sockets()
+
         # Check if a Blender Text datablock has been specified
         if (self.user_textdata is None):
-            # if not, remove sockets
-            self.cleanse_sockets()
             # set error to True
             set_socket_label(ng,0, label="EmptyTextError",)
             set_socket_defvalue(ng,0, value=True,)
             return None
 
-        """
+        user_script = self.user_textdata.as_string()
+
+        #define all possible Nex types user can toy with
+        nexintypes = {
+            'infloat': NexFactory(self, 'NexFloat', build_tree=build_tree,),
+            # 'inauto': NexFactory(self, 'NexAuto', build_tree=build_tree,), #TODO for later
+            }
+        nexoutypes = {
+            'outbool': NexFactory(self, 'NexOutput', 'NodeSocketBool', build_tree=build_tree,),
+            'outint': NexFactory(self, 'NexOutput', 'NodeSocketInt', build_tree=build_tree,),
+            'outfloat': NexFactory(self, 'NexOutput', 'NodeSocketFloat', build_tree=build_tree,),
+            'outvec': NexFactory(self, 'NexOutput', 'NodeSocketVector', build_tree=build_tree,),
+            'outcol': NexFactory(self, 'NexOutput', 'NodeSocketColor', build_tree=build_tree,),
+            'outquat': NexFactory(self, 'NexOutput', 'NodeSocketRotation', build_tree=build_tree,),
+            'outmat': NexFactory(self, 'NexOutput', 'NodeSocketMatrix', build_tree=build_tree,),
+            # 'outauto': NexFactory(self, 'NexOutput', build_tree=build_tree,), #TODO for later
+            }
+        nextypes = {**nexintypes, **nexoutypes}
+
+        #make sure there are Nex types in the user expression
+        if not any(t in user_script for t in nextypes.keys()):
+            # set error to True
+            set_socket_label(ng,0, label="VoidNexError",)
+            set_socket_defvalue(ng,0, value=True,)
+            # Display error
+            self.error_message = f"No Nex Found in Script." #TODO tell user they can create a template in text editors headers.
+            return None
+
+        #also make sure there are Nex outputs types in there..
+        if not any(t in user_script for t in nexoutypes.keys()):
+            # set error to True
+            set_socket_label(ng,0, label="NoOutputError",)
+            set_socket_defvalue(ng,0, value=True,)
+            # Display error
+            self.error_message = f"No Mandatory Nex Outputs in Script." #TODO tell user they can create a template in text editors headers.
+            return None
+        
+        #TODO will need to make sure there are no vars with same names!!!!! will cause Errors.
+        # if n...:
+        #     # set error to True
+        #     set_socket_label(ng,0, label="VarsDoubleError",)
+        #     set_socket_defvalue(ng,0, value=True,)
+        #     # Display error
+        #     self.error_message = f"Bla." #TODO tell user they can create a template in text editors headers.
+        #     return None
+        
+        # replace varname:infloat=REST with varname=infloat('varname',REST) & remove comments
+        # much better workflow for artists to use python type indications IMO
+        final_script = transform_nex_script(user_script, nextypes.keys(),)
+        
+        # inject Nex types in user namespace
         # Execute the script and capture its local variables
+        exec_namespace = {}
+        exec_namespace.update(nextypes)
+
+        #auto type would be nice?
+        #TODO exec_namespace['inauto'] = NexFactory(ng,'NexAny')
+        #TODO exec_namespace['outauto'] = NexFactory(ng,'NexOutput','Anytype')
+
         script_vars = {}
+
+        # for debug mode, we execute without try except to catch 'real' errors with more details. 
+        # the exception we raise are designed for the users, not for ourselves devs
+        if True:#TODO(get_addon_prefs().debug):
+            print(f"\n{'-'*50}")
+            print("USER EXPRESSION:")
+            print('"""\n'+user_script+'\n"""')
+            print("TRANSFORMED EXPRESSION:")
+            print('"""\n'+final_script+'\n"""')
+            print("ERROR(?):")
+            exec(final_script, exec_namespace, script_vars)
+            return None
+
         try:
-            exec(self.user_textdata.as_string(), {}, script_vars)
+            exec(final_script, exec_namespace, script_vars)
+            
+        except NexError as e:
+            print(f"{self.bl_idname} Nex Execution Exception:\n{e}")
+            # set error to True
+            set_socket_label(ng,0, label="NexError",)
+            set_socket_defvalue(ng,0, value=True,)
+            # Display error
+            self.error_message = f"{type(e).__name__}. {e}"
+            return None
+        
         except Exception as e:
-            print(f"{self.bl_idname} Execution Exception '{type(e).__name__}':\n{e}")
+            print(f"{self.bl_idname} Python Execution Exception '{type(e).__name__}':\n{e}")
             # set error to True
-            set_socket_label(ng,0, label="ExecutionError",)
+            set_socket_label(ng,0, label="PythonError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = f"Script Execution Error. {e}"
+            self.error_message = f"{type(e).__name__}. {e}"
             return None
 
-        # Filter for variables that start with 'out_'
-        out_vars = {k.replace("out_","").replace("_"," "): v for k, v in script_vars.items() if k.startswith("out_") and (k!="out_")}
-        if (not out_vars):
-            # if not, remove unused vars sockets
-            self.cleanse_sockets()
-            # set error to True
-            set_socket_label(ng,0, label="NoVarFoundError",)
-            set_socket_defvalue(ng,0, value=True,)
-            # Display error
-            self.error_message = f"No 'out_' Variables Found in your Script!"
-            return None
-
-        # Transform all py values to values we can use
-        # {sockname: sockval, socklbl, socktype}
-        out_elems = {}
-        try:
-            for k,v in out_vars.items():
-                out_elems[k] = convert_pyvar_to_data(v)
-        except Exception as e:
-            print(f"{self.bl_idname} Parsing Exception '{type(e).__name__}':\n   for variable '{k}' | value '{v}' | type '{type(v)}'\n{e}")
-            # set error to True
-            set_socket_label(ng,0, label="ParsingError",)
-            set_socket_defvalue(ng,0, value=True,)
-            # Display error
-            self.error_message = f"Socket '{k}' {type(e).__name__}. {str(e)}"
-            return None
-
-        # Create new sockets depending on vars
-        current_vars = [s.name for s in out_nod.inputs]
-        for sockname, (_, _, socktype) in out_elems.items():
-            if (sockname not in current_vars):
-                create_socket(ng, in_out='OUTPUT', socket_type=socktype, socket_name=sockname,)
-
-        # Remove unused vars sockets
-        idx_to_del = []
-        for idx,socket in enumerate(out_nod.inputs):
-            if (socket.name not in out_elems.keys()):
-                if ((socket.type!='CUSTOM') and (idx!=0)):
-                    idx_to_del.append(idx)
-        for idx in reversed(idx_to_del):
-            remove_socket(ng, idx, in_out='OUTPUT')
-
-        # Give it a refresh signal, when we remove/create a lot of sockets, the customnode inputs/outputs need a kick
-        self.update()
-
-        # Make sure socket types are corresponding to their python evaluated values
-        for idx,socket in enumerate(out_nod.inputs):
-            if ((socket.type!='CUSTOM') and (idx!=0)):
-                _, _, socktype = out_elems[socket.name]
-                current_type = get_socket_type(ng, idx, in_out='OUTPUT')
-                if (current_type!=socktype):
-                    set_socket_type(ng, idx, in_out='OUTPUT', socket_type=socktype,)
-
-        # Assign the values to sockets
-        for idx,socket in enumerate(out_nod.inputs):
-            if ((socket.type!='CUSTOM') and (idx!=0)):
-                sockval, _, _ = out_elems[socket.name]
-                set_socket_defvalue(ng, idx, value=sockval,)
-        """
         return None
 
     def draw_label(self,):
@@ -243,7 +294,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         field = row.row(align=True)
         field.alert = is_error
-        field.prop(self, "user_textdata", text="", icon="TEXT", placeholder="MyScript",)
+        field.prop(self, "user_textdata", text="", icon="TEXT", placeholder="NexScript.py",)
         
         row.prop(self, "execute_at_depsgraph", text="", icon="TEMP",)
         row.prop(self, "execute_script", text="", icon="PLAY", invert_checkbox=self.execute_script,)
@@ -258,12 +309,17 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
     def update_all_instances(cls, from_depsgraph=False,):
         """search for all nodes of this type and update them"""
 
-        all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
-        for n in all_instances:
-            if (from_depsgraph and not n.execute_at_depsgraph):
-                continue
-            n.evaluate_nex_script()
-            continue
+        # TODO need to find a solution to feed python values to nex ng constants
+
+        # all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
+        # for n in all_instances:
+        #     if (from_depsgraph and not n.execute_at_depsgraph):
+        #         continue
+        #     # n.interpret_nex_script(build_tree=False)
+        #     # NOTE we cannot evaluate the nex script as a whole on each depsgraph updates.. 
+        #     # We need a more optimized way to deal with this. Recognize the constants we've created and only update thoses. Maybe we need to mark them somehow? in the name
+        #     # Hmm idk...
+        #     continue
 
         return None
 

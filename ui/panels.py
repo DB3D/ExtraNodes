@@ -239,7 +239,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     row = col.row(align=True)
                     field = row.row(align=True)
                     field.alert = is_error
-                    field.prop(n, "user_textdata", text="", icon="TEXT", placeholder="MyScript",)
+                    field.prop(n, "user_textdata", text="", icon="TEXT", placeholder="Script.py",)
                     row.prop(n, "execute_script", text="", icon="PLAY", invert_checkbox=n.execute_script,)
 
                     panel.prop(n,"execute_at_depsgraph")
@@ -272,6 +272,50 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     row.enabled = False
                     row.prop(n, "debug_evaluation_counter",)
 
+            case 'GeometryNodeNodeBoosterNexInterpreter':
+                
+                header, panel = layout.panel("params_panelid", default_closed=False,)
+                header.label(text="Parameters",)
+                if (panel):
+                        
+                    is_error = bool(n.error_message)
+                    col = panel.column(align=True)
+                    row = col.row(align=True)
+                    field = row.row(align=True)
+                    field.alert = is_error
+                    field.prop(n, "user_textdata", text="", icon="TEXT", placeholder="NexScript.py",)
+                    row.prop(n, "execute_script", text="", icon="PLAY", invert_checkbox=n.execute_script,)
+
+                    panel.prop(n,"execute_at_depsgraph")
+                    
+                    if (is_error):
+                        lbl = col.row()
+                        lbl.alert = is_error
+                        lbl.label(text=n.error_message)
+
+                header, panel = layout.panel("doc_panelid", default_closed=True,)
+                header.label(text="Documentation",)
+                if (panel):
+                    word_wrap(layout=panel, alert=False, active=True, max_char='auto',
+                        char_auto_sidepadding=0.9, context=context, string=n.bl_description,
+                        )
+                    panel.operator("wm.url_open", text="Documentation",).url = "https://blenderartists.org/t/nodebooster-extra-nodes-and-functionalities-for-nodeeditors"
+
+                header, panel = layout.panel("dev_panelid", default_closed=True,)
+                header.label(text="Development",)
+                if (panel):
+                    panel.active = False
+                                    
+                    col = panel.column(align=True)
+                    col.label(text="NodeTree:")
+                    col.template_ID(n, "node_tree")
+                    
+                    col = panel.column(align=True)
+                    col.label(text="Debugging:")
+                    row = col.row()
+                    row.enabled = False
+                    row.prop(n, "debug_evaluation_counter",)
+                    
             case 'GeometryNodeNodeBoosterSequencerVolume':
 
                 header, panel = layout.panel("doc_panelid", default_closed=True,)

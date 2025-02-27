@@ -68,7 +68,7 @@ def convert_pyvar_to_data(py_variable):
             value = RGBAColor(*value,1) #add alpha channel
             repr_label = str(tuple(round(n,4) for n in value))
             socket_type = 'NodeSocketColor'
-            
+
         case RGBAColor():
             repr_label = str(tuple(round(n,4) for n in value))
             socket_type = 'NodeSocketColor'
@@ -99,5 +99,5 @@ def convert_pyvar_to_data(py_variable):
 
         case _:
             raise TypeError(f"'{type(value).__name__.title()}' not supported")
-    
+
     return value, repr_label, socket_type

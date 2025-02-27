@@ -23,7 +23,6 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
     dynamically based on local variables whose names start with 'out_' in the script.
     • The evaluated values can be of type 'float', 'int', 'Vector', 'Color', 'Quaternion', 'Matrix', 'String', 'Object', 'Collection', 'Material' & 'list/tuple/set' up to len 16"""
 
-    #TODO Optimization: node_utils function should check if value or type isn't already set before setting it.
     #TODO maybe should add a nodebooster panel in text editor for quick execution?
 
     bl_idname = "GeometryNodeNodeBoosterPythonScript"
@@ -220,7 +219,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
             if ((socket.type!='CUSTOM') and (idx!=0)):
                 sockval, _, _ = out_elems[socket.name]
                 set_socket_defvalue(ng, idx, value=sockval,)
-                
+
         return None
 
     def draw_label(self,):
@@ -238,7 +237,7 @@ class NODEBOOSTER_NG_pythonscript(bpy.types.GeometryNodeCustomGroup):
 
         field = row.row(align=True)
         field.alert = is_error
-        field.prop(self, "user_textdata", text="", icon="TEXT", placeholder="MyScript",)
+        field.prop(self, "user_textdata", text="", icon="TEXT", placeholder="Script.py",)
         
         row.prop(self, "execute_at_depsgraph", text="", icon="TEMP",)
         row.prop(self, "execute_script", text="", icon="PLAY", invert_checkbox=self.execute_script,)

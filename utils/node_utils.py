@@ -71,32 +71,40 @@ def get_socket_from_socketui(ng, sockui, in_out='OUTPUT'):
 
 def get_socket_defvalue(ng, idx, in_out='OUTPUT',):
     """return the value of the given nodegroups output at given socket idx"""
-    
+
     match in_out:
         case 'OUTPUT':
             return ng.nodes["Group Output"].inputs[idx].default_value
         case 'INPUT':
+            raise Exception("No Support for Inputs..")
             return ng.nodes["Group Input"].outputs[idx].default_value
         case _:
             raise Exception("get_socket_defvalue(): in_out arg not valid")
 
-     
-def set_socket_defvalue(ng, idx, in_out='OUTPUT', value=None,):
-    """set the value of the given nodegroups output at given socket idx"""
-    
-    assert in_out in {'INPUT','OUTPUT'}, "get_socket_defvalue(): in_out arg not valid"
-    
-    node = ng.nodes["Group Output"] if (in_out=='OUTPUT') else ng.nodes["Group Input"]
-    sockets = node.inputs if (in_out=='OUTPUT') else node.outputs
-    socket = sockets[idx]
 
-    if (in_out=='INPUT'):
-        socket.default_value = value
-        return None
+def set_socket_defvalue(ng, idx=None, socket=None, in_out='OUTPUT', value=None, node=None,):
+    """set the value of the given nodegroups inputs or output sockets"""
     
-    # for some socket types, they don't have any default_values property.
-    # so we need to improvise
+    assert in_out in {'INPUT','OUTPUT'}, "set_socket_defvalue(): in_out arg not valid"
+    assert not (idx is None and socket is None), "Please pass either a socket or an index to a socket"
+
+    # setting a default value of a input is very different from an output.
+    #  - set a defaultval input can only be done by changing all node instances input of that nodegroup..
+    #  - set a defaultval output can be done within the ng
+    
     if (in_out=='OUTPUT'):
+        
+        outnod = ng.nodes["Group Output"]
+        sockets = outnod.inputs
+    
+        #fine our socket
+        if (socket is None):
+            socket = sockets[idx]
+        else:
+            assert socket in sockets[:], "Socket not found from input. Did you feed the right socket?"
+        
+        # for some socket types, they don't have any default_values property.
+        # so we need to improvise and place a new node and link it!
         match socket.type:
 
             case 'ROTATION':
@@ -107,7 +115,7 @@ def set_socket_defvalue(ng, idx, in_out='OUTPUT', value=None,):
                 if (defnod is None):
                     defnod = ng.nodes.new('FunctionNodeQuaternionToRotation')
                     defnod.name = defnod.label = defnodname
-                    defnod.location = (node.location.x, node.location.y + 150)
+                    defnod.location = (outnod.location.x, outnod.location.y + 150)
                 #link it
                 if (not socket.links):
                     ng.links.new(defnod.outputs[0], socket)
@@ -122,7 +130,7 @@ def set_socket_defvalue(ng, idx, in_out='OUTPUT', value=None,):
                 if (defnod is None):
                     defnod = ng.nodes.new('FunctionNodeCombineMatrix')
                     defnod.name = defnod.label = defnodname
-                    defnod.location = (node.location.x + 150, node.location.y + 150)
+                    defnod.location = (outnod.location.x + 150, outnod.location.y + 150)
                     #the node comes with tainted default values
                     for inp in defnod.inputs:
                         inp.default_value = 0
@@ -141,6 +149,21 @@ def set_socket_defvalue(ng, idx, in_out='OUTPUT', value=None,):
                 #we set def value, simply..
                 socket.default_value = value
 
+    elif (in_out=='INPUT'):
+        
+        assert node is not None, "for inputs please pass a node instance to tweak the input values to"
+        
+        if (idx is None):
+            for i,s in enumerate(ng.nodes["Group Input"].outputs):
+                if (s==socket):
+                    idx = i
+                    break
+            assert idx is not None, "Error, couldn't find idx.."
+        
+        instancesocket = node.inputs[idx]
+        if (instancesocket.type not in {'ROTATION','MATRIX'}):
+            instancesocket.default_value = value
+            
     return None
 
 

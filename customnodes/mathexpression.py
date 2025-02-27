@@ -9,16 +9,7 @@
 # 3- transform the algebric expression into 'function expressions' using 'transform_math_expression'
 # 4- execute the function expression with using exec() with the namespace from nex.nodesetter, which will set the nodes in place.
 
-# TODO later support multi type operation with blender with int/vector/bool operator?  and other math operation?
-#     - right now we only support the float math node.. we could support these other nodes
-#     - all vars could start with 'v' 'f' 'i' 'b' to designate their types?
-#     - could procedurally change sockets input/outputs depending on type
-#     - however, there will be a lot of checks required to see if the user is using valid types.. quite annoying. Perhaps could be done by checking 'is_valid'
-#     Or maybe create a separate 'ComplexMath' node and keep this simple one?
-# Inspiration https://extensions.blender.org/add-ons/math-formula/ 
-
 # TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
-# TODO would be nice to go back and forth from bake to custom node again..
 
 #TODO add dynamic output type?
 #  - int(a) & all round, floor, ceil, trunc should return int then
@@ -36,9 +27,7 @@
 import bpy
 
 import re, ast
-from functools import partial
 
-from ..__init__ import get_addon_prefs
 from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, is_float_compatible
 from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets
 from ..nex.nodesetter import get_user_functions
@@ -133,10 +122,13 @@ def execute_math_function_expression(customnode=None, expression:str=None,
     local_vars = {}
     local_vars["ng"] = node_tree
     local_vars.update({f.__name__:f for f in USER_FUNCTIONS})
+    
     # we get rid of any blender builtin functions
     global_vars = {"__builtins__": {}}
 
     try:
+        # The user technically has ONLY  access to the 'ng' NodeGroupType variable and to math functions
+        # This exec() is therefore security compliant. It will also never execute without an user update signal from string field inputs.
         exec(api_expression, global_vars, local_vars)
 
     except TypeError as e:
