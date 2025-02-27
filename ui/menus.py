@@ -5,6 +5,8 @@
 
 import bpy 
 
+import os
+
 from ..customnodes import classes as NODECUSTOMCLS
 
 
@@ -43,22 +45,60 @@ def nodebooster_nodemenu_append(self, context):
     return None
 
 
+class NODEBOOSTER_MT_textemplate(bpy.types.Menu):
+
+    bl_idname = "NODEBOOSTER_MT_textemplate"
+    bl_label  = "Booster Nodes"
+
+    def draw(self, context):
+
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        parent_dir = os.path.dirname(current_dir)
+        external_dir = os.path.join(parent_dir, "external")
+        
+        file_path = os.path.join(external_dir, "NexSimpleExample.py")
+        layout = self.layout 
+        layout.separator()
+        op = layout.operator("nodebooster.import_template", text=os.path.basename(file_path),)
+        op.filepath = file_path
+
+        return None
+
+def nodebooster_templatemenu_append(self, context):
+    
+    layout = self.layout 
+    layout.separator()
+    layout.menu("NODEBOOSTER_MT_textemplate", text="Booster Scripts",)
+
+    return None
+
+
+MENUS = [
+    bpy.types.NODE_MT_add,
+    bpy.types.NODE_MT_node,
+    bpy.types.TEXT_MT_templates,
+    ]
+
+
+DRAWFUNCS = [
+    nodebooster_addmenu_append,
+    nodebooster_nodemenu_append,
+    nodebooster_templatemenu_append,
+    ]
+
+
 def append_menus():
 
-    bpy.types.NODE_MT_add.append(nodebooster_addmenu_append)
-    bpy.types.NODE_MT_node.append(nodebooster_nodemenu_append)
+    for menu, fct in zip(MENUS,DRAWFUNCS):
+        menu.append(fct)
 
     return None
 
 def remove_menus():
 
-    #remove menus by name, in case there was a problem at unreg
-    menus = (bpy.types.NODE_MT_add, bpy.types.NODE_MT_node,)
-    for menu in menus:
+    for menu in MENUS:
         for f in menu._dyn_ui_initialize().copy():
-            if (f.__name__=='nodebooster_addmenu_append'):
-                menu.remove(f)
-            if (f.__name__=='nodebooster_nodemenu_append'):
+            if (f in DRAWFUNCS):
                 menu.remove(f)
 
     return None

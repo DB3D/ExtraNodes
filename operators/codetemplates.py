@@ -5,18 +5,32 @@
 
 import bpy
 
+import os 
+
 
 class NODEBOOSTER_OT_text_templates(bpy.types.Operator):
-    bl_idname = "text.text_templates"
-    bl_label = "Nex Example"
-    bl_description = "Create a new text template with predefined content"
+    
+    bl_idname = "nodebooster.import_template"
+    bl_label = "Code Example"
+    bl_description = "Import example code"
+
+    filepath : bpy.props.StringProperty(subtype="FILE_PATH")
 
     def execute(self, context):
 
-        text_block = bpy.data.texts.new(name="My Template")
+        if not os.path.isfile(self.filepath):
+            self.report({'ERROR'}, f"File not found: {self.filepath}")
+            return {'CANCELLED'}
 
-        text_block.clear()
-        text_block.write("this\nis\nMy \nText\n")
-        self.report({'INFO'}, "My Template created!")
+        dataname = os.path.splitext(os.path.basename(self.filepath))[0]
+
+        with open(self.filepath, "r", encoding="utf-8") as file:
+            file_content = file.read()
+
+        text_block = bpy.data.texts.new(name=dataname)
+        text_block.write(file_content)
+        context.space_data.text = text_block
+
+        self.report({'INFO'}, f"Imported '{dataname}' into Blender text editor")
 
         return {'FINISHED'}

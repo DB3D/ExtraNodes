@@ -6,9 +6,9 @@
 from .menus import (
 
     NODEBOOSTER_MT_addmenu_general,
+    NODEBOOSTER_MT_textemplate, 
     append_menus, 
     remove_menus,
-
     )
 
 from .panels import (
@@ -25,6 +25,7 @@ from .panels import (
 classes = (
 
     NODEBOOSTER_MT_addmenu_general,
+    NODEBOOSTER_MT_textemplate,
     NODEBOOSTER_PT_tool_search,
     NODEBOOSTER_PT_tool_color_palette,
     NODEBOOSTER_PT_shortcuts_memo,

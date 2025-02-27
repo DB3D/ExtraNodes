@@ -262,7 +262,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             set_socket_label(ng,0, label="VoidNexError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = f"No Nex Found in Script." #TODO tell user they can create a template in text editors headers.
+            self.error_message = f"No Nex Found in Script. An example of Nex code can be found in 'Text Editor > Template > Booster Scripts'"
             return None
 
         #also make sure there are Nex outputs types in there..
@@ -271,7 +271,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             set_socket_label(ng,0, label="NoOutputError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = f"No Mandatory Nex Outputs in Script." #TODO tell user they can create a template in text editors headers.
+            self.error_message = f"Mandatory Nex Outputs not in Script. An example of Nex code can be found in 'Text Editor > Template > Booster Scripts'"
             return None
         
         #exctract the variables from user script
