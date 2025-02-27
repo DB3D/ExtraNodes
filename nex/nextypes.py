@@ -151,7 +151,6 @@ def NexFactory(customnode_instance, gen_classname:str, gen_socket_type:str='', b
                     b = NexFloat(manualdef=True)
                     nodeid = f'{type(b).__name__}{b.nxid}'
                     newsock = create_constant_input(self.node_tree, 'ShaderNodeValue', float(other), nodeid,) #will create input of name like 'C|Float|{nodeid}'
-                    print("newsock", newsock)
                     b.nxsock = newsock
                     b.nxvname = 'AnonymousVariable'
 

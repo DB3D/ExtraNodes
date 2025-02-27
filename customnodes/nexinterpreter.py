@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 #TODO bake operator in panel as well, like math
-
+#TODO auto generated Nex gloassary in text editor
 
 import bpy
 

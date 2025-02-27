@@ -9,6 +9,7 @@
 # 3- transform the algebric expression into 'function expressions' using 'transform_math_expression'
 # 4- execute the function expression with using exec() with the namespace from nex.nodesetter, which will set the nodes in place.
 
+# TODO (?) execute the functions from the 'ast' transformer directly? If **really** needed then.
 # TODO color of the node header should be blue for converter.. how to do that without hacking in the memory??
 
 #TODO add dynamic output type?
