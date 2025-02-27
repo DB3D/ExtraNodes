@@ -74,10 +74,8 @@ class Nex:
 
 
 def NexFactory(customnode_instance, gen_classname:str, gen_socket_type:str='', build_tree:bool=False,):
-    """return a nex type, which is simply an overloaded type that automatically arrange links sokets together
-    enable `build_tree` if you wish to only update constants of the node_tree and not rebuild it!"""
-
-    #TODO implement build_tree... see 'OPTIMIZATION_TODO'
+    """return a nex type, which is simply an overloaded custom type that automatically arrange links and nodes and
+    set default values. The nextypes will/should only build the nodetree and links when neccessary"""
     
     class NexFloat(Nex):
         
@@ -139,34 +137,39 @@ def NexFactory(customnode_instance, gen_classname:str, gen_socket_type:str='', b
         def __add__(self, other):
             
             # define each add builtin behaviors depending on other arg type.
-            # would be nicer to overload.. singledispatchmethod won't work from this Factory context
+            # for each types, we define operation members a &, b
             match other:
 
                 case NexFloat():
-                    # did we already created this operation? check with nodeid if it is the case
-                    nodeid = f'F|Nf.add(Nf{self.nxid},Nf{other.nxid})'
-                    node = self.node_tree.nodes.get(nodeid)
-                    if (node is None):
-                        newsock = ns.add(self.nxsock,other.nxsock)
-                        node = newsock.node
-                        node.name = node.label = nodeid
-                    socket = node.outputs[0]
-                    return NexFloat(fromsocket=socket,)
+                    a = self
+                    b = other
 
                 case int() | float() | bool(): 
-                    # did we already created the input node constant? 
-                    # if yes we need to update value. create_constant_input() will do that
-                    newnex = NexFloat(manualdef=True)
-                    nodeid = f'{type(self).__name__}{newnex.nxid}'
-                    newsock = create_constant_input(self.node_tree, 'ShaderNodeValue', float(other), nodeid,), #will create input of name f'C|{shortype}|{identifier}'
-                    newnex.nxsock = newsock
-                    newnex.nxvname = 'AnonymousVariable'
+                    a = self
+                    # b is an input socket for a new inpuyt node we need to create
+                    # create_constant_input() is smart it will create the node only if it doesn't exist, & ensure (new?) values
+                    b = NexFloat(manualdef=True)
+                    nodeid = f'{type(b).__name__}{b.nxid}'
+                    newsock = create_constant_input(self.node_tree, 'ShaderNodeValue', float(other), nodeid,) #will create input of name like 'C|Float|{nodeid}'
+                    print("newsock", newsock)
+                    b.nxsock = newsock
+                    b.nxvname = 'AnonymousVariable'
 
                 case _:
                     #TODO would be nice to catch the line number in error message..
                     raise NexError(f"Unsupported add operaton for '{self.nxvname}' of type '{self.nxstui}' and {other} of type '{type(other)}'.")
 
-            return None
+            #Then we create math node and link (if we didn't already did)
+            nodeid = f'F|Nf.add(Nf{a.nxid},Nf{b.nxid})'
+            node = self.node_tree.nodes.get(nodeid)
+            if (node is None):
+                c = ns.add(a.nxsock,b.nxsock)
+                node = c.node
+                node.name = node.label = nodeid
+            else:
+                c = node.outputs[0]
+                    
+            return NexFloat(fromsocket=c,)
 
         def __radd__(self, other):
             """a+b == b+a, we should be fine"""

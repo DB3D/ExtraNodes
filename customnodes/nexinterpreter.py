@@ -83,19 +83,19 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         name="TextData",
         description="Blender Text datablock to execute",
         poll=lambda self,data: not data.name.startswith('.'),
-        update=lambda self, context: self.interpret_nex_script(build_tree=True),
+        update=lambda self, context: self.interpret_nex_script(),
         )
 
     execute_script : bpy.props.BoolProperty(
         name="Execute",
         description="Click here to execute the Nex script, the",
-        update=lambda self, context: self.interpret_nex_script(build_tree=True),
+        update=lambda self, context: self.interpret_nex_script(rebuild=True),
         )
     execute_at_depsgraph : bpy.props.BoolProperty(
         name="Depsgraph Evaluation",
         description="Synchronize the interpreted python constants (if any) with the outputs values on each depsgraph frame and interaction. By toggling this option, your Nex script will be executed constantly on each interaction you have with blender (note that the internal nodetree will not be constantly rebuilt, press the Play button to do so.).",
         default=False,
-        update=lambda self, context: self.interpret_nex_script(build_tree=False),
+        update=lambda self, context: self.interpret_nex_script(),
         )
 
     def init(self, context):
@@ -205,7 +205,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         return None
 
-    def interpret_nex_script(self, build_tree=False,):
+    def interpret_nex_script(self, rebuild=False):
         """Execute the Python script from a Blender Text datablock, capture local variables whose names start with "out_",
         and update the node group's output sockets accordingly."""
 
@@ -237,22 +237,22 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         nexintypes = {
             # NodeSocketBool
             # NodeSocketInt
-            'infloat': NexFactory(self, 'NexFloat', build_tree=build_tree,),
-            # 'inauto': NexFactory(self, 'NexAuto', build_tree=build_tree,), #TODO for later.. maybe just 'in'.. problem with python linter then..
+            'infloat': NexFactory(self, 'NexFloat',),
+            # 'inauto': NexFactory(self, 'NexAuto',), #TODO for later.. maybe just 'in'.. problem with python linter then..
             # NodeSocketVector
             # NodeSocketColor
             # NodeSocketRotation
             # NodeSocketMatrix
             }
         nexoutypes = {
-            'outbool': NexFactory(self, 'NexOutput', 'NodeSocketBool', build_tree=build_tree,),
-            'outint': NexFactory(self, 'NexOutput', 'NodeSocketInt', build_tree=build_tree,),
-            'outfloat': NexFactory(self, 'NexOutput', 'NodeSocketFloat', build_tree=build_tree,),
-            'outvec': NexFactory(self, 'NexOutput', 'NodeSocketVector', build_tree=build_tree,),
-            'outcol': NexFactory(self, 'NexOutput', 'NodeSocketColor', build_tree=build_tree,),
-            'outquat': NexFactory(self, 'NexOutput', 'NodeSocketRotation', build_tree=build_tree,),
-            'outmat': NexFactory(self, 'NexOutput', 'NodeSocketMatrix', build_tree=build_tree,),
-            # 'outauto': NexFactory(self, 'NexOutput', build_tree=build_tree,), #TODO for later.. maybe just 'out'
+            'outbool': NexFactory(self, 'NexOutput', 'NodeSocketBool',),
+            'outint': NexFactory(self, 'NexOutput', 'NodeSocketInt',),
+            'outfloat': NexFactory(self, 'NexOutput', 'NodeSocketFloat',),
+            'outvec': NexFactory(self, 'NexOutput', 'NodeSocketVector',),
+            'outcol': NexFactory(self, 'NexOutput', 'NodeSocketColor',),
+            'outquat': NexFactory(self, 'NexOutput', 'NodeSocketRotation',),
+            'outmat': NexFactory(self, 'NexOutput', 'NodeSocketMatrix',),
+            # 'outauto': NexFactory(self, 'NexOutput',), #TODO for later.. maybe just 'out'
             }
         nextypes = {**nexintypes, **nexoutypes}
 
@@ -308,9 +308,12 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         # replace varname:infloat=REST with varname=infloat('varname',REST) & remove comments
         # much better workflow for artists to use python type indications IMO
         final_script = transform_nex_script(user_script, nextypes.keys(),)
-
+        
+        #did the user changes stuff in the script?
+        is_modified = final_script!=self.script_cache
+        
         # If user modified the script, we rebuild we ensure sockets are correct, and rebuilt nodetree
-        if (final_script!=self.script_cache):
+        if (is_modified or rebuild):
                         
             # Clean up sockets no longer in nex vars
             self.cleanse_sockets(
@@ -363,13 +366,19 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         # for debug mode, we execute without try except to catch 'real' errors with more details. 
         # the exception we raise are designed for the users, not for ourselves devs
         if True:#TODO(get_addon_prefs().debug):
+
+            i = self.debug_evaluation_counter
             print(f"\n{'-'*50}")
-            print("USER EXPRESSION:")
+
+            print(f"USER EXPRESSION: exec{i}")
             print('"""\n'+user_script+'\n"""')
-            print("TRANSFORMED EXPRESSION:")
+
+            print(f"TRANSFORMED EXPRESSION: exec{i}")
             print('"""\n'+final_script+'\n"""')
-            print("ERROR(?):")
+
+            print(f"ERROR(?): exec{i}")
             exec(final_script, exec_namespace, script_vars)
+
             #return None
 
         # try:
@@ -399,9 +408,10 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         self.script_cache = final_script
 
         #Clean up the nodetree spacing a little, for the output node
-        farest = get_farest_node(ng)
-        if (farest!=out_nod):
-            out_nod.location.x = farest.location.x + 250
+        if (is_modified or rebuild):
+            farest = get_farest_node(ng)
+            if (farest!=out_nod):
+                out_nod.location.x = farest.location.x + 250
 
         return None
     
@@ -447,17 +457,13 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
     def update_all_instances(cls, from_depsgraph=False,):
         """search for all nodes of this type and update them"""
 
-        # TODO need to find a solution to feed python values to nex ng constants
 
-        # all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
-        # for n in all_instances:
-        #     if (from_depsgraph and not n.execute_at_depsgraph):
-        #         continue
-        #     # n.interpret_nex_script(build_tree=False)
-        #     # NOTE we cannot evaluate the nex script as a whole on each depsgraph updates.. 
-        #     # We need a more optimized way to deal with this. Recognize the constants we've created and only update thoses. Maybe we need to mark them somehow? in the name
-        #     # Hmm idk...
-        #     continue
+        all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
+        for n in all_instances:
+            if (from_depsgraph and not n.execute_at_depsgraph):
+                continue
+            n.interpret_nex_script()
+            continue
 
         return None
 

@@ -225,17 +225,21 @@ def remove_socket(ng, idx, in_out='OUTPUT',):
     return None 
 
 
-def create_constant_input(ng, nodetype, value, identifier, location='auto', width=220,):
+def create_constant_input(ng, nodetype, value, identifier, location='auto', width=200,):
     """add a new constant input node in nodetree if not existing, ensure it's value"""
 
     shortype = nodetype.split('Node')[1]
     constnaming = f'C|{shortype}|{identifier}'
 
     if (location=='auto'):
+        constcount = len([C for C in ng.nodes if C.name.startswith('C|')])
         in_nod = ng.nodes["Group Input"]
-        location = in_nod.location.x, in_nod.location.y-330
-        location[1] += 90*len([C for C in ng.nodes if C.name.startswith('C|')])
-    
+        locx = in_nod.location.x
+        locy = in_nod.location.y
+        locy -= 330
+        locy -= (90*constcount)
+        location = locx, locy
+
     #initialize the creation of the input node?
     node = ng.nodes.get(constnaming)
     if (node is None):
