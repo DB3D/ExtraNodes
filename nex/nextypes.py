@@ -2,8 +2,14 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# TODO better error for user
+#  - need better traceback error for NexError so user can at least now the line where it got all wrong.
+#  - it's a bit useless to see a Cannot add 'AnonymousVariable' of type.. with type.. 
+#    perhaps just don't tell the user varname if we can print the line?
 
 import bpy
+
+import traceback
 
 from ..__init__ import dprint
 from ..nex.pytonode import convert_pyvar_to_data
@@ -55,7 +61,6 @@ class Nex:
     node_inst = None
     node_tree = None
     nxstype = ''
-    nxstui = '' #Shorter version of nxstype
 
     def __init__(*args, **kwargs):
         nxsock = None
@@ -69,21 +74,20 @@ class Nex:
         # HOWEVER we never re-use the initialized class outside of blender context so its totally fine!
 
     def __repr__(self):
-        return f"<{type(self)}{self.nxid} nxstui={self.nxstui} nxvname='{self.nxvname}'  nxsock=`{self.nxsock}` isoutput={self.nxsock.is_output}' socketnode='{self.nxsock.node.name}''{self.nxsock.node.label}'>"
+        return f"<{type(self)}{self.nxid} nxvname='{self.nxvname}'  nxsock=`{self.nxsock}` isoutput={self.nxsock.is_output}' socketnode='{self.nxsock.node.name}''{self.nxsock.node.label}'>"
 
 
 
-def NexFactory(customnode_instance, gen_classname:str, gen_socket_type:str='', build_tree:bool=False,):
+def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsocktype:str='',):
     """return a nex type, which is simply an overloaded custom type that automatically arrange links and nodes and
     set default values. The nextypes will/should only build the nodetree and links when neccessary"""
-    
+
     class NexFloat(Nex):
         
         _instance_counter = 0
-        node_inst = customnode_instance
+        node_inst = factor_customnode_instance
         node_tree = node_inst.node_tree
         nxstype = 'NodeSocketFloat'
-        nxstui = nxstype.replace("NodeSocket","")
 
         def __init__(self, varname='', value=None, fromsocket=None, manualdef=False):
 
@@ -100,22 +104,29 @@ def NexFactory(customnode_instance, gen_classname:str, gen_socket_type:str='', b
                 self.nxsock = fromsocket
                 self.nxvname = 'AnonymousVariable'
                 return None
+            
+            # Now, define different initialization depending on given value type
+            # NOTE we are relying on string name for robustness. Stumble into an issue where 
+            # `match value: case NexOutput():` didn't work. Probably because of runtime initialization of 
+            # checking a type that didn't already exist yet. Unsure how to solve this problem. Easier to use names for now.
 
-            match value:
+            type_name = type(value).__name__
+            match type_name: 
 
-                # reassignation.. x = a
-                case NexFloat():
-                    print("is copy?:", value)
-                    nxob = value
-                    self.nxsock = nxob.nxsock
-                    self.nxvname = 'AnonymousVariableCopy'
+                # a:infloat = anotherinfloat
+                case 'NexFloat':
+                    raise NexError(f"Invalid use of Inputs. Cannot assign 'NexInput' to 'NexInput'.")
+
+                # is user toying with  output? output cannot be reused in any way..
+                case 'NexOutput':
+                    raise NexError(f"Invalid use of Outputs. Cannot assign 'NexOutput' to 'NexInput'.")
 
                 # initial creation by assignation, we need to create a socket type
-                case int() | float() | bool():
-                    
-                    assert varname!='', "Development Error! NexInput Initialization should always define a varname"
+                case 'int'|'float'|'bool':
+
+                    assert varname!='', "NexInput Initialization should always define a varname"
                     outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=varname,)
-                    
+
                     if (value is not None):
                         value = float(value)
                         set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=value, in_out='INPUT')
@@ -125,9 +136,7 @@ def NexFactory(customnode_instance, gen_classname:str, gen_socket_type:str='', b
 
                 # wrong initialization?
                 case _:
-                    if issubclass(type(value), Nex):
-                        raise NexError(f"'{varname}' invalid type assignation.\nCannot assign '{value.nxstui}' to '{self.nxstui}'")
-                    raise NexError(f"'{varname}' invalid type assignation.\nCannot assign '{type(value)}' to '{self.nxstui}'")
+                    raise NexError(f"NexTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to 'NexFloat'.")
 
             print(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:',self)
             return None
@@ -135,16 +144,18 @@ def NexFactory(customnode_instance, gen_classname:str, gen_socket_type:str='', b
         # Additions
 
         def __add__(self, other):
-            
+
             # define each add builtin behaviors depending on other arg type.
             # for each types, we define operation members a &, b
-            match other:
 
-                case NexFloat():
+            type_name = type(other).__name__
+            match type_name:
+
+                case 'NexFloat':
                     a = self
                     b = other
 
-                case int() | float() | bool(): 
+                case 'int'|'float'|'bool': 
                     a = self
                     # b is an input socket for a new inpuyt node we need to create
                     # create_constant_input() is smart it will create the node only if it doesn't exist, & ensure (new?) values
@@ -155,8 +166,7 @@ def NexFactory(customnode_instance, gen_classname:str, gen_socket_type:str='', b
                     b.nxvname = 'AnonymousVariable'
 
                 case _:
-                    #TODO would be nice to catch the line number in error message..
-                    raise NexError(f"Unsupported add operaton for '{self.nxvname}' of type '{self.nxstui}' and {other} of type '{type(other)}'.")
+                    raise NexError(f"NexTypeError. Cannot add '{self.nxvname}' of type 'NexFloat' to '{type(other).__name__}'.")
 
             #Then we create math node and link (if we didn't already did)
             nodeid = f'F|Nf.add(Nf{a.nxid},Nf{b.nxid})'
@@ -167,7 +177,7 @@ def NexFactory(customnode_instance, gen_classname:str, gen_socket_type:str='', b
                 node.name = node.label = nodeid
             else:
                 c = node.outputs[0]
-                    
+
             return NexFloat(fromsocket=c,)
 
         def __radd__(self, other):
@@ -179,38 +189,52 @@ def NexFactory(customnode_instance, gen_classname:str, gen_socket_type:str='', b
         """A nex output is just a simple linking operation. We only assign to an output.
         After assinging the final output not a lot of other operations are possible"""
 
-        node_inst = customnode_instance
+        _instance_counter = 0
+        node_inst = factor_customnode_instance
         node_tree = node_inst.node_tree
-        nxstype = gen_socket_type
-        nxstui = nxstype.replace("NodeSocket","")
+        nxstype = factory_outsocktype
+
+        outsubtype = nxstype.replace("NodeSocket","")
 
         def __init__(self, varname='', value=0.0):
 
-            assert varname!='', "Development Error! NexOutput should always define a varname"
+            assert varname!='', "NexOutput Initialization should always define a varname"
             self.nxvname = varname
 
+            # create a stable identifier for our NexObject
+            self.nxid = NexOutput._instance_counter
+            NexOutput._instance_counter += 1
+
+            # add a socket to this object
             outsock = get_socket(self.node_tree, in_out='OUTPUT', socket_name=varname,)
+            self.nxsock = outsock
 
-            # we link another nextype
-            if issubclass(type(value), Nex):
-                nxob = value
-                l = link_sockets(nxob.nxsock, outsock)
-                # we might need to send a refresh signal before checking is_valid property?? if it works, it works
-                if (not l.is_valid):
-                    raise NexError(f"'{varname}' invalid type assignation.\nCannot assign '{nxob.nxstui}' to '{self.nxstui}'")
+            type_name = type(value).__name__
+            match type_name:
 
-            # or we simply output a default python constant value
-            else:
-                value, _, socktype = convert_pyvar_to_data(value)
-                try:
-                    set_socket_defvalue(self.node_tree, value=value, socket=outsock, in_out='OUTPUT',)
-                except Exception as e:
-                    print(f"NexOutput set_socket_defvalue() Errror:\n{type(e).__name__}\n{e}")
-                    raise NexError(f"'{varname}' invalid type assignation.\nCannot assign '{socktype}' to '{self.nxstui}'")
+                # is user toying with  output? output cannot be reused in any way..
+                case 'NexOutput':
+                    raise NexError(f"Invalid use of Outputs. Cannot assign 'NexOutput' to 'NexOutput'.")
+
+                # we link another nextype
+                case _ if ('Nex' in type_name):
+                    l = link_sockets(value.nxsock, outsock)
+                    # we might need to send a refresh signal before checking is_valid property?? if it works, it works
+                    if (not l.is_valid):
+                        raise NexError(f"NexTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to 'NexOutput' of subtype '{self.outsubtype}'.")
+
+                # or we simply output a default python constant value
+                case _:
+                    newval, _, socktype = convert_pyvar_to_data(value)
+                    # just do a try except to see if the var assignment to python is working.. easier.
+                    try:
+                        set_socket_defvalue(self.node_tree, value=newval, socket=outsock, in_out='OUTPUT',)
+                    except Exception as e:
+                        raise NexError(f"NexTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to 'NexOutput' of subtype '{self.outsubtype}'.")
 
     # return the class
-    ReturnClass = locals().get(gen_classname)
+    ReturnClass = locals().get(factory_classname)
     if (ReturnClass is None):
-        raise Exception(f"Type '{gen_classname}' not supported")
+        raise Exception(f"Type '{factory_classname}' not supported")
 
     return ReturnClass

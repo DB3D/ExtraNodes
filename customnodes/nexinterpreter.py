@@ -7,7 +7,7 @@
 
 import bpy
 
-import re
+import re, traceback
 
 from ..__init__ import get_addon_prefs
 from ..nex.nextypes import NexFactory, NexError, NEXEQUIVALENCE
@@ -183,7 +183,6 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         ng = self.node_tree
 
-        print("////////////////////cleanse_nodes")
         for node in list(ng.nodes).copy():
             if (node.name not in {"Group Input", "Group Output", "ScriptStorage",}):
                 ng.nodes.remove(node)
@@ -290,15 +289,11 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         #exctract the variables from user script
         nexvars = extract_nex_variables(user_script, nextypes.keys(),)
-        nexvarnames = [nm for nm,tp in nexvars]
+        nexinvars = [nm for nm,tp in nexvars if tp.startswith('in')]
+        nexoutvars = [nm for nm,tp in nexvars if tp.startswith('out')]
 
-        nexvars = {nm:tp for nm,tp in nexvars}
-        nexinvars = {nm:tp for nm,tp in nexvars.items() if tp.startswith('in')}
-        nexoutvars = {nm:tp for nm,tp in nexvars.items() if tp.startswith('out')}
-
-        #Variables checks..
-        #make sure user is not using a protected term
-        for name in nexvarnames:
+        #Check, make sure user is not using a protected term
+        for name in [nm for nm,tp in nexvars]:
             if ('Error' not in name):
                 continue
             # set error to True
@@ -307,16 +302,19 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             # Display error
             self.error_message = f"You cannot use the variable name 'Error'"
             return None
-        #make sure there's no name collision, will lead to errors
-        if (len(nexvarnames) != len(set(nexvarnames))):
+
+        #Check, make sure there's no name collision, will lead to errors
+        if (len(nexinvars)!=len(set(nexinvars))) or (len(nexoutvars)!=len(set(nexoutvars))):
             # set error to True
             set_socket_label(ng,0, label="CollisionError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
             self.error_message = f"Variables Collision, make sure to use different variable names."
             return None
-        
-        nexvarnames = nexvars.keys()
+
+        # swap to dictionaries
+        nexinvars = {nm:tp for nm,tp in nexvars if tp.startswith('in')}
+        nexoutvars = {nm:tp for nm,tp in nexvars if tp.startswith('out')}
 
         # Synthax:
         # replace varname:infloat=REST with varname=infloat('varname',REST) & remove comments
@@ -384,7 +382,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         # for debug mode, we execute without try except to catch 'real' errors with more details. 
         # the exception we raise are designed for the users, not for ourselves devs
-        if True:#TODO(get_addon_prefs().debug):
+        if (get_addon_prefs().debug):
 
             i = self.debug_evaluation_counter
             print(f"\n{'-'*50}")
@@ -400,28 +398,30 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
             #return None
 
-        # try:
-        #     exec(final_script, exec_namespace, script_vars)
+        try:
+            exec(final_script, exec_namespace, script_vars)
 
-        # except NexError as e:
-        #     print(f"{self.bl_idname} Nex Execution Exception:\n{e}")
-        #     # set error to True
-        #     set_socket_label(ng,0, label="NexError",)
-        #     set_socket_defvalue(ng,0, value=True,)
-        #     # Display error
-        #     self.error_message = f"{type(e).__name__}. {e}"
-        #     # Cleanse nodes, there was an error anyway, the current nodetree is tainted..
-        #     self.cleanse_nodes()
-        #     return None
+        except NexError as e:
+            # set error to True
+            set_socket_label(ng,0, label="NexError",)
+            set_socket_defvalue(ng,0, value=True,)
+            # Display error
+            self.error_message = str(e)
+            # Cleanse nodes, there was an error anyway, the current nodetree is tainted..
+            self.cleanse_nodes()
+            return None
         
-        # except Exception as e:
-        #     print(f"{self.bl_idname} Python Execution Exception '{type(e).__name__}':\n{e}")
-        #     # set error to True
-        #     set_socket_label(ng,0, label="PythonError",)
-        #     set_socket_defvalue(ng,0, value=True,)
-        #     # Display error
-        #     self.error_message = f"{type(e).__name__}. {e}"
-        #     return None
+        except Exception as e:
+            print(f"\n{self.bl_idname} Python Execution Exception '{type(e).__name__}':\n{e}\n")
+            #print more information
+            print("Full Traceback Error:")
+            traceback.print_exc()
+            # set error to True
+            set_socket_label(ng,0, label="PythonError",)
+            set_socket_defvalue(ng,0, value=True,)
+            # Display error
+            self.error_message = f"{type(e).__name__}. {e}"
+            return None
         
         #we cache the script it correspond to current nodetree arrangements.
 
@@ -474,7 +474,8 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         if (is_error):
             col = col.column(align=True)
-            word_wrap(layout=col, alert=True, active=True, max_char=self.width/6, string=self.error_message,)
+            col.separator(factor=2)
+            word_wrap(layout=col, alert=True, active=True, max_char=self.width/5.75, string=self.error_message,)
 
         layout.separator(factor=0.75)
         
