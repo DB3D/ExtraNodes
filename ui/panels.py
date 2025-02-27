@@ -140,20 +140,26 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     panel.active = False
 
                     col = panel.column(align=True)
-                    col.label(text="SanatizedExp:")
+                    col.label(text="Sanatized Expression:")
                     row = col.row()
                     row.enabled = False
                     row.prop(n, "debug_sanatized", text="",)
 
                     col = panel.column(align=True)
-                    col.label(text="FunctionExp:")
+                    col.label(text="Function Expression:")
                     row = col.row()
                     row.enabled = False
                     row.prop(n, "debug_fctexp", text="",)
-
+                    
                     col = panel.column(align=True)
                     col.label(text="NodeTree:")
                     col.template_ID(n, "node_tree")
+                    
+                    col = panel.column(align=True)
+                    col.label(text="NodesCreated:")
+                    row = col.row()
+                    row.enabled = False
+                    row.prop(n, "debug_nodes_quantity", text="",)
 
                 col = layout.column(align=True)
                 op = col.operator("extranode.bake_mathexpression", text="Convert to Group",)
@@ -223,10 +229,10 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     col.template_ID(n, "node_tree")
                     
                     col = panel.column(align=True)
-                    col.label(text="Debugging:")
+                    col.label(text="Execution Count:")
                     row = col.row()
                     row.enabled = False
-                    row.prop(n, "debug_evaluation_counter",)
+                    row.prop(n, "debug_evaluation_counter", text="",)
 
             case 'GeometryNodeNodeBoosterPythonScript':
 
@@ -267,10 +273,10 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     col.template_ID(n, "node_tree")
                     
                     col = panel.column(align=True)
-                    col.label(text="Debugging:")
+                    col.label(text="Execution Count:")
                     row = col.row()
                     row.enabled = False
-                    row.prop(n, "debug_evaluation_counter",)
+                    row.prop(n, "debug_evaluation_counter", text="",)
 
             case 'GeometryNodeNodeBoosterNexInterpreter':
                 
@@ -309,12 +315,18 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     col = panel.column(align=True)
                     col.label(text="NodeTree:")
                     col.template_ID(n, "node_tree")
-                    
+
                     col = panel.column(align=True)
-                    col.label(text="Debugging:")
+                    col.label(text="NodesCreated:")
                     row = col.row()
                     row.enabled = False
-                    row.prop(n, "debug_evaluation_counter",)
+                    row.prop(n, "debug_nodes_quantity", text="",)
+
+                    col = panel.column(align=True)
+                    col.label(text="Execution Count:")
+                    row = col.row()
+                    row.enabled = False
+                    row.prop(n, "debug_evaluation_counter", text="",)
                     
             case 'GeometryNodeNodeBoosterSequencerVolume':
 

@@ -290,9 +290,19 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
     bl_idname = "GeometryNodeNodeBoosterMathExpression"
     bl_label = "Math Expression"
 
-    error_message : bpy.props.StringProperty()
-    debug_sanatized : bpy.props.StringProperty()
-    debug_fctexp : bpy.props.StringProperty()
+    error_message : bpy.props.StringProperty(
+        description="User interface error message"
+        )
+    debug_sanatized : bpy.props.StringProperty(
+        description="Sanatized expression, first layer of expression interpretation"
+        )
+    debug_fctexp : bpy.props.StringProperty(
+        description="Function expression, this function will be executed to create the nodetree."# variables will get replaced by sockets python API"
+        )
+    debug_nodes_quantity : bpy.props.IntProperty(
+        name="Number of nodes in the nodetree",
+        default=-1,
+        )
 
     def update_signal(self,context):
         """evaluate user expression and change the sockets implicitly"""
@@ -304,19 +314,19 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
         name="Expression",
         update=update_signal,
         description="type your math expression right here",
-    )
+        )
     use_algrebric_multiplication : bpy.props.BoolProperty(
         default=False,
         name="Algebric Notation",
         update=update_signal,
         description="Algebric Notation.\nAutomatically consider notation such as '2ab' as '2*a*b'",
-    )
+        )
     use_macros : bpy.props.BoolProperty(
         default=False,
         name="Recognize Macros",
         update=update_signal,
         description="Recognize Macros.\nAutomatically recognize the strings 'Pi' 'eNum' 'Gold' and replace them with their unicode symbols.",
-    )
+        )
 
     @classmethod
     def poll(cls, context):
@@ -633,6 +643,9 @@ class NODEBOOSTER_NG_mathexpression(bpy.types.GeometryNodeCustomGroup):
             self.error_message = str(e)
             return None
         
+        #we count the number of nodes
+        self.debug_nodes_quantity = len(ng.nodes)
+
         return None
 
     def draw_label(self,):

@@ -22,7 +22,7 @@ class NODEBOOSTER_OT_text_templates(bpy.types.Operator):
             self.report({'ERROR'}, f"File not found: {self.filepath}")
             return {'CANCELLED'}
 
-        dataname = os.path.splitext(os.path.basename(self.filepath))[0]
+        dataname = os.path.basename(self.filepath)
 
         with open(self.filepath, "r", encoding="utf-8") as file:
             file_content = file.read()

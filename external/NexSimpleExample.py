@@ -1,5 +1,3 @@
-
-
 import bpy
 frame = bpy.context.scene.frame_current
 
@@ -13,4 +11,3 @@ x:outfloat = 9.69
 y:outfloat = a
 abc:outfloat = addition
 f:outfloat = frame
-

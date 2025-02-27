@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+#TODO bake operator in panel as well, like math
+
 
 import bpy
 
@@ -77,7 +79,11 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         name="Execution Counter",
         default=0
         )
-
+    debug_nodes_quantity : bpy.props.IntProperty(
+        name="Number of nodes in the nodetree",
+        default=-1,
+        )
+    
     user_textdata : bpy.props.PointerProperty(
         type=bpy.types.Text,
         name="TextData",
@@ -184,6 +190,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         out_nod.location = in_nod.location
         out_nod.location.x += 200
 
+        self.debug_nodes_quantity = -1
         return None
 
     def store_text_data_as_frame(self, text):
@@ -406,6 +413,9 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         
         #we cache the script it correspond to current nodetree arrangements.
         self.script_cache = final_script
+        
+        #we count the number of nodes
+        self.debug_nodes_quantity = len(ng.nodes)
 
         #Clean up the nodetree spacing a little, for the output node
         if (is_modified or rebuild):
