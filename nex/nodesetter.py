@@ -20,6 +20,7 @@ SkFloat = bpy.types.NodeSocketFloat
 NODE_YOFF, NODE_XOFF = 120, 70
 _USER_FUNCTIONS = [] #don't import that directly, use get_user_functions, thanks.
 
+
 class InvalidTypePassedToSocket(Exception):
     def __init__(self, message):
         super().__init__(message)
@@ -30,7 +31,7 @@ def usernamespace(func):
     _USER_FUNCTIONS.append(func)
     return func
 
-def get_user_functions(fctsubset='float', default_ng=None):
+def get_user_functions(fctsubset='float', default_ng=None,):
     """get all functions and their names, depending on function types
     optionally, pass the default ng. The 'update_if_exists' functionality of the functions will be disabled"""
 
@@ -43,7 +44,7 @@ def get_user_functions(fctsubset='float', default_ng=None):
 
     # If a default node group argument is provided, use functools.partial to bind it
     if (default_ng):
-        filtered_functions = [partial(f, default_ng, update_if_exists='') for f in filtered_functions]
+        filtered_functions = [partial(f, default_ng,) for f in filtered_functions]
 
     return filtered_functions
 
@@ -62,6 +63,18 @@ def generate_documentation(fctsubset='float'):
         continue
 
     return r
+
+def assert_purple_node(node):
+    """we assign the node color as purple, because it means it's being automatically processed & interacted with"""
+
+    #TODO maybe we set purple only if the value is continuously changing
+    # clould do that by storing a node['initialvalue'] = value and check if it's changing
+
+    if not node.use_custom_color:
+        node.use_custom_color = True
+        node.color = [0.5, 0.2, 0.6]
+    
+    return None
 
 
 # 88b 88  dP"Yb  8888b.  888888 .dP"Y8     .dP"Y8 888888 888888 888888 888888 88""Yb     888888  dP""b8 888888 .dP"Y8 
@@ -91,19 +104,28 @@ def _floatmath(ng, operation_type:str, val1:SkFloat|float=None, val2:SkFloat|flo
         node.use_clamp = False
         node.location = location
         ng.nodes.active = node #Always set the last node active for the final link
+        
         needs_linking = True
+        if (update_if_exists):
+            node.name = node.label = update_if_exists #Tag the node, in order to avoid unessessary build
     
     for i,val in enumerate(args):
         match val:
+
             case SkFloat():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
-            case float() | int():
-                node.inputs[i].default_value = val
-            case bool():
-                node.inputs[i].default_value = float(val)
+
+            case float() | int() | bool():
+                if type(val) is bool:
+                    val = float(val)
+                if (node.inputs[i].default_value!=val):
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
             case None:
                 pass
+
             case _:
                 raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatmath(). Expected parameters in 'Socket', 'float', 'int', 'bool'. Recieved '{type(val).__name__}'")
 
@@ -331,7 +353,10 @@ def _mix(ng, data_type:str, val1:SkFloat|float=None, val2:SkFloat|float=None, va
         node.clamp_factor = False
         node.location = location
         ng.nodes.active = node #Always set the last node active for the final link
+        
         needs_linking = True
+        if (update_if_exists):
+            node.name = node.label = update_if_exists #Tag the node, in order to avoid unessessary build
 
     # Need to choose socket depending on node data_type (hidden sockets)
     indexes = None
@@ -343,15 +368,21 @@ def _mix(ng, data_type:str, val1:SkFloat|float=None, val2:SkFloat|float=None, va
 
     for i,val in zip(indexes,args):    
         match val:
+
             case SkFloat():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
-            case float() | int():
-                node.inputs[i].default_value = val
-            case bool():
-                node.inputs[i].default_value = float(val)
+
+            case float() | int() | bool():
+                if type(val) is bool:
+                    val = float(val)
+                if (node.inputs[i].default_value!=val):
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
             case None:
                 pass
+
             case _:
                 raise InvalidTypePassedToSocket(f"ArgsTypeError for _mix(). Expected parameters in 'Socket', 'float', 'int', 'bool'. Recieved '{type(val).__name__}'")
 
@@ -360,12 +391,12 @@ def _mix(ng, data_type:str, val1:SkFloat|float=None, val2:SkFloat|float=None, va
 @usernamespace
 def lerp(ng, f:SkFloat|float, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
     """Mix.\nLinear Interpolation of value A and B from given factor."""
-    return _mix(ng,'FLOAT',f,a,b)
+    return _mix(ng,'FLOAT',f,a,b, update_if_exists=update_if_exists,)
 
 @usernamespace
 def mix(ng, f:SkFloat|float, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat: 
     """Alternative notation to lerp() function."""
-    return lerp(ng,f,a,b)
+    return lerp(ng,f,a,b, update_if_exists=update_if_exists,)
 
 def _floatclamp(ng, clamp_type:str, val1:SkFloat|float=None, val2:SkFloat|float=None, val3:SkFloat|float=None, update_if_exists:str='',) -> SkFloat:
     """generic operation for adding a mix node and linking"""
@@ -386,19 +417,28 @@ def _floatclamp(ng, clamp_type:str, val1:SkFloat|float=None, val2:SkFloat|float=
         node.clamp_type = clamp_type
         node.location = location
         ng.nodes.active = node #Always set the last node active for the final link
+        
         needs_linking = True
+        if (update_if_exists):
+            node.name = node.label = update_if_exists #Tag the node, in order to avoid unessessary build
 
     for i,val in enumerate(args):
         match val:
+
             case SkFloat():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
-            case float() | int():
-                node.inputs[i].default_value = val
-            case bool():
-                node.inputs[i].default_value = float(val)
+
+            case float() | int() | bool():
+                if type(val) is bool:
+                    val = float(val)
+                if (node.inputs[i].default_value!=val):
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
             case None:
                 pass
+
             case _:
                 raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatclamp(). Expected parameters in 'Socket', 'float', 'int', 'bool'. Recieved '{type(val).__name__}'")
 
@@ -407,12 +447,12 @@ def _floatclamp(ng, clamp_type:str, val1:SkFloat|float=None, val2:SkFloat|float=
 @usernamespace
 def clamp(ng, v:SkFloat|float, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
     """Clamp value between min an max."""
-    return _floatclamp(ng,'MINMAX',v,a,b)
+    return _floatclamp(ng,'MINMAX',v,a,b, update_if_exists=update_if_exists,)
 
 @usernamespace
 def clampr(ng, v:SkFloat|float, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
     """Clamp value between auto-defined min/max."""
-    return _floatclamp(ng,'RANGE',v,a,b)
+    return _floatclamp(ng,'RANGE',v,a,b, update_if_exists=update_if_exists,)
 
 def _maprange(ng, data_type:str, interpolation_type:str, val1:SkFloat|float=None, val2:SkFloat|float=None, val3:SkFloat|float=None,
     val4:SkFloat|float=None, val5:SkFloat|float=None, val6:SkFloat|float=None, update_if_exists:str='',) -> SkFloat:
@@ -436,19 +476,28 @@ def _maprange(ng, data_type:str, interpolation_type:str, val1:SkFloat|float=None
         node.clamp = False
         node.location = location
         ng.nodes.active = node #Always set the last node active for the final link
+        
         needs_linking = True
+        if (update_if_exists):
+            node.name = node.label = update_if_exists #Tag the node, in order to avoid unessessary build
 
     for i,val in enumerate(args):
         match val:
+
             case SkFloat():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
-            case float() | int():
-                node.inputs[i].default_value = val
-            case bool():
-                node.inputs[i].default_value = float(val)
+
+            case float() | int() | bool():
+                if type(val) is bool:
+                    val = float(val)
+                if (node.inputs[i].default_value!=val):
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
             case None:
                 pass
+
             case _:
                 raise InvalidTypePassedToSocket(f"ArgsTypeError for _maprange(). Expected parameters in 'Socket', 'float', 'int', 'bool'. Recieved '{type(val).__name__}'")
 
@@ -457,22 +506,22 @@ def _maprange(ng, data_type:str, interpolation_type:str, val1:SkFloat|float=None
 @usernamespace
 def map(ng, val:SkFloat|float, a:SkFloat|float, b:SkFloat|float, x:SkFloat|float, y:SkFloat|float, update_if_exists:str='',) -> SkFloat:
     """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
-    return _maprange(ng,'FLOAT','LINEAR',val,a,b,x,y)
+    return _maprange(ng,'FLOAT','LINEAR',val,a,b,x,y, update_if_exists=update_if_exists,)
 
 @usernamespace
 def mapst(ng, val:SkFloat|float, a:SkFloat|float, b:SkFloat|float, x:SkFloat|float, y:SkFloat|float, step:SkFloat|float, update_if_exists:str='',) -> SkFloat:
     """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
-    return _maprange(ng,'FLOAT','STEPPED',val,a,b,x,y,step)
+    return _maprange(ng,'FLOAT','STEPPED',val,a,b,x,y,step, update_if_exists=update_if_exists,)
 
 @usernamespace
 def mapsmo(ng, val:SkFloat|float, a:SkFloat|float, b:SkFloat|float, x:SkFloat|float, y:SkFloat|float, update_if_exists:str='',) -> SkFloat:
     """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
-    return _maprange(ng,'FLOAT','SMOOTHSTEP',val,a,b,x,y)
+    return _maprange(ng,'FLOAT','SMOOTHSTEP',val,a,b,x,y, update_if_exists=update_if_exists,)
 
 @usernamespace
 def mapsmoo(ng, val:SkFloat|float, a:SkFloat|float, b:SkFloat|float, x:SkFloat|float, y:SkFloat|float, update_if_exists:str='',) -> SkFloat:
     """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
-    return _maprange(ng,'FLOAT','SMOOTHERSTEP',val,a,b,x,y)
+    return _maprange(ng,'FLOAT','SMOOTHERSTEP',val,a,b,x,y, update_if_exists=update_if_exists,)
 
 #TODO support comparison functions
 # def equal(a:SkFloat|float, b:SkFloat|float,)
