@@ -83,15 +83,13 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         name="Number of nodes in the nodetree",
         default=-1,
         )
-    
     user_textdata : bpy.props.PointerProperty(
         type=bpy.types.Text,
         name="TextData",
         description="Blender Text datablock to execute",
-        poll=lambda self,data: not data.name.startswith('.'),
-        update=lambda self, context: self.interpret_nex_script(),
+        poll=lambda self, data: not data.name.startswith('.'),
+        update=lambda self, context: self.interpret_nex_script(rebuild=True),
         )
-
     execute_script : bpy.props.BoolProperty(
         name="Execute",
         description="Click here to execute the Nex script & re-building the generated node-tree",
@@ -420,7 +418,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             set_socket_label(ng,0, label="PythonError",)
             set_socket_defvalue(ng,0, value=True,)
             # Display error
-            self.error_message = f"{type(e).__name__}. {e}"
+            self.error_message = f"{type(e).__name__}. {e}. See console for traceback."
             return None
 
         #we cache the script it correspond to current nodetree arrangements.
