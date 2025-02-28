@@ -10,6 +10,7 @@ import bpy
 import re, traceback
 
 from ..__init__ import get_addon_prefs
+from ..resources import cust_icon
 from ..nex.nextypes import NexFactory, NexError, NEXEQUIVALENCE
 from ..utils.str_utils import word_wrap
 from ..utils.node_utils import (
@@ -458,6 +459,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
         sett_win = context.window_manager.nodebooster
         is_error = bool(self.error_message)
+        animated_icon = f"W_TIME_{self.debug_evaluation_counter%8}"
 
         layout.separator(factor=0.25)
 
@@ -470,7 +472,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         
         prop = row.row(align=True)
         prop.enabled = sett_win.allow_auto_exec
-        prop.prop(self, "execute_at_depsgraph", text="", icon="TEMP",)
+        prop.prop(self, "execute_at_depsgraph", text="", icon_value=cust_icon(animated_icon),)
 
         row.prop(self, "execute_script", text="", icon="PLAY", invert_checkbox=self.execute_script,)
         

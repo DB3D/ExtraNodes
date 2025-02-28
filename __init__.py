@@ -67,6 +67,9 @@ def get_addon_classes(revert=False):
 def register():
     """main addon register"""
 
+    from .resources import load_icons
+    load_icons() 
+    
     #register every single addon classes here
     for cls in get_addon_classes():
         bpy.utils.register_class(cls)
@@ -82,6 +85,7 @@ def register():
 
     from .operators import load_operators_keymaps
     load_operators_keymaps()
+    
 
     return None
 
@@ -100,10 +104,13 @@ def unregister():
 
     from .properties import unload_properties
     unload_properties()
-    
+
     #unregister every single addon classes here
     for cls in get_addon_classes(revert=True):
         bpy.utils.unregister_class(cls)
+
+    from .resources import unload_icons
+    unload_icons() 
 
     cleanse_modules()
 

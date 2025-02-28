@@ -54,7 +54,7 @@ class NODEBOOSTER_MT_textemplate(bpy.types.Menu):
 
         current_dir = os.path.dirname(os.path.abspath(__file__))
         parent_dir = os.path.dirname(current_dir)
-        external_dir = os.path.join(parent_dir, "external")
+        external_dir = os.path.join(parent_dir, "resources")
         
         file_path = os.path.join(external_dir, "NexSimpleExample.py")
         layout = self.layout 

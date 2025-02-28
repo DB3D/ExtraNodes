@@ -6,6 +6,7 @@
 import bpy 
 
 from ..__init__ import get_addon_prefs
+from ..resources import cust_icon
 from ..nex.pytonode import convert_pyvar_to_data
 from ..utils.node_utils import (
     create_new_nodegroup,
@@ -129,11 +130,9 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
 
         except Exception as e:
             print(f"{self.bl_idname} Evaluation Exception '{type(e).__name__}':\n{e}")
-
             msg = str(e)
             if ("name 'self' is not defined" in msg):
                 msg = "'self' not Available in this Context."
-
             #display error to user
             self.error_message = msg
             set_socket_label(ng,0, label=type(e).__name__,)
@@ -146,7 +145,6 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
             set_value, set_label, socktype = convert_pyvar_to_data(evaluated_pyvalue)
         except Exception as e:
             print(f"{self.bl_idname} Parsing Exception '{type(e).__name__}':\n{e}")
-
             #display error to user
             self.error_message = str(e)
             set_socket_label(ng,0, label=type(e).__name__,)
@@ -172,6 +170,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
 
         sett_win = context.window_manager.nodebooster
         is_error = bool(self.error_message)
+        animated_icon = f"W_TIME_{self.debug_evaluation_counter%8}"
 
         col = layout.column(align=True)
         row = col.row(align=True)
@@ -182,7 +181,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
 
         prop = row.row(align=True)
         prop.enabled = sett_win.allow_auto_exec
-        prop.prop(self, "execute_at_depsgraph", text="", icon="TEMP",)
+        prop.prop(self, "execute_at_depsgraph", text="", icon_value=cust_icon(animated_icon),)
 
         if (not sett_win.allow_auto_exec):
             col.separator(factor=0.75)

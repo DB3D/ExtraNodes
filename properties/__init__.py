@@ -23,7 +23,7 @@ def load_properties():
 
     bpy.types.Scene.nodebooster = bpy.props.PointerProperty(type=NODEBOOSTER_PR_scene)
     bpy.types.WindowManager.nodebooster = bpy.props.PointerProperty(type=NODEBOOSTER_PR_Window)
-    
+
     return None
 
 def unload_properties():
