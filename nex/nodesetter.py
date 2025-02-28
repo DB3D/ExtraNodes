@@ -9,7 +9,9 @@
 
 
 import bpy 
+
 import inspect
+from functools import partial
 
 from ..utils.node_utils import link_sockets, frame_nodes
 
@@ -25,26 +27,50 @@ def usernamespace(func):
     _USER_FUNCTIONS.append(func)
     return func
 
-def get_user_functions(return_types='float'):
-    """get all functions and their names, depending on function types"""
+def get_user_functions(fctsubset='float', default_ng=None):
+    """get all functions and their names, depending on function types
+    optionally, pass the default ng"""
 
     filtered_functions = []
-    match return_types:
+    match fctsubset:
         case 'float':
             filtered_functions = [f for f in _USER_FUNCTIONS if inspect.signature(f).return_annotation is sfloat]
         case _:
             raise Exception("notSupported")
 
+    # If a default node group argument is provided, use functools.partial to bind it
+    if (default_ng):
+        filtered_functions = [partial(f, default_ng) for f in filtered_functions]
+
     return filtered_functions
 
-# nodetree setter functions starting from below
+def generate_documentation(fctsubset='float'):
+    """generate doc about function subset for user, we are collecting function name and arguments"""
 
-def _floatmath(operation_type:str, sock1:sfloat, sock2:sfloat=None, sock3:sfloat=None,) -> sfloat:
+    r = {}
+    for f in get_user_functions(fctsubset=fctsubset):
+
+        fargs = list(f.__code__.co_varnames[:f.__code__.co_argcount])
+        if ('ng' in fargs):
+            fargs.remove('ng')
+        fstr = f'{f.__name__}({", ".join(fargs)})'
+
+        r[f.__name__] = {'repr':fstr, 'doc':f.__doc__,}
+        continue
+
+    return r
+
+
+# 88b 88  dP"Yb  8888b.  888888 .dP"Y8     .dP"Y8 888888 888888 888888 888888 88""Yb     888888  dP""b8 888888 .dP"Y8 
+# 88Yb88 dP   Yb  8I  Yb 88__   `Ybo."     `Ybo." 88__     88     88   88__   88__dP     88__   dP   `"   88   `Ybo." 
+# 88 Y88 Yb   dP  8I  dY 88""   o.`Y8b     o.`Y8b 88""     88     88   88""   88"Yb      88""   Yb        88   o.`Y8b 
+# 88  Y8  YbodP  8888Y"  888888 8bodP'     8bodP' 888888   88     88   888888 88  Yb     88      YboodP   88   8bodP' 
+
+
+def _floatmath(ng, operation_type:str, val1:sfloat|float=None, val2:sfloat|float=None, val3:sfloat|float=None,) -> sfloat:
     """generic operation for adding a float math node and linking"""
 
-    ng = sock1.id_data
     last = ng.nodes.active
-
     location = (0,200,)
     if (last):
         location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
@@ -55,268 +81,215 @@ def _floatmath(operation_type:str, sock1:sfloat, sock2:sfloat=None, sock3:sfloat
     
     node.location = location
     ng.nodes.active = node #Always set the last node active for the final link
-            
-    link_sockets(sock1, node.inputs[0])
-    if (sock2):
-        link_sockets(sock2, node.inputs[1])
-    if (sock3):
-        link_sockets(sock3, node.inputs[2])
+    
+    values = (val1, val2, val3,)
+    for i,val in enumerate(values):
+        match val:
+            case sfloat(): link_sockets(val, node.inputs[i])
+            case float() | int(): node.inputs[i].default_value = val
+            case bool(): node.inputs[i].default_value = float(val)
+            case None: pass
+            case _: raise Exception(f"ArgsTypeError for _floatmath(). Expected parameters in 'Socket', 'float', 'int', 'bool'. Recieved '{type(val).__name__}'")
 
     return node.outputs[0]
 
 @usernamespace
-def add(a:sfloat, b:sfloat,) -> sfloat:
+def add(ng, a:sfloat|float, b:sfloat|float,) -> sfloat:
     """Addition.\nEquivalent to the '+' symbol."""
-    return _floatmath('ADD',a,b)
+    return _floatmath(ng,'ADD',a,b)
 
 @usernamespace
-def sub(a:sfloat, b:sfloat,) -> sfloat:
+def sub(ng, a:sfloat|float, b:sfloat|float,) -> sfloat:
     """Subtraction.\nEquivalent to the '-' symbol."""
-    return _floatmath('SUBTRACT',a,b)
+    return _floatmath(ng,'SUBTRACT',a,b)
 
 @usernamespace
-def mult(a:sfloat, b:sfloat,) -> sfloat:
+def mult(ng, a:sfloat|float, b:sfloat|float,) -> sfloat:
     """Multiplications.\nEquivalent to the '*' symbol."""
-    return _floatmath('MULTIPLY',a,b)
+    return _floatmath(ng,'MULTIPLY',a,b)
 
 @usernamespace
-def div(a:sfloat, b:sfloat,) -> sfloat:
+def div(ng, a:sfloat|float, b:sfloat|float,) -> sfloat:
     """Division.\nEquivalent to the '/' symbol."""
-    return _floatmath('DIVIDE',a,b)
+    return _floatmath(ng,'DIVIDE',a,b)
 
 @usernamespace
-def pow(a:sfloat, n:sfloat,) -> sfloat:
+def pow(ng, a:sfloat|float, n:sfloat|float,) -> sfloat:
     """A Power n.\nEquivalent to the 'a**n' and '²' symbol."""
-    return _floatmath('POWER',a,n)
+    return _floatmath(ng,'POWER',a,n)
 
 @usernamespace
-def log(a:sfloat, b:sfloat,) -> sfloat:
+def log(ng, a:sfloat|float, b:sfloat|float,) -> sfloat:
     """Logarithm A base B."""
-    return _floatmath('LOGARITHM',a,b)
+    return _floatmath(ng,'LOGARITHM',a,b)
 
 @usernamespace
-def sqrt(a:sfloat,) -> sfloat:
+def sqrt(ng, a:sfloat|float,) -> sfloat:
     """Square Root of A."""
-    return _floatmath('SQRT',a)
+    return _floatmath(ng,'SQRT',a)
 
 @usernamespace
-def invsqrt(a:sfloat,) -> sfloat:
+def invsqrt(ng, a:sfloat|float,) -> sfloat:
     """1/ Square Root of A."""
-    return _floatmath('INVERSE_SQRT',a)
-
-def _floatmath_nroot(sock1:sfloat, sock2:sfloat,) -> sfloat:
-    """special operation to calculate custom root x**(1/n)"""
-
-    ng = sock1.id_data
-    last = ng.nodes.active
-
-    location = (0,200,)
-    if (last):
-        location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-    divnode = ng.nodes.new('ShaderNodeMath')
-    divnode.operation = 'DIVIDE'
-    divnode.use_clamp = False
-
-    divnode.location = location
-    ng.nodes.active = divnode #Always set the last node active for the final link
-
-    divnode.inputs[0].default_value = 1.0
-    link_sockets(sock2, divnode.inputs[1])
-
-    pnode = ng.nodes.new('ShaderNodeMath')
-    pnode.operation = 'POWER'
-    pnode.use_clamp = False
-
-    last = divnode
-    location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-    pnode.location = location
-    ng.nodes.active = pnode #Always set the last node active for the final link
-
-    link_sockets(sock1, pnode.inputs[0])
-    link_sockets(divnode.outputs[0], pnode.inputs[1])
-    frame_nodes(ng, divnode, pnode, label='nRoot')
-    
-    return pnode.outputs[0]
+    return _floatmath(ng,'INVERSE_SQRT',a)
 
 @usernamespace
-def nroot(a:sfloat, n:sfloat,) -> sfloat:
+def nroot(ng, a:sfloat|float, n:sfloat|float,) -> sfloat:
     """A Root N. a**(1/n.)"""
-    return _floatmath_nroot(a,n,)
+    _x = div(ng,1,n)
+    _r = pow(ng,a,_x)
+    frame_nodes(ng, _x.node, _r.node, label='nRoot')
+    return _r
 
 @usernamespace
-def abs(a:sfloat,) -> sfloat:
+def abs(ng, a:sfloat|float,) -> sfloat:
     """Absolute of A."""
-    return _floatmath('ABSOLUTE',a)
-
-def _floatmath_neg(sock1:sfloat,) -> sfloat:
-    """special operation for negative -1 -x ect"""
-
-    ng = sock1.id_data
-    last = ng.nodes.active
-
-    location = (0,200,)
-    if (last):
-        location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
-
-    node = ng.nodes.new('ShaderNodeMath')
-    node.operation = 'SUBTRACT'
-    node.use_clamp = False
-    node.label = 'Negate'
-
-    node.location = location
-    ng.nodes.active = node #Always set the last node active for the final link
-
-    node.inputs[0].default_value = 0.0
-    link_sockets(sock1, node.inputs[1])
-    
-    return node.outputs[0]
+    return _floatmath(ng,'ABSOLUTE',a)
 
 @usernamespace
-def neg(a:sfloat,) -> sfloat:
+def neg(ng, a:sfloat|float,) -> sfloat:
     """Negate the value of A.\nEquivalent to the symbol '-x.'"""
-    return _floatmath_neg(a)
+    _r = sub(ng,0,a)
+    _r.node.name = 'Negate'
+    return _r
 
 @usernamespace
-def min(a:sfloat, b:sfloat,) -> sfloat:
+def min(ng, a:sfloat|float, b:sfloat|float,) -> sfloat:
     """Minimum between A & B."""
-    return _floatmath('MINIMUM',a,b)
+    return _floatmath(ng,'MINIMUM',a,b)
 
 @usernamespace
-def smin(a:sfloat, b:sfloat, dist:sfloat,) -> sfloat:
+def smin(ng, a:sfloat|float, b:sfloat|float, dist:sfloat|float,) -> sfloat:
     """Minimum between A & B considering a smoothing distance."""
-    return _floatmath('SMOOTH_MIN',a,b,dist)
+    return _floatmath(ng,'SMOOTH_MIN',a,b,dist)
 
 @usernamespace
-def max(a:sfloat, b:sfloat,) -> sfloat:
+def max(ng, a:sfloat|float, b:sfloat|float,) -> sfloat:
     """Maximum between A & B."""
-    return _floatmath('MAXIMUM',a,b)
+    return _floatmath(ng,'MAXIMUM',a,b)
 
 @usernamespace
-def smax(a:sfloat, b:sfloat, dist:sfloat,) -> sfloat:
+def smax(ng, a:sfloat|float, b:sfloat|float, dist:sfloat|float,) -> sfloat:
     """Maximum between A & B considering a smoothing distance."""
-    return _floatmath('SMOOTH_MAX',a,b,dist)
+    return _floatmath(ng,'SMOOTH_MAX',a,b,dist)
 
 @usernamespace
-def round(a:sfloat,) -> sfloat:
+def round(ng, a:sfloat|float,) -> sfloat:
     """Round a Float to an Integer."""
-    return _floatmath('ROUND',a)
+    return _floatmath(ng,'ROUND',a)
 
 @usernamespace
-def floor(a:sfloat,) -> sfloat:
+def floor(ng, a:sfloat|float,) -> sfloat:
     """Floor a Float to an Integer."""
-    return _floatmath('FLOOR',a)
+    return _floatmath(ng,'FLOOR',a)
 
 @usernamespace
-def ceil(a:sfloat,) -> sfloat:
+def ceil(ng, a:sfloat|float,) -> sfloat:
     """Ceil a Float to an Integer."""
-    return _floatmath('CEIL',a)
+    return _floatmath(ng,'CEIL',a)
 
 @usernamespace
-def trunc(a:sfloat,) -> sfloat:
+def trunc(ng, a:sfloat|float,) -> sfloat:
     """Trunc a Float to an Integer."""
-    return _floatmath('TRUNC',a)
+    return _floatmath(ng,'TRUNC',a)
 
 @usernamespace
-def frac(a:sfloat,) -> sfloat:
+def frac(ng, a:sfloat|float,) -> sfloat:
     """Fraction.\nThe fraction part of A."""
-    return _floatmath('FRACT',a)
+    return _floatmath(ng,'FRACT',a)
 
 @usernamespace
-def mod(a:sfloat, b:sfloat,) -> sfloat:
+def mod(ng, a:sfloat|float, b:sfloat|float,) -> sfloat:
     """Modulo.\nEquivalent to the '%' symbol."""
-    return _floatmath('MODULO',a,b)
+    return _floatmath(ng,'MODULO',a,b)
 
 @usernamespace
-def fmod(a:sfloat, b:sfloat,) -> sfloat:
+def fmod(ng, a:sfloat|float, b:sfloat|float,) -> sfloat:
     """Floored Modulo."""
-    return _floatmath('FLOORED_MODULO',a,b)
+    return _floatmath(ng,'FLOORED_MODULO',a,b)
 
 @usernamespace
-def wrap(v:sfloat, a:sfloat, b:sfloat,) -> sfloat:
+def wrap(ng, v:sfloat|float, a:sfloat|float, b:sfloat|float,) -> sfloat:
     """Wrap value to Range A B."""
-    return _floatmath('WRAP',v,a,b)
+    return _floatmath(ng,'WRAP',v,a,b)
 
 @usernamespace
-def snap(v:sfloat, i:sfloat,) -> sfloat:
+def snap(ng, v:sfloat|float, i:sfloat|float,) -> sfloat:
     """Snap to Increment."""
-    return _floatmath('SNAP',v,i)
+    return _floatmath(ng,'SNAP',v,i)
 
 @usernamespace
-def pingpong(v:sfloat, scale:sfloat,) -> sfloat:
+def pingpong(ng, v:sfloat|float, scale:sfloat|float,) -> sfloat:
     """PingPong. Wrap a value and every other cycles at cycle Scale."""
-    return _floatmath('PINGPONG',v,scale)
+    return _floatmath(ng,'PINGPONG',v,scale)
 
 @usernamespace
-def floordiv(a:sfloat, b:sfloat,) -> sfloat: #Custom
+def floordiv(ng, a:sfloat|float, b:sfloat|float,) -> sfloat: #Custom
     """Floor Division.\nEquivalent to the '//' symbol."""
-    _r = div(a,b)
-    r = floor(_r)
-    frame_nodes(a.id_data, _r.node, r.node, label='FloorDiv')
-    return r
+    _x = div(ng,a,b)
+    _r = floor(ng,_x)
+    frame_nodes(ng, _x.node, _r.node, label='FloorDiv')
+    return _r
 
 @usernamespace
-def sin(a:sfloat,) -> sfloat:
+def sin(ng, a:sfloat|float,) -> sfloat:
     """The Sine of A."""
-    return _floatmath('SINE',a)
+    return _floatmath(ng,'SINE',a)
 
 @usernamespace
-def cos(a:sfloat,) -> sfloat:
+def cos(ng, a:sfloat|float,) -> sfloat:
     """The Cosine of A."""
-    return _floatmath('COSINE',a)
+    return _floatmath(ng,'COSINE',a)
 
 @usernamespace
-def tan(a:sfloat,) -> sfloat:
+def tan(ng, a:sfloat|float,) -> sfloat:
     """The Tangent of A."""
-    return _floatmath('TANGENT',a)
+    return _floatmath(ng,'TANGENT',a)
 
 @usernamespace
-def asin(a:sfloat,) -> sfloat:
+def asin(ng, a:sfloat|float,) -> sfloat:
     """The Arcsine of A."""
-    return _floatmath('ARCSINE',a)
+    return _floatmath(ng,'ARCSINE',a)
 
 @usernamespace
-def acos(a:sfloat,) -> sfloat:
+def acos(ng, a:sfloat|float,) -> sfloat:
     """The Arccosine of A."""
-    return _floatmath('ARCCOSINE',a)
+    return _floatmath(ng,'ARCCOSINE',a)
 
 @usernamespace
-def atan(a:sfloat,) -> sfloat:
+def atan(ng, a:sfloat|float,) -> sfloat:
     """The Arctangent of A."""
-    return _floatmath('ARCTANGENT',a)
+    return _floatmath(ng,'ARCTANGENT',a)
 
 @usernamespace
-def hsin(a:sfloat,) -> sfloat:
+def hsin(ng, a:sfloat|float,) -> sfloat:
     """The Hyperbolic Sine of A."""
-    return _floatmath('SINH',a)
+    return _floatmath(ng,'SINH',a)
 
 @usernamespace
-def hcos(a:sfloat,) -> sfloat:
+def hcos(ng, a:sfloat|float,) -> sfloat:
     """The Hyperbolic Cosine of A."""
-    return _floatmath('COSH',a)
+    return _floatmath(ng,'COSH',a)
 
 @usernamespace
-def htan(a:sfloat,) -> sfloat:
+def htan(ng, a:sfloat|float,) -> sfloat:
     """The Hyperbolic Tangent of A."""
-    return _floatmath('TANH',a)
+    return _floatmath(ng,'TANH',a)
 
 @usernamespace
-def rad(a:sfloat,) -> sfloat:
+def rad(ng, a:sfloat|float,) -> sfloat:
     """Convert from Degrees to Radians."""
-    return _floatmath('RADIANS',a)
+    return _floatmath(ng,'RADIANS',a)
 
 @usernamespace
-def deg(a:sfloat,) -> sfloat:
+def deg(ng, a:sfloat|float,) -> sfloat:
     """Convert from Radians to Degrees."""
-    return _floatmath('DEGREES',a)
+    return _floatmath(ng,'DEGREES',a)
 
-def _mix(data_type:str, sock1:sfloat, sock2:sfloat, sock3:sfloat,) -> sfloat:
+def _mix(ng, data_type:str, val1:sfloat|float=None, val2:sfloat|float=None, val3:sfloat|float=None,) -> sfloat:
     """generic operation for adding a mix node and linking"""
 
-    ng = sock1.id_data
     last = ng.nodes.active
-
     location = (0,200,)
     if (last):
         location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
@@ -328,34 +301,38 @@ def _mix(data_type:str, sock1:sfloat, sock2:sfloat, sock3:sfloat,) -> sfloat:
     node.location = location
     ng.nodes.active = node #Always set the last node active for the final link
 
-    link_sockets(sock1, node.inputs[0])
-
     # Need to choose socket depending on node data_type (hidden sockets)
+    indexes = None
     match data_type:
         case 'FLOAT':
-            link_sockets(sock2, node.inputs[2])
-            link_sockets(sock3, node.inputs[3])
+            indexes = (0,2,3)
         case _:
             raise Exception("Integration Needed")
+
+    for i,val in zip(indexes,(val1,val2,val3)):    
+        match val:
+            case sfloat(): link_sockets(val, node.inputs[i])
+            case float() | int(): node.inputs[i].default_value = val
+            case bool(): node.inputs[i].default_value = float(val)
+            case None: pass
+            case _: raise Exception(f"ArgsTypeError for _mix(). Expected parameters in 'Socket', 'float', 'int', 'bool'. Recieved '{type(val).__name__}'")
 
     return node.outputs[0]
 
 @usernamespace
-def lerp(f:sfloat, a:sfloat, b:sfloat,) -> sfloat:
+def lerp(ng, f:sfloat|float, a:sfloat|float, b:sfloat|float,) -> sfloat:
     """Mix.\nLinear Interpolation of value A and B from given factor."""
-    return _mix('FLOAT',f,a,b)
+    return _mix(ng,'FLOAT',f,a,b)
 
 @usernamespace
-def mix(f:sfloat, a:sfloat, b:sfloat,) -> sfloat: 
+def mix(ng, f:sfloat|float, a:sfloat|float, b:sfloat|float,) -> sfloat: 
     """Alternative notation to lerp() function."""
-    return lerp(f,a,b)
+    return lerp(ng,f,a,b)
 
-def _floatclamp(clamp_type:str, sock1:sfloat, sock2:sfloat, sock3:sfloat,) -> sfloat:
+def _floatclamp(ng, clamp_type:str, val1:sfloat|float=None, val2:sfloat|float=None, val3:sfloat|float=None,) -> sfloat:
     """generic operation for adding a mix node and linking"""
-    
-    ng = sock1.id_data
+
     last = ng.nodes.active
-    
     location = (0,200,)
     if (last):
         location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
@@ -365,29 +342,32 @@ def _floatclamp(clamp_type:str, sock1:sfloat, sock2:sfloat, sock3:sfloat,) -> sf
 
     node.location = location
     ng.nodes.active = node #Always set the last node active for the final link
-
-    link_sockets(sock1, node.inputs[0])
-    link_sockets(sock2, node.inputs[1])
-    link_sockets(sock3, node.inputs[2])
+    
+    values = (val1, val2, val3,)
+    for i,val in enumerate(values):   
+        match val:
+            case sfloat(): link_sockets(val, node.inputs[i])
+            case float() | int(): node.inputs[i].default_value = val
+            case bool(): node.inputs[i].default_value = float(val)
+            case None: pass
+            case _: raise Exception(f"ArgsTypeError for _floatclamp(). Expected parameters in 'Socket', 'float', 'int', 'bool'. Recieved '{type(val).__name__}'")
 
     return node.outputs[0]
 
 @usernamespace
-def clamp(v:sfloat, a:sfloat, b:sfloat,) -> sfloat:
+def clamp(ng, v:sfloat|float, a:sfloat|float, b:sfloat|float,) -> sfloat:
     """Clamp value between min an max."""
-    return _floatclamp('MINMAX',v,a,b)
+    return _floatclamp(ng,'MINMAX',v,a,b)
 
 @usernamespace
-def clampr(v:sfloat, a:sfloat, b:sfloat,) -> sfloat:
+def clampr(ng, v:sfloat|float, a:sfloat|float, b:sfloat|float,) -> sfloat:
     """Clamp value between auto-defined min/max."""
-    return _floatclamp('RANGE',v,a,b)
+    return _floatclamp(ng,'RANGE',v,a,b)
 
-def _maprange(data_type:str, interpolation_type:str, sock1:sfloat, sock2:sfloat, sock3:sfloat, sock4:sfloat, sock5:sfloat, sock6:sfloat=None,) -> sfloat:
+def _maprange(ng, data_type:str, interpolation_type:str, val1:sfloat|float=None, val2:sfloat|float=None, val3:sfloat|float=None, val4:sfloat|float=None, val5:sfloat|float=None, val6:sfloat|float=None,) -> sfloat:
     """generic operation for adding a remap node and linking"""
 
-    ng = sock1.id_data
     last = ng.nodes.active
-
     location = (0,200,)
     if (last):
         location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
@@ -400,45 +380,46 @@ def _maprange(data_type:str, interpolation_type:str, sock1:sfloat, sock2:sfloat,
     node.location = location
     ng.nodes.active = node #Always set the last node active for the final link
 
-    link_sockets(sock1, node.inputs[0])
-    link_sockets(sock2, node.inputs[1])
-    link_sockets(sock3, node.inputs[2])
-    link_sockets(sock4, node.inputs[3])
-    link_sockets(sock5, node.inputs[4])
-    if (sock6):
-        link_sockets(sock6, node.inputs[5])
-    
+    values = (val1, val2, val3, val4, val5, val6,)
+    for i,val in enumerate(values):
+        match val:
+            case sfloat(): link_sockets(val, node.inputs[i])
+            case float() | int(): node.inputs[i].default_value = val
+            case bool(): node.inputs[i].default_value = float(val)
+            case None: pass
+            case _: raise Exception(f"ArgsTypeError for _maprange(). Expected parameters in 'Socket', 'float', 'int', 'bool'. Recieved '{type(val).__name__}'")
+
     return node.outputs[0]
 
 @usernamespace
-def map(val:sfloat, a:sfloat, b:sfloat, x:sfloat, y:sfloat,) -> sfloat:
+def map(ng, val:sfloat|float, a:sfloat|float, b:sfloat|float, x:sfloat|float, y:sfloat|float,) -> sfloat:
     """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
-    return _maprange('FLOAT','LINEAR',val,a,b,x,y)
+    return _maprange(ng,'FLOAT','LINEAR',val,a,b,x,y)
 
 @usernamespace
-def mapst(val:sfloat, a:sfloat, b:sfloat, x:sfloat, y:sfloat, step:sfloat,) -> sfloat:
+def mapst(ng, val:sfloat|float, a:sfloat|float, b:sfloat|float, x:sfloat|float, y:sfloat|float, step:sfloat|float,) -> sfloat:
     """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
-    return _maprange('FLOAT','STEPPED',val,a,b,x,y,step)
+    return _maprange(ng,'FLOAT','STEPPED',val,a,b,x,y,step)
 
 @usernamespace
-def mapsmo(val:sfloat, a:sfloat, b:sfloat, x:sfloat, y:sfloat,) -> sfloat:
+def mapsmo(ng, val:sfloat|float, a:sfloat|float, b:sfloat|float, x:sfloat|float, y:sfloat|float,) -> sfloat:
     """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
-    return _maprange('FLOAT','SMOOTHSTEP',val,a,b,x,y)
+    return _maprange(ng,'FLOAT','SMOOTHSTEP',val,a,b,x,y)
 
 @usernamespace
-def mapsmoo(val:sfloat, a:sfloat, b:sfloat, x:sfloat, y:sfloat,) -> sfloat:
+def mapsmoo(ng, val:sfloat|float, a:sfloat|float, b:sfloat|float, x:sfloat|float, y:sfloat|float,) -> sfloat:
     """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
-    return _maprange('FLOAT','SMOOTHERSTEP',val,a,b,x,y)
+    return _maprange(ng,'FLOAT','SMOOTHERSTEP',val,a,b,x,y)
 
 #TODO support comparison functions
-# def equal(a:sfloat, b:sfloat,)
-# def notequal(a:sfloat, b:sfloat,)
-# def aequal(a:sfloat, b:sfloat, threshold:sfloat,)
-# def anotequal(a:sfloat, b:sfloat, threshold:sfloat,)
-# def issmaller(a:sfloat, b:sfloat,)
-# def isasmaller(a:sfloat, b:sfloat, threshold:sfloat,)
-# def isbigger(a:sfloat, b:sfloat,)
-# def isabigger(a:sfloat, b:sfloat, threshold:sfloat,)
-# def isbetween(a:sfloat, x:sfloat, y:sfloat,)
-# def isabetween(a:sfloat, x:sfloat, y:sfloat, threshold:sfloat,)
-# def isbetweeneq(a:sfloat, x:sfloat, y:sfloat,)
+# def equal(a:sfloat|float, b:sfloat|float,)
+# def notequal(a:sfloat|float, b:sfloat|float,)
+# def aequal(a:sfloat|float, b:sfloat|float, threshold:sfloat|float,)
+# def anotequal(a:sfloat|float, b:sfloat|float, threshold:sfloat|float,)
+# def issmaller(a:sfloat|float, b:sfloat|float,)
+# def isasmaller(a:sfloat|float, b:sfloat|float, threshold:sfloat|float,)
+# def isbigger(a:sfloat|float, b:sfloat|float,)
+# def isabigger(a:sfloat|float, b:sfloat|float, threshold:sfloat|float,)
+# def isbetween(a:sfloat|float, x:sfloat|float, y:sfloat|float,)
+# def isabetween(a:sfloat|float, x:sfloat|float, y:sfloat|float, threshold:sfloat|float,)
+# def isbetweeneq(a:sfloat|float, x:sfloat|float, y:sfloat|float,)

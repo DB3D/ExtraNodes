@@ -56,7 +56,7 @@ DOCSYMBOLS = {
 }
 
 #Store the math function used to set the nodetree
-USER_FUNCTIONS = get_user_functions(return_types='float')
+USER_FUNCTIONS = get_user_functions(fctsubset='float')
 USER_FNAMES = [f.__name__ for f in USER_FUNCTIONS]
 
 
@@ -119,17 +119,19 @@ def execute_math_function_expression(customnode=None, expression:str=None,
     # ex 'a' will become 'ng.nodes["foo"].outputs[1]'
     api_expression = replace_exact_tokens(expression, {**varsapi, **constapi},)
 
+    user_functions_partials = get_user_functions(fctsubset='float', default_ng=node_tree,)
+    user_function_namespace = {f.func.__name__:f for f in user_functions_partials}
+    
     # Define the namespace of the execution, and include our functions
     local_vars = {}
     local_vars["ng"] = node_tree
-    local_vars.update({f.__name__:f for f in USER_FUNCTIONS})
+    local_vars.update(user_function_namespace)
     
     # we get rid of any blender builtin functions
     global_vars = {"__builtins__": {}}
 
     try:
-        # The user technically has ONLY  access to the 'ng' NodeGroupType variable and to math functions
-        # This exec() is therefore security compliant. It will also never execute without an user update signal from string field inputs.
+        # TODO port this to ast, only if the extension patform accepts the other py evaluation nodes relying on exec and eval
         exec(api_expression, global_vars, local_vars)
 
     except TypeError as e:
@@ -146,7 +148,7 @@ def execute_math_function_expression(customnode=None, expression:str=None,
                 raise Exception(f"Function '{fname}' recieved Extra Params")
         
         raise Exception("Wrong Arguments Given")
-    
+
     except Exception as e:
         print(f"{type(e).__name__}: execute_math_function_expression():\n  {e}\nOriginalExpression:\n  {expression}\nApiExpression:\n  {api_expression}\n")
 

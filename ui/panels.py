@@ -97,43 +97,39 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                 header, panel = layout.panel("doc_glossid", default_closed=True,)
                 header.label(text="Glossary",)
                 if (panel):
-                    
-                    from ..customnodes.mathexpression import DOCSYMBOLS, USER_FUNCTIONS
+
                     col = panel.column()
-                    
+
+                    from ..customnodes.mathexpression import DOCSYMBOLS
                     for symbol,v in DOCSYMBOLS.items():
-                        
+
                         desc = v['name']+'\n'+v['desc'] if v['desc'] else v['name']
                         row = col.row()
                         row.scale_y = 0.65
                         row.box().label(text=symbol,)
-                        
+
                         col.separator(factor=0.5)
-                        
+
                         word_wrap(layout=col, alert=False, active=True, max_char='auto',
                             char_auto_sidepadding=0.95, context=context, string=desc, alignment='LEFT',
                             )
                         col.separator()
-                    
-                    for f in USER_FUNCTIONS:
-                        
-                        #collect functiona arguments for user
-                        fargs = list(f.__code__.co_varnames[:f.__code__.co_argcount])
-                        if 'cls' in fargs:
-                            fargs.remove('cls')
-                        fstr = f'{f.__name__}({", ".join(fargs)})'
-                        
+
+                    from ..nex.nodesetter import generate_documentation
+                    doc = generate_documentation(fctsubset='float')
+                    for fname,fdoc in doc.items():
+
                         row = col.row()
                         row.scale_y = 0.65
-                        row.box().label(text=fstr,)
-                        
+                        row.box().label(text=fdoc['repr'],)
+
                         col.separator(factor=0.5)
-                        
+
                         word_wrap(layout=col, alert=False, active=True, max_char='auto',
-                            char_auto_sidepadding=0.95, context=context, string=f.__doc__, alignment='LEFT',
+                            char_auto_sidepadding=0.95, context=context, string=fdoc['doc'], alignment='LEFT',
                             )
                         col.separator()
-                        
+
                 header, panel = layout.panel("dev_panelid", default_closed=True,)
                 header.label(text="Development",)
                 if (panel):
