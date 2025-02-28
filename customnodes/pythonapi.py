@@ -23,7 +23,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     
     bl_idname = "GeometryNodeNodeBoosterPythonApi"
     bl_label = "Python Expression"
-    bl_icon = 'SCRIPT'
+    # bl_icon = 'SCRIPT'
 
     error_message : bpy.props.StringProperty(
         description="user interface error message",
@@ -213,6 +213,8 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
         for n in all_instances:
             if (from_depsgraph and not n.execute_at_depsgraph):
+                continue
+            if (n.mute):
                 continue
             n.evaluate_python_expression(assign_socketype=False)
             continue

@@ -71,7 +71,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
     bl_idname = "GeometryNodeNodeBoosterNexInterpreter"
     bl_label = "Python Nex Script (WIP)"
-    bl_icon = 'SCRIPT'
+    # bl_icon = 'SCRIPT'
 
     error_message : bpy.props.StringProperty(
         description="User interface error message",
@@ -468,24 +468,24 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         field = row.row(align=True)
         field.alert = is_error
         field.prop(self, "user_textdata", text="", icon="TEXT", placeholder="NexScript.py",)
-        
+
         prop = row.row(align=True)
         prop.enabled = sett_win.allow_auto_exec
         prop.prop(self, "execute_at_depsgraph", text="", icon_value=cust_icon(animated_icon),)
 
         row.prop(self, "execute_script", text="", icon="PLAY", invert_checkbox=self.execute_script,)
-        
+
         if (not sett_win.allow_auto_exec):
             col.separator(factor=0.75)
             col.prop(sett_win,"allow_auto_exec")
-    
+
         if (is_error):
             col = col.column(align=True)
             col.separator(factor=2)
             word_wrap(layout=col, alert=True, active=True, max_char=self.width/5.75, string=self.error_message,)
 
         layout.separator(factor=0.5)
-        
+
         return None
 
     @classmethod
@@ -496,6 +496,8 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         all_instances = [n for ng in bpy.data.node_groups for n in ng.nodes if (n.bl_idname==cls.bl_idname)]
         for n in all_instances:
             if (from_depsgraph and not n.execute_at_depsgraph):
+                continue
+            if (n.mute):
                 continue
             n.interpret_nex_script()
             continue
