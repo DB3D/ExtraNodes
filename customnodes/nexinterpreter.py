@@ -69,15 +69,15 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
     #TODO maybe should add a nodebooster panel in text editor for quick execution?
 
     bl_idname = "GeometryNodeNodeBoosterNexInterpreter"
-    bl_label = "Nex Script (WIP)"
+    bl_label = "Python Nex Script (WIP)"
     bl_icon = 'SCRIPT'
 
     error_message : bpy.props.StringProperty(
-        description="User interface error message"
+        description="User interface error message",
         )
     debug_evaluation_counter : bpy.props.IntProperty(
         name="Execution Counter",
-        default=0
+        default=0,
         )
     debug_nodes_quantity : bpy.props.IntProperty(
         name="Number of nodes in the nodetree",
@@ -88,7 +88,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         name="TextData",
         description="Blender Text datablock to execute",
         poll=lambda self, data: not data.name.startswith('.'),
-        update=lambda self, context: self.interpret_nex_script(rebuild=True),
+        update=lambda self, context: self.interpret_nex_script(rebuild=True) if (self.user_textdata is None) else None,
         )
     execute_script : bpy.props.BoolProperty(
         name="Execute",
@@ -456,9 +456,10 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
     def draw_buttons(self, context, layout,):
         """node interface drawing"""
 
-        layout.separator(factor=0.25)
-
+        sett_win = context.window_manager.nodebooster
         is_error = bool(self.error_message)
+
+        layout.separator(factor=0.25)
 
         col = layout.column(align=True)
         row = col.row(align=True)
@@ -467,15 +468,22 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         field.alert = is_error
         field.prop(self, "user_textdata", text="", icon="TEXT", placeholder="NexScript.py",)
         
-        row.prop(self, "execute_at_depsgraph", text="", icon="TEMP",)
-        row.prop(self, "execute_script", text="", icon="PLAY", invert_checkbox=self.execute_script,)
+        prop = row.row(align=True)
+        prop.enabled = sett_win.allow_auto_exec
+        prop.prop(self, "execute_at_depsgraph", text="", icon="TEMP",)
 
+        row.prop(self, "execute_script", text="", icon="PLAY", invert_checkbox=self.execute_script,)
+        
+        if (not sett_win.allow_auto_exec):
+            col.separator(factor=0.75)
+            col.prop(sett_win,"allow_auto_exec")
+    
         if (is_error):
             col = col.column(align=True)
             col.separator(factor=2)
             word_wrap(layout=col, alert=True, active=True, max_char=self.width/5.75, string=self.error_message,)
 
-        layout.separator(factor=0.75)
+        layout.separator(factor=0.5)
         
         return None
 

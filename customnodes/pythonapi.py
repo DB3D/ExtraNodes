@@ -85,7 +85,6 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         """evaluate the user string and assign value to output node"""
 
         ng = self.node_tree
-        sett_plugin = get_addon_prefs()
         self.debug_evaluation_counter += 1 # potential issue with int limit here? idk how blender handle this
 
         #we reset the Error status back to false
@@ -171,6 +170,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
     def draw_buttons(self, context, layout,):
         """node interface drawing"""
 
+        sett_win = context.window_manager.nodebooster
         is_error = bool(self.error_message)
 
         col = layout.column(align=True)
@@ -180,7 +180,13 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         field.alert = is_error
         field.prop(self, "user_pyapiexp", placeholder="C.object.name", text="",)
 
-        row.prop(self, "execute_at_depsgraph", text="", icon="TEMP",)
+        prop = row.row(align=True)
+        prop.enabled = sett_win.allow_auto_exec
+        prop.prop(self, "execute_at_depsgraph", text="", icon="TEMP",)
+
+        if (not sett_win.allow_auto_exec):
+            col.separator(factor=0.75)
+            col.prop(sett_win,"allow_auto_exec")
         
         if (is_error):
             lbl = col.row()

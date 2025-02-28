@@ -45,7 +45,9 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
             layout.label(text="Select a Booster Node")
             return None
 
+        sett_win = context.window_manager.nodebooster
         sett_plugin = get_addon_prefs()
+        
         ng = context.space_data.edit_tree
         n = ng.nodes.active
 
@@ -65,13 +67,13 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     row.alert = is_error
                     row.prop(n, "user_mathexp", placeholder="(a + sin(b)/c)²", text="",)
 
-                    panel.prop(n, "use_algrebric_multiplication",)
-                    panel.prop(n, "use_macros",)
-
                     if (is_error):
                         lbl = col.row()
                         lbl.alert = is_error
                         lbl.label(text=n.error_message)
+
+                    panel.prop(n, "use_algrebric_multiplication",)
+                    panel.prop(n, "use_macros",)
                 
                 header, panel = layout.panel("inputs_panelid", default_closed=True,)
                 header.label(text="Inputs",)
@@ -174,12 +176,17 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     row.alert = is_error
                     row.prop(n, "user_pyapiexp", placeholder="C.object.name", text="",)
 
-                    panel.prop(n,"execute_at_depsgraph")
+                    if (is_error):
+                        lbl = col.row()
+                        lbl.alert = is_error
+                        lbl.label(text=n.error_message)
+
+                    panel.prop(sett_win,"allow_auto_exec")
+                    
+                    prop = panel.column()
+                    prop.enabled = sett_win.allow_auto_exec
+                    prop.prop(n,"execute_at_depsgraph")
                 
-                if (is_error):
-                    lbl = col.row()
-                    lbl.alert = is_error
-                    lbl.label(text=n.error_message)
             
                 header, panel = layout.panel("prefs_panelid", default_closed=True,)
                 header.label(text="Namespace",)
@@ -243,12 +250,12 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                 #     field.prop(n, "user_textdata", text="", icon="TEXT", placeholder="Script.py",)
                 #     row.prop(n, "execute_script", text="", icon="PLAY", invert_checkbox=n.execute_script,)
 
-                #     panel.prop(n,"execute_at_depsgraph")
-
                 #     if (is_error):
                 #         lbl = col.row()
                 #         lbl.alert = is_error
                 #         lbl.label(text=n.error_message)
+                
+                #     panel.prop(n,"execute_at_depsgraph")
 
                 # header, panel = layout.panel("doc_panelid", default_closed=True,)
                 # header.label(text="Documentation",)
@@ -287,12 +294,16 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     field.prop(n, "user_textdata", text="", icon="TEXT", placeholder="NexScript.py",)
                     row.prop(n, "execute_script", text="", icon="PLAY", invert_checkbox=n.execute_script,)
 
-                    panel.prop(n,"execute_at_depsgraph")
-
                     if (is_error):
                         lbl = col.row()
                         lbl.alert = is_error
                         lbl.label(text=n.error_message)
+
+                    panel.prop(sett_win,"allow_auto_exec")
+                    
+                    prop = panel.column()
+                    prop.enabled = sett_win.allow_auto_exec
+                    prop.prop(n,"execute_at_depsgraph")
 
                 header, panel = layout.panel("doc_panelid", default_closed=True,)
                 header.label(text="Documentation",)
