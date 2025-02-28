@@ -92,7 +92,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         set_socket_label(ng,1, label="NoErrors",)
         set_socket_defvalue(ng,1, value=False,)
         self.error_message = ''
-        
+
         #check if string is empty first, perhaps user didn't input anything yet 
         if (self.user_pyapiexp==""):
             set_socket_label(ng,0, label="Waiting for Input" ,)
@@ -113,6 +113,7 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         namespace["C"] = bpy.context
         namespace["context"] = bpy.context
         namespace["scene"] = bpy.context.scene
+        namespace.update(vars(__import__('random')))
         namespace.update(vars(__import__('mathutils')))
         namespace.update(vars(__import__('math')))
 
@@ -120,30 +121,13 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         node_obj_users = self.get_objects_from_node_instance()
         if (len(node_obj_users)==1):
             namespace["self"] = list(node_obj_users)[0]
-            
-        #NOTE, maybe the execution need to check for some sort of blender checks before allowing execution?
-        # a little like the driver python expression, there's a global setting for that. Unsure if it's needed.
-        
-        #convenience namespace execution for user
-        # NOTE Need sanatization layer here? Hmmmm. Maybe we can forbid access to the os module?
-        # but well, the whole concept of this node is to execute python lines of code..
-        try:
-            if (sett_plugin.node_pyapi_namespace1!=""): exec(sett_plugin.node_pyapi_namespace1, {}, namespace,)
-            if (sett_plugin.node_pyapi_namespace2!=""): exec(sett_plugin.node_pyapi_namespace2, {}, namespace,)
-            if (sett_plugin.node_pyapi_namespace3!=""): exec(sett_plugin.node_pyapi_namespace3, {}, namespace,)
-        except Exception as e:
-            print(f"{self.bl_idname} UserNameSpace Exception '{type(e).__name__}':\n{e}")
-
-            #display error to user
-            self.error_message = str(e)
-            set_socket_label(ng,0, label=type(e).__name__,)
-            set_socket_label(ng,1, label="NameSpaceError",)
-            set_socket_defvalue(ng,1, value=True,)
-            return None
 
         #evaluated the user expression
         try:
+            #NOTE, maybe the execution needs to check for some sort of blender checks before allowing execution?
+            # a little like the driver python expression, there's a global setting for that. Unsure if it's needed.
             evaluated_pyvalue = eval(to_evaluate, {}, namespace,)
+
         except Exception as e:
             print(f"{self.bl_idname} Evaluation Exception '{type(e).__name__}':\n{e}")
 

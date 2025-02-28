@@ -2,6 +2,10 @@
 # #
 # # SPDX-License-Identifier: GPL-2.0-or-later
 
+# NOTE the Nex interpreter should cover all this node does.
+# Still, we keep it for documentation sake. This code will be useful later and is a great, simpler, example
+# on how Nex is working. This will be kept as a documentation example.
+
 
 # import bpy
 
@@ -23,7 +27,6 @@
 #     dynamically based on local variables whose names start with 'out_' in the script.
 #     • The evaluated values can be of type 'float', 'int', 'Vector', 'Color', 'Quaternion', 'Matrix', 'String', 'Object', 'Collection', 'Material' & 'list/tuple/set' up to len 16"""
 
-#     #NOTE the Nex language should cover anything this node is doing and better! but well it's simpler for some.
 #     #TODO maybe should add a nodebooster panel in text editor for quick execution?
 
 #     bl_idname = "GeometryNodeNodeBoosterPythonScript"

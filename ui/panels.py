@@ -190,6 +190,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     col = panel.column(align=True)
                     for info in (
                         "import bpy",
+                        "from random import *",
                         "from mathutils import *",
                         "from math import *",
                         "context = bpy.context",
@@ -201,9 +202,6 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                         row = col.row(align=True).box()
                         row.scale_y = 0.65
                         row.label(text=info)
-                    col.prop(sett_plugin, "node_pyapi_namespace1", text="", placeholder="MyObj = D.objects['Foo']",)
-                    col.prop(sett_plugin, "node_pyapi_namespace2", text="", placeholder="import random",)
-                    col.prop(sett_plugin, "node_pyapi_namespace3", text="", placeholder="R = random.randint(0,100)",)
 
                     panel.separator(factor=0.6)
 

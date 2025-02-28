@@ -19,21 +19,6 @@ class NODEBOOSTER_AddonPref(bpy.types.AddonPreferences):
         name="Depsgraph Debug",
         default=False,
         )
-    node_pyapi_namespace1 : bpy.props.StringProperty(
-        default="",
-        name="User Defined Namespace",
-        description="Define Custom Variables and macros that will be evaluated in your expression field",
-        )
-    node_pyapi_namespace2 : bpy.props.StringProperty(
-        default="",
-        name="User Defined Namespace",
-        description="Define Custom Variables and macros that will be evaluated in your expression field",
-        )
-    node_pyapi_namespace3 : bpy.props.StringProperty(
-        default="",
-        name="User Defined Namespace",
-        description="Define Custom Variables and macros that will be evaluated in your expression field",
-        )
     #not exposed
     ui_word_wrap_max_char_factor : bpy.props.FloatProperty(
         default=1.0,
