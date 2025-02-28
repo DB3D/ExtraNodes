@@ -14,7 +14,7 @@ from .customnodes import (
     NODEBOOSTER_NG_pythonapi,
     NODEBOOSTER_NG_sequencervolume,
     NODEBOOSTER_NG_isrenderedview,
-    NODEBOOSTER_NG_pythonscript,
+    # NODEBOOSTER_NG_pythonscript,
     NODEBOOSTER_NG_nexinterpreter,
 )
 
@@ -80,8 +80,8 @@ def nodebooster_handler_depspost(scene,desp):
 
     #automatic update for Python nodes
     NODEBOOSTER_NG_pythonapi.update_all_instances(from_depsgraph=True)
-    NODEBOOSTER_NG_pythonscript.update_all_instances(from_depsgraph=True)
     NODEBOOSTER_NG_nexinterpreter.update_all_instances(from_depsgraph=True)
+    # NODEBOOSTER_NG_pythonscript.update_all_instances(from_depsgraph=True)
 
     #need to update camera nodes outputs
     NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
@@ -100,8 +100,8 @@ def nodebooster_handler_framepre(scene,desp):
 
     #automatic update for Python node
     NODEBOOSTER_NG_pythonapi.update_all_instances(from_depsgraph=True)
-    NODEBOOSTER_NG_pythonscript.update_all_instances(from_depsgraph=True)
     NODEBOOSTER_NG_nexinterpreter.update_all_instances(from_depsgraph=True)
+    # NODEBOOSTER_NG_pythonscript.update_all_instances(from_depsgraph=True)
 
     #need to update camera nodes outputs
     NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
