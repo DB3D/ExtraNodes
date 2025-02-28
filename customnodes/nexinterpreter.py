@@ -94,7 +94,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
 
     execute_script : bpy.props.BoolProperty(
         name="Execute",
-        description="Click here to execute the Nex script, the",
+        description="Click here to execute the Nex script & re-building the generated node-tree",
         update=lambda self, context: self.interpret_nex_script(rebuild=True),
         )
     execute_at_depsgraph : bpy.props.BoolProperty(
@@ -410,7 +410,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             # Cleanse nodes, there was an error anyway, the current nodetree is tainted..
             self.cleanse_nodes()
             return None
-        
+
         except Exception as e:
             print(f"\n{self.bl_idname} Python Execution Exception '{type(e).__name__}':\n{e}\n")
             #print more information
@@ -422,7 +422,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             # Display error
             self.error_message = f"{type(e).__name__}. {e}"
             return None
-        
+
         #we cache the script it correspond to current nodetree arrangements.
 
         #keep track of modifications

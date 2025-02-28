@@ -2,7 +2,9 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# NOTE this module gather all possible functions that will translate into new nodes & links
+# NOTE this module gather all kind of math function for sockets
+#  when executing these functions, it will create and link new nodes automatically, from sockets to sockets.
+
 # TODO it would be nice that we could support a python float value so we directly set a default value.
 
 
@@ -68,7 +70,7 @@ def add(a:sfloat, b:sfloat,) -> sfloat:
     return _floatmath('ADD',a,b)
 
 @usernamespace
-def subtract(a:sfloat, b:sfloat,) -> sfloat:
+def sub(a:sfloat, b:sfloat,) -> sfloat:
     """Subtraction.\nEquivalent to the '-' symbol."""
     return _floatmath('SUBTRACT',a,b)
 

@@ -2,14 +2,48 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# TODO better error for user
+# TODO support more operand 
+#  - __floordiv__
+#  - __modulo__
+
+# TODO implement NexVec
+#  - support between vec and vec
+#  - vec to float = error, float to vec == possible
+#  - dunder operation between NexFloat et NexVec, see how NotImplemented pass the ball to the other class..
+#  - Vec itter and slicing? using separate? x,y,z = NexVex should work, x=Vex[0] should work for e in Vec should work as well.
+#  - float in vec should work as well
+
+# TODO implement functions
+#  - implement a few functions as test, see how a functions that can both work with Vec and Float will work
+#    because there will be name collision. perhaps could toy with namespace similar to cpp? Hmm. this would solve it
+
+# TODO implement NexBool
+#  - with Nexbool comes comparison operations. == <= ect..
+
+# TODO later 
+#  Better errors for user:
 #  - need better traceback error for NexError so user can at least now the line where it got all wrong.
 #  - it's a bit useless to see a Cannot add 'AnonymousVariable' of type.. with type.. 
 #    perhaps just don't tell the user varname if we can print the line?
 
+# TODO later
+#  Optimization:
+#  - Is the NexFactory bad for performance? these factory are defining classes perhaps 10-15 times per execution
+#    and execution can be at very frequent. Perhaps we can initiate the factory at node.init()? If we do that, 
+#    let's first check if it's safe to do so. Maybe, storing objects there is not supported. 
+#    AS a Reminder: we are storing nodetree objects in there, we'll probably need to only store the nodetree name. & get rid of node_inst.
+#  - if we do a constant + Nex + constant + Nex + constant, we'll create 3 constant nodes. Unsure how to mitigate this.
+#    ideally we 
+
+# TODO nodes location
+# (?) Doing math operation on a value node for the first time should relocate the value node near it's math ope. Note that
+# if we optimize the note above, this thought is to be dismissed
+
+
 import bpy
 
 import traceback
+
 
 from ..__init__ import dprint
 from ..nex.pytonode import convert_pyvar_to_data
@@ -89,7 +123,7 @@ def create_Nex_constant(node_tree, NexType, nodetype:str, value,):
 
     return new
 
-def call_Nex_operand(socketfunction, node_tree, NexType, nxA, nxB):
+def call_Nex_operand(socketfunction, node_tree, NexType, *nexobjs):
     """call the socketfunction related to the operand with sockets of our NexTypes, and return a 
     new NexType from the newly formed socket.
     
@@ -99,14 +133,15 @@ def call_Nex_operand(socketfunction, node_tree, NexType, nxA, nxB):
     We tag them using the Nex id and types to ensure uniqueness of our values. If a tag already exists, 
     then it means the nodetree structure must still be good"""
 
-    print("call_Nex_operand")
-
-    argtags = f"{nxA.nxshort}{nxA.nxid},{nxB.nxshort}{nxB.nxid}"
+    assert all(isinstance(o, Nex) for o in nexobjs), f"Wrong arguments passed []"
+    
+    argtags = ",".join([f'{o.nxshort}{o.nxid}' for o in nexobjs])
     tag = f"F|{NexType.nxshort}.{socketfunction.__name__}({argtags})"
+    sockets = [o.nxsock for o in nexobjs]
 
     node = node_tree.nodes.get(tag)
     if (node is None):
-        newsock = socketfunction(nxA.nxsock,nxB.nxsock)
+        newsock = socketfunction(*sockets)
         node = newsock.node
         node.name = node.label = tag
     else:
@@ -120,13 +155,18 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
     """return a nex type, which is simply an overloaded custom type that automatically arrange links and nodes and
     set default values. The nextypes will/should only build the nodetree and links when neccessary"""
 
+    # 888888 88      dP"Yb     db    888888 
+    # 88__   88     dP   Yb   dPYb     88   
+    # 88""   88  .o Yb   dP  dP__Yb    88   
+    # 88     88ood8  YbodP  dP""""Yb   88   
+
     class NexFloat(Nex):
         
         _instance_counter = 0
         node_inst = factor_customnode_instance
         node_tree = node_inst.node_tree
         nxstype = 'NodeSocketFloat'
-        nxshort = 'Nf'
+        nxshort = 'f'
 
         def __init__(self, varname='', value=None, fromsocket=None, manualdef=False):
 
@@ -145,9 +185,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                 return None
             
             # Now, define different initialization depending on given value type
-            # NOTE we are relying on string name for robustness. Stumble into an issue where 
-            # `match value: case NexOutput():` didn't work. Probably because of runtime initialization of 
-            # checking a type that didn't already exist yet. Unsure how to solve this problem. Easier to use names for now.
+            # NOTE to avoid the pitfalls of name resolution within class definitions..
 
             type_name = type(value).__name__
             match type_name: 
@@ -161,7 +199,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     raise NexError(f"Invalid use of Outputs. Cannot assign 'NexOutput' to 'NexInput'.")
 
                 # initial creation by assignation, we need to create a socket type
-                case 'int'|'float'|'bool':
+                case 'int' | 'float' | 'bool':
 
                     assert varname!='', "NexInput Initialization should always define a varname"
                     outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=varname,)
@@ -180,37 +218,211 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
             print(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:',self)
             return None
 
-        # Additions
+        # ---------------------
+        # NexFloat Additions
 
-        def __add__(self, other):
-
-            # define each add builtin behaviors depending on other arg type.
-            # for each types, we define operation members a &, b
-
+        def __add__(self, other): # self + other
             type_name = type(other).__name__
             match type_name:
-
                 case 'NexFloat':
-                    a = self
-                    b = other
+                    a = self ; b = other
                     socketfunction = ns.add
-
-                case 'int'|'float'|'bool': 
-                    a = self
-                    b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue',  float(other),)
+                case 'int' | 'float' | 'bool': 
+                    a = self ; b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
                     socketfunction = ns.add
-
                 case _:
                     raise NexError(f"NexTypeError. Cannot add '{self.nxvname}' of type 'NexFloat' to '{type(other).__name__}'.")
-
             c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
             return c
 
-        def __radd__(self, other):
-            """a+b == b+a, we should be fine"""
+        def __radd__(self, other): # other + self
+            # Multiplication is commutative.
             return self.__add__(other)
 
+        # ---------------------
+        # NexFloat Subtraction
 
+        def __sub__(self, other): # self - other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat':
+                    a = self ; b = other
+                    socketfunction = ns.sub
+                case 'int' | 'float' | 'bool':
+                    a = self ; b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
+                    socketfunction = ns.sub
+                case _:
+                    raise NexError(f"NexTypeError. Cannot subtract '{self.nxvname}' of type 'NexFloat' with '{type(other).__name__}'.")
+            c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
+            return c
+
+        def __rsub__(self, other): # other - self
+            type_name = type(other).__name__
+            match type_name:
+                case 'int' | 'float' | 'bool':
+                    b = self ; a = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
+                    socketfunction = ns.sub
+                case _:
+                    raise NexError(f"NexTypeError. Cannot subtract '{type(other).__name__}' with 'NexFloat'.")
+            c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
+            return c
+
+        # ---------------------
+        # NexFloat Multiplication
+
+        def __mul__(self, other): # self * other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat':
+                    a = self ; b = other
+                    socketfunction = ns.mult
+                case 'int' | 'float' | 'bool':
+                    a = self ; b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
+                    socketfunction = ns.mult
+                case _:
+                    raise NexError(f"NexTypeError. Cannot multiply '{self.nxvname}' of type 'NexFloat' with '{type(other).__name__}'.")
+            c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
+            return c
+
+        def __rmul__(self, other): # other * self
+            # Multiplication is commutative.
+            return self.__mul__(other)
+
+        # ---------------------
+        # NexFloat True Division
+
+        def __truediv__(self, other): # self / other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat':
+                    a = self ; b = other
+                    socketfunction = ns.div
+                case 'int' | 'float' | 'bool':
+                    a = self ; b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
+                    socketfunction = ns.div
+                case _:
+                    raise NexError(f"NexTypeError. Cannot divide '{self.nxvname}' of type 'NexFloat' by '{type(other).__name__}'.")
+            c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
+            return c
+
+        def __rtruediv__(self, other): # other / self
+            type_name = type(other).__name__
+            match type_name:
+                case 'int' | 'float' | 'bool':
+                    b = self ; a = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
+                    socketfunction = ns.div
+                case _:
+                    raise NexError(f"NexTypeError. Cannot divide '{type(other).__name__}' by 'NexFloat'.")
+            c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
+            return c
+
+        # ---------------------
+        # NexFloat Power
+
+        def __pow__(self, other): #self ** other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat':
+                    a = self
+                    b = other
+                    socketfunction = ns.pow  # Assumes you have ns.pow defined
+                case 'int' | 'float' | 'bool':
+                    a = self
+                    b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
+                    socketfunction = ns.pow
+                case _:
+                    raise NexError(f"NexTypeError. Cannot raise '{self.nxvname}' of type 'NexFloat' to the power of '{type(other).__name__}'.")
+            c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
+            return c
+
+        def __rpow__(self, other): #other ** self
+            type_name = type(other).__name__
+            match type_name:
+                case 'int' | 'float' | 'bool':
+                    b = self ; a = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
+                    socketfunction = ns.pow
+                case _:
+                    raise NexError(f"NexTypeError. Cannot raise '{type(other).__name__}' to the power of 'NexFloat'.")
+            c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
+            return c
+
+        # ---------------------
+        # NexFloat Modulo
+
+        def __mod__(self, other): # self % other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat':
+                    a = self ; b = other
+                    socketfunction = ns.mod
+                case 'int' | 'float' | 'bool':
+                    a = self ; b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
+                    socketfunction = ns.mod
+                case _:
+                    raise NexError(f"NexTypeError. Cannot compute '{self.nxvname}' of type 'NexFloat' modulo '{type(other).__name__}'.")
+            c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
+            return c
+
+        def __rmod__(self, other): # other % self
+            type_name = type(other).__name__
+            match type_name:
+                case 'int' | 'float' | 'bool':
+                    b = self ; a = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
+                    socketfunction = ns.mod
+                case _:
+                    raise NexError(f"NexTypeError. Cannot compute modulo of '{type(other).__name__}' by 'NexFloat'.")
+            c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
+            return c
+
+        # ---------------------
+        # NexFloat Floor Division
+
+        def __floordiv__(self, other): # self // other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat':
+                    a = self ; b = other
+                    socketfunction = ns.floordiv
+                case 'int' | 'float' | 'bool':
+                    a = self ; b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
+                    socketfunction = ns.floordiv
+                case _:
+                    raise NexError(f"NexTypeError. Cannot perform floor division on '{self.nxvname}' of type 'NexFloat' with '{type(other).__name__}'.")
+            c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
+            return c
+
+        def __rfloordiv__(self, other): # other // self
+            type_name = type(other).__name__
+            match type_name:
+                case 'int' | 'float' | 'bool':
+                    b = self ; a = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
+                    socketfunction = ns.floordiv
+                case _:
+                    raise NexError(f"NexTypeError. Cannot perform floor division of '{type(other).__name__}' by 'NexFloat'.")
+            c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
+            return c
+
+        # ---------------------
+        # NexFloat Negate
+
+        def __neg__(self): # -self
+            c = call_Nex_operand(ns.neg, self.node_tree, NexFloat, self)
+            return c
+            # minus_one = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', -1.0)
+            # return minus_one * self
+
+        # ---------------------
+        # NexFloat Absolute
+
+        def __abs__(self): # abs(self)
+            c = call_Nex_operand(ns.abs, self.node_tree, NexFloat, self)
+            return c
+
+    #  dP"Yb  88   88 888888 88""Yb 88   88 888888 
+    # dP   Yb 88   88   88   88__dP 88   88   88   
+    # Yb   dP Y8   8P   88   88"""  Y8   8P   88   
+    #  YbodP  `YbodP'   88   88     `YbodP'   88   
+    
     class NexOutput(Nex):
         """A nex output is just a simple linking operation. We only assign to an output.
         After assinging the final output not a lot of other operations are possible"""
@@ -219,7 +431,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
         node_inst = factor_customnode_instance
         node_tree = node_inst.node_tree
         nxstype = factory_outsocktype
-        nxshort = 'Nout'
+        nxshort = 'o'
         
         outsubtype = nxstype.replace("NodeSocket","")
 

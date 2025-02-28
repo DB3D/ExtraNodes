@@ -203,7 +203,7 @@ class FunctionTransformer(ast.NodeTransformer):
             case ast.Add():
                 func_name = 'add'
             case ast.Sub():
-                func_name = 'subtract'
+                func_name = 'sub'
             case ast.Mult():
                 func_name = 'mult'
             case ast.Div():
@@ -260,7 +260,7 @@ class FunctionTransformer(ast.NodeTransformer):
 
     def transform_math_expression(self, math_express: str) -> str:
         """Transforms a math expression into a function-call expression.
-        Example: 'x*2 + (3-4/5)/3 + (x+y)**2' becomes 'add(mult(x,2),div(subtract(3,div(4,5)),3),exp(add(x,y),2))'"""
+        Example: 'x*2 + (3-4/5)/3 + (x+y)**2' becomes 'add(mult(x,2),div(sub(3,div(4,5)),3),exp(add(x,y),2))'"""
         
         # Use the ast module to visit our equation
         try:
