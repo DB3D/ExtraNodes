@@ -40,7 +40,6 @@ class NODEBOOSTER_NG_pythonapi(bpy.types.GeometryNodeCustomGroup):
         name="Automatically Refresh",
         description="Synchronize the python values with the outputs values on each depsgraph frame and interaction. By toggling this option, your script will be executed constantly.",
         default=True,
-        update=lambda self, context: self.evaluate_python_expression(assign_socketype=True),
         )
 
     @classmethod

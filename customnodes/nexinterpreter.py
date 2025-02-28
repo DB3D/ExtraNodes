@@ -100,7 +100,6 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
         name="Automatically Refresh",
         description="Synchronize the interpreted python constants (if any) with the outputs values on each depsgraph frame and interaction. By toggling this option, your Nex script will be executed constantly on each interaction you have with blender (note that the internal nodetree will not be constantly rebuilt, press the Play button to do so.).",
         default=False,
-        update=lambda self, context: self.interpret_nex_script(),
         )
 
     def init(self, context):
