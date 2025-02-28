@@ -6,7 +6,7 @@
 import bpy
 
 from .drawroute import NODEBOOSTER_OT_draw_route
-from .bakemath import NODEBOOSTER_OT_bake_mathexpression
+from .bake import NODEBOOSTER_OT_bake_customnode
 from .purge import NODEBOOSTER_OT_node_purge_unused
 from .favorites import NODEBOOSTER_OT_favorite_add, NODEBOOSTER_OT_favorite_loop
 from .depselect import NODEBOOSTER_OT_dependency_select
@@ -18,7 +18,7 @@ from .codetemplates import NODEBOOSTER_OT_text_templates
 classes = (
 
     NODEBOOSTER_OT_draw_route,
-    NODEBOOSTER_OT_bake_mathexpression,
+    NODEBOOSTER_OT_bake_customnode,
     NODEBOOSTER_OT_node_purge_unused,
     NODEBOOSTER_OT_favorite_add,
     NODEBOOSTER_OT_favorite_loop,

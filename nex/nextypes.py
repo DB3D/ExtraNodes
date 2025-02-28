@@ -114,7 +114,7 @@ class Nex:
 
 def generate_tag(NexType, function, *variables, start='F'):
     """generate an unique tag for a function and their args"""
-    
+
     # ex 'F|f.pow(f4,f5)'
     #    'F|f.mult(f2,PyInt)'
     # TODO would be nice to write output Nex 'F|f.pow(f1,f2)=f3' for easy debug!

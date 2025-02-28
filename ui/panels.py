@@ -158,7 +158,7 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     row.prop(n, "debug_nodes_quantity", text="",)
 
                 col = layout.column(align=True)
-                op = col.operator("extranode.bake_mathexpression", text="Convert to Group",)
+                op = col.operator("extranode.bake_customnode", text="Convert to Group",)
                 op.nodegroup_name = n.node_tree.name
                 op.node_name = n.name
 
@@ -323,7 +323,12 @@ class NODEBOOSTER_PT_active_node(bpy.types.Panel):
                     row = col.row()
                     row.enabled = False
                     row.prop(n, "debug_evaluation_counter", text="",)
-                    
+
+                col = layout.column(align=True)
+                op = col.operator("extranode.bake_customnode", text="Convert to Group",)
+                op.nodegroup_name = n.node_tree.name
+                op.node_name = n.name
+
             case 'GeometryNodeNodeBoosterSequencerVolume':
 
                 header, panel = layout.panel("doc_panelid", default_closed=True,)
