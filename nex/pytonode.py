@@ -17,6 +17,7 @@ def convert_pyvar_to_data(py_variable):
     value = py_variable
 
     #we sanatize out possible types depending on their length
+
     matrix_special_label = ''
     if (type(value) in {tuple, list, set, Vector, Euler, bpy.types.bpy_prop_array}):
 
@@ -42,6 +43,7 @@ def convert_pyvar_to_data(py_variable):
         else:
             raise TypeError(f"'{type(value).__name__.title()}' of len {n} not supported")
 
+    # then we define the socket type string & the potential socket label
     match value:
 
         case bool():

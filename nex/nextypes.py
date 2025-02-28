@@ -192,16 +192,16 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
 
                 # a:infloat = anotherinfloat
                 case 'NexFloat':
-                    raise NexError(f"Invalid use of Inputs. Cannot assign 'NexInput' to 'NexInput'.")
+                    raise NexError(f"Invalid use of Inputs. Cannot assign 'SocketInput' to 'SocketInput'.")
 
                 # is user toying with  output? output cannot be reused in any way..
                 case 'NexOutput':
-                    raise NexError(f"Invalid use of Outputs. Cannot assign 'NexOutput' to 'NexInput'.")
+                    raise NexError(f"Invalid use of Outputs. Cannot assign 'SocketOutput' to 'SocketInput'.")
 
                 # initial creation by assignation, we need to create a socket type
                 case 'int' | 'float' | 'bool':
 
-                    assert varname!='', "NexInput Initialization should always define a varname."
+                    assert varname!='', "NexI Initialization should always define a varname."
                     outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=varname,)
                     assert outsock is not None, f"The socket '{varname}' do not exist in your node inputs."
 
@@ -214,7 +214,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
 
                 # wrong initialization?
                 case _:
-                    raise NexError(f"NexTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to 'NexFloat'.")
+                    raise NexError(f"SocketTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to 'SocketFloat'.")
 
             print(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:',self)
             return None
@@ -232,7 +232,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self ; b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
                     socketfunction = nodesetter.add
                 case _:
-                    raise NexError(f"NexTypeError. Cannot add '{self.nxvname}' of type 'NexFloat' to '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot add '{self.nxvname}' of type 'SocketFloat' to '{type(other).__name__}'.")
             c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
             return c
 
@@ -253,7 +253,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self ; b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
                     socketfunction = nodesetter.sub
                 case _:
-                    raise NexError(f"NexTypeError. Cannot subtract '{self.nxvname}' of type 'NexFloat' with '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot subtract '{self.nxvname}' of type 'SocketFloat' with '{type(other).__name__}'.")
             c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
             return c
 
@@ -264,7 +264,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     b = self ; a = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
                     socketfunction = nodesetter.sub
                 case _:
-                    raise NexError(f"NexTypeError. Cannot subtract '{type(other).__name__}' with 'NexFloat'.")
+                    raise NexError(f"SocketTypeError. Cannot subtract '{type(other).__name__}' with 'SocketFloat'.")
             c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
             return c
 
@@ -281,7 +281,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self ; b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
                     socketfunction = nodesetter.mult
                 case _:
-                    raise NexError(f"NexTypeError. Cannot multiply '{self.nxvname}' of type 'NexFloat' with '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot multiply '{self.nxvname}' of type 'SocketFloat' with '{type(other).__name__}'.")
             c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
             return c
 
@@ -302,7 +302,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self ; b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
                     socketfunction = nodesetter.div
                 case _:
-                    raise NexError(f"NexTypeError. Cannot divide '{self.nxvname}' of type 'NexFloat' by '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot divide '{self.nxvname}' of type 'SocketFloat' by '{type(other).__name__}'.")
             c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
             return c
 
@@ -313,7 +313,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     b = self ; a = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
                     socketfunction = nodesetter.div
                 case _:
-                    raise NexError(f"NexTypeError. Cannot divide '{type(other).__name__}' by 'NexFloat'.")
+                    raise NexError(f"SocketTypeError. Cannot divide '{type(other).__name__}' by 'SocketFloat'.")
             c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
             return c
 
@@ -332,7 +332,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
                     socketfunction = nodesetter.pow
                 case _:
-                    raise NexError(f"NexTypeError. Cannot raise '{self.nxvname}' of type 'NexFloat' to the power of '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot raise '{self.nxvname}' of type 'SocketFloat' to the power of '{type(other).__name__}'.")
             c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
             return c
 
@@ -343,7 +343,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     b = self ; a = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
                     socketfunction = nodesetter.pow
                 case _:
-                    raise NexError(f"NexTypeError. Cannot raise '{type(other).__name__}' to the power of 'NexFloat'.")
+                    raise NexError(f"SocketTypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketFloat'.")
             c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
             return c
 
@@ -360,7 +360,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self ; b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
                     socketfunction = nodesetter.mod
                 case _:
-                    raise NexError(f"NexTypeError. Cannot compute '{self.nxvname}' of type 'NexFloat' modulo '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot compute '{self.nxvname}' of type 'SocketFloat' modulo '{type(other).__name__}'.")
             c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
             return c
 
@@ -371,7 +371,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     b = self ; a = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
                     socketfunction = nodesetter.mod
                 case _:
-                    raise NexError(f"NexTypeError. Cannot compute modulo of '{type(other).__name__}' by 'NexFloat'.")
+                    raise NexError(f"SocketTypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketFloat'.")
             c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
             return c
 
@@ -388,7 +388,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     a = self ; b = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
                     socketfunction = nodesetter.floordiv
                 case _:
-                    raise NexError(f"NexTypeError. Cannot perform floor division on '{self.nxvname}' of type 'NexFloat' with '{type(other).__name__}'.")
+                    raise NexError(f"SocketTypeError. Cannot perform floor division on '{self.nxvname}' of type 'SocketFloat' with '{type(other).__name__}'.")
             c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
             return c
 
@@ -399,7 +399,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     b = self ; a = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', float(other),)
                     socketfunction = nodesetter.floordiv
                 case _:
-                    raise NexError(f"NexTypeError. Cannot perform floor division of '{type(other).__name__}' by 'NexFloat'.")
+                    raise NexError(f"SocketTypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketFloat'.")
             c = call_Nex_operand(socketfunction, self.node_tree, NexFloat, a, b)
             return c
 
@@ -407,7 +407,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
         # NexFloat Negate
 
         def __neg__(self): # -self
-            c = call_Nex_operand(ns.neg, self.node_tree, NexFloat, self)
+            c = call_Nex_operand(nodesetter.neg, self.node_tree, NexFloat, self)
             return c
             # minus_one = create_Nex_constant(self.node_tree, NexFloat, 'ShaderNodeValue', -1.0)
             # return minus_one * self
@@ -416,7 +416,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
         # NexFloat Absolute
 
         def __abs__(self): # abs(self)
-            c = call_Nex_operand(ns.abs, self.node_tree, NexFloat, self)
+            c = call_Nex_operand(nodesetter.abs, self.node_tree, NexFloat, self)
             return c
 
     #  dP"Yb  88   88 888888 88""Yb 88   88 888888 
@@ -434,7 +434,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
         nxstype = factory_outsocktype
         nxshort = 'o'
         
-        outsubtype = nxstype.replace("NodeSocket","")
+        outsubtype = nxstype.replace("Node","")
 
         def __init__(self, varname='', value=0.0):
 
@@ -454,14 +454,14 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
 
                 # is user toying with  output? output cannot be reused in any way..
                 case 'NexOutput':
-                    raise NexError(f"Invalid use of Outputs. Cannot assign 'NexOutput' to 'NexOutput'.")
+                    raise NexError(f"Invalid use of Outputs. Cannot assign 'SocketOutput' to 'SocketOutput'.")
 
                 # we link another nextype
                 case _ if ('Nex' in type_name):
                     l = link_sockets(value.nxsock, outsock)
                     # we might need to send a refresh signal before checking is_valid property?? if it works, it works
                     if (not l.is_valid):
-                        raise NexError(f"NexTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to 'NexOutput' of subtype '{self.outsubtype}'.")
+                        raise NexError(f"SocketTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to output socket of type '{self.outsubtype}'.")
 
                 # or we simply output a default python constant value
                 case _:
@@ -470,7 +470,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     try:
                         set_socket_defvalue(self.node_tree, value=newval, socket=outsock, in_out='OUTPUT',)
                     except Exception as e:
-                        raise NexError(f"NexTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to 'NexOutput' of subtype '{self.outsubtype}'.")
+                        raise NexError(f"SocketTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to output socket of type '{self.outsubtype}'.")
 
 
     # return the class
