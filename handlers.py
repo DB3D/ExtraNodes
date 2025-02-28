@@ -14,7 +14,6 @@ from .customnodes import (
     NODEBOOSTER_NG_pythonapi,
     NODEBOOSTER_NG_sequencervolume,
     NODEBOOSTER_NG_isrenderedview,
-    # NODEBOOSTER_NG_pythonscript,
     NODEBOOSTER_NG_nexinterpreter,
 )
 
@@ -72,19 +71,21 @@ def unregister_msgbusses():
 @bpy.app.handlers.persistent
 def nodebooster_handler_depspost(scene,desp):
     """update on depsgraph change"""
-    
+
     sett_plugin = get_addon_prefs()
+    sett_win = bpy.context.window_manager.nodebooster
 
     if (sett_plugin.debug_depsgraph):
         print("nodebooster_handler_depspost(): depsgraph signal")
 
-    #automatic update for Python nodes
-    NODEBOOSTER_NG_pythonapi.update_all_instances(from_depsgraph=True)
-    NODEBOOSTER_NG_nexinterpreter.update_all_instances(from_depsgraph=True)
-    # NODEBOOSTER_NG_pythonscript.update_all_instances(from_depsgraph=True)
-
     #need to update camera nodes outputs
     NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
+
+    #automatic re-evaluation of the Python Expression and Python Nex Nodes.
+    #for security reasons, only if the user allows it expressively on each program session.
+    if (sett_win.allow_auto_exec):
+        NODEBOOSTER_NG_pythonapi.update_all_instances(from_depsgraph=True)
+        NODEBOOSTER_NG_nexinterpreter.update_all_instances(from_depsgraph=True)
 
     return None
 
@@ -94,20 +95,22 @@ def nodebooster_handler_framepre(scene,desp):
     """update on frame change"""
 
     sett_plugin = get_addon_prefs()
+    sett_win = bpy.context.window_manager.nodebooster
 
     if (sett_plugin.debug_depsgraph):
         print("nodebooster_handler_framepre(): frame_pre signal")
-
-    #automatic update for Python node
-    NODEBOOSTER_NG_pythonapi.update_all_instances(from_depsgraph=True)
-    NODEBOOSTER_NG_nexinterpreter.update_all_instances(from_depsgraph=True)
-    # NODEBOOSTER_NG_pythonscript.update_all_instances(from_depsgraph=True)
 
     #need to update camera nodes outputs
     NODEBOOSTER_NG_camerainfo.update_all_instances(from_depsgraph=True)
 
     #need to update all volume sequencer nodes output value
     NODEBOOSTER_NG_sequencervolume.update_all_instances(from_depsgraph=True)
+
+    #automatic re-evaluation of the Python Expression and Python Nex Nodes.
+    #for security reasons, only if the user allows it expressively on each program session.
+    if (sett_win.allow_auto_exec):
+        NODEBOOSTER_NG_pythonapi.update_all_instances(from_depsgraph=True)
+        NODEBOOSTER_NG_nexinterpreter.update_all_instances(from_depsgraph=True)
 
     return None
 
