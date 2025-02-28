@@ -32,7 +32,7 @@
 #    and execution can be at very frequent. Perhaps we can initiate the factory at node.init()? If we do that, 
 #    let's first check if it's safe to do so. Maybe, storing objects there is not supported. 
 #    AS a Reminder: we are storing nodetree objects in there, we'll probably need to only store the nodetree name. & get rid of node_inst.
-#  - if we do a constant + Nex + constant + Nex + constant, we'll create 3 constant nodes. Unsure how to mitigate this.
+#  - If we do a constant + Nex + constant + Nex + constant, we'll create 3 constant nodes. Unsure how to mitigate this.
 #    ideally we 
 
 # TODO nodes location
@@ -471,7 +471,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                     except Exception as e:
                         raise NexError(f"NexTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to 'NexOutput' of subtype '{self.outsubtype}'.")
 
-    
+
     # return the class
     ReturnClass = locals().get(factory_classname)
     if (ReturnClass is None):

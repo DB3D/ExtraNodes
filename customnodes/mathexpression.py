@@ -56,8 +56,7 @@ DOCSYMBOLS = {
 }
 
 #Store the math function used to set the nodetree
-USER_FUNCTIONS = get_user_functions(fctsubset='float')
-USER_FNAMES = [f.__name__ for f in USER_FUNCTIONS]
+USER_FNAMES = [f.__name__ for f in get_user_functions(fctsubset='float')]
 
 
 def replace_superscript_exponents(expr: str, algebric_notation:bool=False,) -> str:
