@@ -57,7 +57,7 @@ DOCSYMBOLS = {
 
 #Store the math function used to set the nodetree
 USER_FNAMES = [f.__name__ for f in get_mathexp_functions()]
-print(USER_FNAMES[:])
+
 
 def replace_superscript_exponents(expr: str, algebric_notation:bool=False,) -> str:
     """convert exponent to ** notation

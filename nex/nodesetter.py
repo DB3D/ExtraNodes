@@ -169,6 +169,7 @@ def _vecmath(ng,
         node.operation = operation_type
         node.location = location
         ng.nodes.active = node
+    
         needs_linking = True
         if (update_if_exists):
             node.name = node.label = update_if_exists
@@ -807,6 +808,36 @@ def mapsmoo(ng,
     ) -> sFlo:
     """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
     return _maprange(ng,'FLOAT','SMOOTHERSTEP',val,a,b,x,y, update_if_exists=update_if_exists,)
+
+def separate_xyz(ng,
+    v:sVec,
+    update_if_exists:str='',
+    ) -> tuple:
+    
+    node = None
+    needs_linking = False
+    
+    if (update_if_exists):
+        node = ng.nodes.get(update_if_exists)
+    
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0,200,)
+        node = ng.nodes.new('ShaderNodeSeparateXYZ')
+        node.location = location
+        ng.nodes.active = node #Always set the last node active for the final link
+        
+        needs_linking = True
+        if (update_if_exists):
+            node.name = node.label = update_if_exists
+    
+    if (needs_linking):
+        link_sockets(v, node.inputs[0])
+
+    return tuple(node.outputs)
+
 
 #TODO support comparison functions
 # def equal(a, b,)

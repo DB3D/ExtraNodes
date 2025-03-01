@@ -99,7 +99,7 @@ class Nex:
     node_inst = None      # - the node affiliated with this Nex type
     node_tree = None      # - the node.nodetree affiliated with this Nex type
     nxstype = ''          # - the type of socket the Nex type is using
-    nxchar = ''          # - the short name of the nex type (for display reasons)
+    nxchar = ''           # - the short name of the nex type (for display reasons)
 
     def __init__(*args, **kwargs):
         nxsock = None  # - The most important part of a NexType, it's association with an output socket!
@@ -110,7 +110,8 @@ class Nex:
                        # the problem is that these instances can be anonymous. So here i've decided to identify by instance generation count.
 
     def __repr__(self):
-        return f"<{type(self)}{self.nxid} nxvname='{self.nxvname}'  nxsock=`{self.nxsock}` isoutput={self.nxsock.is_output}' socketnode='{self.nxsock.node.name}''{self.nxsock.node.label}'>"
+        return f"<{self.nxstype}{self.nxid}'{self.nxvname}'>"
+        #return f"<{type(self)}{self.nxid} nxvname='{self.nxvname}'  nxsock=`{self.nxsock}` isoutput={self.nxsock.is_output}' socketnode='{self.nxsock.node.name}''{self.nxsock.node.label}'>"
 
 
 def generate_tag(NexType, function, *variables, start='F'):
@@ -132,7 +133,7 @@ def generate_tag(NexType, function, *variables, start='F'):
     return tag
 
 
-def call_Nex_operand(NexType, sockfunc, *variables, uniquetag:str=None,):
+def call_Nex_operand(NexType, sockfunc, *variables, uniquetag:str=None, NexTypeReturnSpecial=None):
     """call the sockfunc related to the operand with sockets of our NexTypes, and return a 
     new NexType from the newly formed socket.
     
@@ -154,11 +155,13 @@ def call_Nex_operand(NexType, sockfunc, *variables, uniquetag:str=None,):
         print(f"ERROR: call_Nex_operand.sockfunc() caught error {type(e).__name__}")
         raise
 
-    #& return Nextype
-    if isinstance(r, Iterable):
-        #TODO deal with multi param? Hmmmmmmmm.
-        raise Exception("MultiParamsFunctions still needs to be implemented")
-        return tuple(NexType(fromsocket=s) for s in rsocks)
+    # Then return a Nextype..
+    # Support for multi outputs & if output type is not the same as input with NexTypeReturnSpecial
+    if type(r) is tuple:
+        if (NexTypeReturnSpecial is not None):
+            return tuple(NexTypeReturnSpecial(fromsocket=s) for s in r)
+        return tuple(NexType(fromsocket=s) for s in r)
+
     return NexType(fromsocket=r)
 
 
@@ -721,6 +724,36 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
             tag = generate_tag(NexVec, sockfunc, self,)
             return call_Nex_operand(NexVec, sockfunc, self.nxsock, uniquetag=tag)
 
+        # ---------------------
+        # NexVec Itter
+
+        #NOTE would be also nice to have NexVec.x .y .z maybe? hmm..
+
+        def __len__(self):
+            return 3
+
+        def __iter__(self):
+            for i in range(3):
+                yield self[i]
+
+        def __getitem__(self, key):
+            sockfunc = nodesetter.separate_xyz
+            tag = generate_tag(NexVec, sockfunc, self,)
+            outs = call_Nex_operand(NexVec, sockfunc, self.nxsock, uniquetag=tag, NexTypeReturnSpecial=NexFloat,)
+
+            #vec[i]
+            if isinstance(key, int):
+                if key not in (0,1,2):
+                    raise NexError("IndexError. indice in VectorSocket[i] exceeded maximal range of 2.")
+                return outs[key]
+
+            #vec[:i]
+            elif isinstance(key, slice):
+                indices = range(*key.indices(3))
+                return tuple(outs[i] for i in indices)
+            else:
+                raise NexError("TypeError. indices in VectorSocket[i] must be integers or slices.")
+    
     # ooooo      ooo                         .oooooo.                   .   
     # `888b.     `8'                        d8P'  `Y8b                .o8   
     #  8 `88b.    8   .ooooo.  oooo    ooo 888      888 oooo  oooo  .o888oo 
