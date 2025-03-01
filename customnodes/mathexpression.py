@@ -31,7 +31,7 @@ import re, ast
 
 from ..utils.str_utils import match_exact_tokens, replace_exact_tokens, is_float_compatible
 from ..utils.node_utils import create_new_nodegroup, create_socket, remove_socket, link_sockets, create_constant_input
-from ..nex.nodesetter import get_user_functions
+from ..nex.nodesetter import get_mathexp_functions
 
 
 DIGITS = '0123456789'
@@ -56,8 +56,8 @@ DOCSYMBOLS = {
 }
 
 #Store the math function used to set the nodetree
-USER_FNAMES = [f.__name__ for f in get_user_functions(fctsubset='float')]
-
+USER_FNAMES = [f.__name__ for f in get_mathexp_functions()]
+print(USER_FNAMES[:])
 
 def replace_superscript_exponents(expr: str, algebric_notation:bool=False,) -> str:
     """convert exponent to ** notation
@@ -118,7 +118,7 @@ def execute_math_function_expression(customnode=None, expression:str=None,
     # ex 'a' will become 'ng.nodes["foo"].outputs[1]'
     api_expression = replace_exact_tokens(expression, {**varsapi, **constapi},)
 
-    user_functions_partials = get_user_functions(fctsubset='float', default_ng=node_tree,)
+    user_functions_partials = get_mathexp_functions(default_ng=node_tree)
     user_function_namespace = {f.func.__name__:f for f in user_functions_partials}
     
     # Define the namespace of the execution, and include our functions

@@ -44,6 +44,7 @@ import bpy
 
 import traceback
 from collections.abc import Iterable
+from mathutils import Vector
 
 from ..__init__ import dprint
 from ..nex.pytonode import convert_pyvar_to_data
@@ -177,15 +178,33 @@ def call_Nex_operand(NexType, sockfunc, *variables, uniquetag:str=None,):
 #     return new
 
 
+def py_to_Vec3(value):
+    match value:
+        case Vector():
+            if (len(value)!=3): raise NexError(f"ValueError. Vector({value[:]}) should have 3 elements for fitting in a 'SocketVector'.")
+            return value
+        case list() | set() | tuple():
+            if (len(value)!=3): raise NexError(f"ValueError. Itterable '{value}' should have 3 elements for fitting in a 'SocketVector'.")
+            return Vector(value)
+        case int() | float() | bool():
+            return Vector((float(value), float(value), float(value),))
+        case _:
+            raise Exception(f"Unsuported type for {value}")
+
+
 def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsocktype:str='',):
     """return a nex type, which is simply an overloaded custom type that automatically arrange links and nodes and
     set default values. The nextypes will/should only build the nodetree and links when neccessary"""
 
-    # 888888 88      dP"Yb     db    888888 
-    # 88__   88     dP   Yb   dPYb     88   
-    # 88""   88  .o Yb   dP  dP__Yb    88   
-    # 88     88ood8  YbodP  dP""""Yb   88   
 
+    # ooooo      ooo                       oooooooooooo oooo                          .   
+    # `888b.     `8'                       `888'     `8 `888                        .o8   
+    #  8 `88b.    8   .ooooo.  oooo    ooo  888          888   .ooooo.   .oooo.   .o888oo 
+    #  8   `88b.  8  d88' `88b  `88b..8P'   888oooo8     888  d88' `88b `P  )88b    888   
+    #  8     `88b.8  888ooo888    Y888'     888    "     888  888   888  .oP"888    888   
+    #  8       `888  888    .o  .o8"'88b    888          888  888   888 d8(  888    888 . 
+    # o8o        `8  `Y8bod8P' o88'   888o o888o        o888o `Y8bod8P' `Y888""8o   "888" 
+                                                                                        
     class NexFloat(Nex):
         
         _instance_counter = 0
@@ -206,8 +225,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
 
             #initialize from a socket?
             if (fromsocket is not None):
-                self.nxsock = fromsocket
-                self.nxvname = 'AnonymousVariable'
+                self.nxsock, self.nxvname = fromsocket, 'AnonymousVariable'
                 return None
             
             # Now, define different initialization depending on given value type
@@ -217,7 +235,7 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
             match type_name: 
 
                 # a:infloat = anotherinfloat
-                case 'NexFloat':
+                case _ if ('Nex' in type_name):
                     raise NexError(f"Invalid use of Inputs. Cannot assign 'SocketInput' to 'SocketInput'.")
 
                 # is user toying with  output? output cannot be reused in any way..
@@ -226,17 +244,12 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
 
                 # initial creation by assignation, we need to create a socket type
                 case 'int' | 'float' | 'bool':
-
-                    assert varname!='', "NexI Initialization should always define a varname."
+                    assert varname!='', "Nex Initialization should always define a varname."
                     outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=varname,)
                     assert outsock is not None, f"The socket '{varname}' do not exist in your node inputs."
-
-                    if (value is not None):
-                        value = float(value)
-                        set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=value, in_out='INPUT')
-
-                    self.nxsock = outsock
-                    self.nxvname = varname
+                    fval = float(value)
+                    set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT')
+                    self.nxsock, self.nxvname = outsock, varname
 
                 # wrong initialization?
                 case _:
@@ -254,8 +267,10 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                 case 'NexFloat':
                     a = self.nxsock ; b = other.nxsock
                     sockfunc = nodesetter.add
+                case 'NexVec':
+                    return NotImplemented
                 case 'int' | 'float' | 'bool': 
-                    a = self.nxsock ; b = other
+                    a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.add
                 case _:
                     raise NexError(f"SocketTypeError. Cannot add '{self.nxvname}' of type 'SocketFloat' to '{type(other).__name__}'.")
@@ -275,8 +290,10 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                 case 'NexFloat':
                     a = self.nxsock ; b = other.nxsock
                     sockfunc = nodesetter.sub
+                case 'NexVec':
+                    return NotImplemented
                 case 'int' | 'float' | 'bool':
-                    a = self.nxsock ; b = other
+                    a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.sub
                 case _:
                     raise NexError(f"SocketTypeError. Cannot subtract '{self.nxvname}' of type 'SocketFloat' with '{type(other).__name__}'.")
@@ -286,8 +303,10 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
         def __rsub__(self, other): # other - self
             type_name = type(other).__name__
             match type_name:
+                case 'NexVec':
+                    return NotImplemented
                 case 'int' | 'float' | 'bool':
-                    a = other ; b = self.nxsock
+                    a = float(other) ; b = self.nxsock
                     sockfunc = nodesetter.sub
                 case _:
                     raise NexError(f"SocketTypeError. Cannot subtract '{type(other).__name__}' with 'SocketFloat'.")
@@ -303,8 +322,10 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                 case 'NexFloat':
                     a = self.nxsock ; b = other.nxsock
                     sockfunc = nodesetter.mult
+                case 'NexVec':
+                    return NotImplemented
                 case 'int' | 'float' | 'bool':
-                    a = self.nxsock ; b = other
+                    a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.mult
                 case _:
                     raise NexError(f"SocketTypeError. Cannot multiply '{self.nxvname}' of type 'SocketFloat' with '{type(other).__name__}'.")
@@ -324,8 +345,10 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                 case 'NexFloat':
                     a = self.nxsock ; b = other.nxsock
                     sockfunc = nodesetter.div
+                case 'NexVec':
+                    return NotImplemented
                 case 'int' | 'float' | 'bool':
-                    a = self.nxsock ; b = other
+                    a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.div
                 case _:
                     raise NexError(f"SocketTypeError. Cannot divide '{self.nxvname}' of type 'SocketFloat' by '{type(other).__name__}'.")
@@ -335,8 +358,10 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
         def __rtruediv__(self, other): # other / self
             type_name = type(other).__name__
             match type_name:
+                case 'NexVec':
+                    return NotImplemented
                 case 'int' | 'float' | 'bool':
-                    a = other ; b = self.nxsock
+                    a = float(other) ; b = self.nxsock
                     sockfunc = nodesetter.div
                 case _:
                     raise NexError(f"SocketTypeError. Cannot divide '{type(other).__name__}' by 'SocketFloat'.")
@@ -352,8 +377,10 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                 case 'NexFloat':
                     a = self.nxsock ; b = other.nxsock
                     sockfunc = nodesetter.pow
+                case 'NexVec':
+                    return NotImplemented
                 case 'int' | 'float' | 'bool':
-                    a = self.nxsock ; b = other
+                    a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.pow
                 case _:
                     raise NexError(f"SocketTypeError. Cannot raise '{self.nxvname}' of type 'SocketFloat' to the power of '{type(other).__name__}'.")
@@ -363,8 +390,10 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
         def __rpow__(self, other): #other ** self
             type_name = type(other).__name__
             match type_name:
+                case 'NexVec':
+                    return NotImplemented
                 case 'int' | 'float' | 'bool':
-                    a = other ; b = self.nxsock
+                    a = float(other) ; b = self.nxsock
                     sockfunc = nodesetter.pow
                 case _:
                     raise NexError(f"SocketTypeError. Cannot raise '{type(other).__name__}' to the power of 'SocketFloat'.")
@@ -380,8 +409,10 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                 case 'NexFloat':
                     a = self.nxsock ; b = other.nxsock
                     sockfunc = nodesetter.mod
+                case 'NexVec':
+                    return NotImplemented
                 case 'int' | 'float' | 'bool':
-                    a = self.nxsock ; b = other
+                    a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.mod
                 case _:
                     raise NexError(f"SocketTypeError. Cannot compute '{self.nxvname}' of type 'SocketFloat' modulo '{type(other).__name__}'.")
@@ -391,8 +422,10 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
         def __rmod__(self, other): # other % self
             type_name = type(other).__name__
             match type_name:
+                case 'NexVec':
+                    return NotImplemented
                 case 'int' | 'float' | 'bool':
-                    a = other ; b = self.nxsock
+                    a = float(other) ; b = self.nxsock
                     sockfunc = nodesetter.mod
                 case _:
                     raise NexError(f"SocketTypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketFloat'.")
@@ -408,8 +441,10 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
                 case 'NexFloat':
                     a = self.nxsock ; b = other.nxsock
                     sockfunc = nodesetter.floordiv
+                case 'NexVec':
+                    return NotImplemented
                 case 'int' | 'float' | 'bool':
-                    a = self.nxsock ; b = other
+                    a = self.nxsock ; b = float(other)
                     sockfunc = nodesetter.floordiv
                 case _:
                     raise NexError(f"SocketTypeError. Cannot perform floor division on '{self.nxvname}' of type 'SocketFloat' with '{type(other).__name__}'.")
@@ -419,8 +454,10 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
         def __rfloordiv__(self, other): # other // self
             type_name = type(other).__name__
             match type_name:
+                case 'NexVec':
+                    return NotImplemented
                 case 'int' | 'float' | 'bool':
-                    a = other ; b = self.nxsock
+                    a = float(other) ; b = self.nxsock
                     sockfunc = nodesetter.floordiv
                 case _:
                     raise NexError(f"SocketTypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketFloat'.")
@@ -443,11 +480,255 @@ def NexFactory(factor_customnode_instance, factory_classname:str, factory_outsoc
             tag = generate_tag(NexFloat, sockfunc, self,)
             return call_Nex_operand(NexFloat, sockfunc, self.nxsock, uniquetag=tag)
 
-    #  dP"Yb  88   88 888888 88""Yb 88   88 888888 
-    # dP   Yb 88   88   88   88__dP 88   88   88   
-    # Yb   dP Y8   8P   88   88"""  Y8   8P   88   
-    #  YbodP  `YbodP'   88   88     `YbodP'   88   
-    
+    # ooooo      ooo                       oooooo     oooo                     
+    # `888b.     `8'                        `888.     .8'                      
+    #  8 `88b.    8   .ooooo.  oooo    ooo   `888.   .8'    .ooooo.   .ooooo.  
+    #  8   `88b.  8  d88' `88b  `88b..8P'     `888. .8'    d88' `88b d88' `"Y8 
+    #  8     `88b.8  888ooo888    Y888'        `888.8'     888ooo888 888       
+    #  8       `888  888    .o  .o8"'88b        `888'      888    .o 888   .o8 
+    # o8o        `8  `Y8bod8P' o88'   888o       `8'       `Y8bod8P' `Y8bod8P' 
+                                                                            
+    class NexVec(Nex):
+        
+        _instance_counter = 0
+        node_inst = factor_customnode_instance
+        node_tree = node_inst.node_tree
+        nxstype = 'NodeSocketVector'
+        nxchar = 'v'
+
+        def __init__(self, varname='', value=None, fromsocket=None, manualdef=False):
+
+            self.nxid = NexVec._instance_counter
+            NexVec._instance_counter += 1
+
+            if (manualdef):
+                return None
+
+            if (fromsocket is not None):
+                self.nxsock, self.nxvname = fromsocket, 'AnonymousVariable'
+                return None
+
+            type_name = type(value).__name__
+            match type_name: 
+
+                case _ if ('Nex' in type_name):
+                    raise NexError(f"Invalid use of Inputs. Cannot assign 'SocketInput' to 'SocketInput'.")
+                case 'NexOutput':
+                    raise NexError(f"Invalid use of Outputs. Cannot assign 'SocketOutput' to 'SocketInput'.")
+
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    assert varname!='', "Nex Initialization should always define a varname."
+                    outsock = get_socket(self.node_tree, in_out='INPUT', socket_name=varname,)
+                    assert outsock is not None, f"The socket '{varname}' do not exist in your node inputs."
+                    fval = py_to_Vec3(value)
+                    set_socket_defvalue(self.node_tree, socket=outsock, node=self.node_inst, value=fval, in_out='INPUT')
+                    self.nxsock, self.nxvname = outsock, varname
+
+                case _:
+                    raise NexError(f"SocketTypeError. Cannot assign var '{varname}' of type '{type(value).__name__}' to 'SocketVector'.")
+
+            print(f'DEBUG: {type(self).__name__}.__init__({value}). Instance:',self)
+            return None
+
+        # ---------------------
+        # NexVec Additions
+
+        def __add__(self, other): # self + other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexVec' | 'NexFloat':
+                    a = self.nxsock ; b = other.nxsock
+                    sockfunc = nodesetter.add
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    a = self.nxsock ; b = py_to_Vec3(other)
+                    sockfunc = nodesetter.add
+                case _:
+                    raise NexError(f"SocketTypeError. Cannot add '{self.nxvname}' of type 'SocketVector' to '{type(other).__name__}'.")
+            tag = generate_tag(NexVec, sockfunc, self, other,)
+            return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
+
+        def __radd__(self, other): # other + self
+            # Multiplication is commutative.
+            return self.__add__(other)
+
+        # ---------------------
+        # NexVec Subtraction
+
+        def __sub__(self, other): # self - other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexVec' | 'NexFloat':
+                    a = self.nxsock ; b = other.nxsock
+                    sockfunc = nodesetter.sub
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    a = self.nxsock ; b = py_to_Vec3(other)
+                    sockfunc = nodesetter.sub
+                case _:
+                    raise NexError(f"SocketTypeError. Cannot subtract '{self.nxvname}' of type 'SocketVector' with '{type(other).__name__}'.")
+            tag = generate_tag(NexVec, sockfunc, self, other,)
+            return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
+
+        def __rsub__(self, other): # other - self
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat':
+                    a = other.nxsock ; b = self.nxsock
+                    sockfunc = nodesetter.sub
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    a = py_to_Vec3(other) ; b = self.nxsock
+                    sockfunc = nodesetter.sub
+                case _:
+                    raise NexError(f"SocketTypeError. Cannot subtract '{type(other).__name__}' with 'SocketVector'.")
+            tag = generate_tag(NexVec, sockfunc, self, other,)
+            return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
+
+        # ---------------------
+        # NexVec Multiplication
+
+        def __mul__(self, other): # self * other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexVec' | 'NexFloat':
+                    a = self.nxsock ; b = other.nxsock
+                    sockfunc = nodesetter.mult
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    a = self.nxsock ; b = py_to_Vec3(other)
+                    sockfunc = nodesetter.mult
+                case _:
+                    raise NexError(f"SocketTypeError. Cannot multiply '{self.nxvname}' of type 'SocketVector' with '{type(other).__name__}'.")
+            tag = generate_tag(NexVec, sockfunc, self, other,)
+            return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
+
+        def __rmul__(self, other): # other * self
+            # Multiplication is commutative.
+            return self.__mul__(other)
+
+        # ---------------------
+        # NexVec True Division
+
+        def __truediv__(self, other): # self / other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexVec' | 'NexFloat':
+                    a = self.nxsock ; b = other.nxsock
+                    sockfunc = nodesetter.div
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    a = self.nxsock ; b = py_to_Vec3(other)
+                    sockfunc = nodesetter.div
+                case _:
+                    raise NexError(f"SocketTypeError. Cannot divide '{self.nxvname}' of type 'SocketVector' by '{type(other).__name__}'.")
+            tag = generate_tag(NexVec, sockfunc, self, other,)
+            return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
+
+        def __rtruediv__(self, other): # other / self
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat':
+                    a = other.nxsock ; b = self.nxsock
+                    sockfunc = nodesetter.div
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    a = py_to_Vec3(other) ; b = self.nxsock
+                    sockfunc = nodesetter.div
+                case _:
+                    raise NexError(f"SocketTypeError. Cannot divide '{type(other).__name__}' by 'SocketVector'.")
+            tag = generate_tag(NexVec, sockfunc, self, other,)
+            return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
+
+        # ---------------------
+        # NexVec Power
+
+        def __pow__(self, other): #self ** other
+            raise NexError(f"SocketTypeError. Cannot raise a 'SocketVector'.") #TODO add a function for that in nodesetter. not comprised in vector math node of blender..
+
+        def __rpow__(self, other): #other ** self
+            raise NexError(f"SocketTypeError. Cannot raise a 'SocketVector'.") #TODO add a function for that in nodesetter. not comprised in vector math node of blender..
+
+        # ---------------------
+        # NexVec Modulo
+
+        def __mod__(self, other): # self % other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexVec' | 'NexFloat':
+                    a = self.nxsock ; b = other.nxsock
+                    sockfunc = nodesetter.mod
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    a = self.nxsock ; b = py_to_Vec3(other)
+                    sockfunc = nodesetter.mod
+                case _:
+                    raise NexError(f"SocketTypeError. Cannot compute '{self.nxvname}' of type 'SocketVector' modulo '{type(other).__name__}'.")
+            tag = generate_tag(NexVec, sockfunc, self, other,)
+            return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
+
+        def __rmod__(self, other): # other % self
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat':
+                    a = other.nxsock ; b = self.nxsock
+                    sockfunc = nodesetter.mod
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    a = py_to_Vec3(other) ; b = self.nxsock
+                    sockfunc = nodesetter.mod
+                case _:
+                    raise NexError(f"SocketTypeError. Cannot compute modulo of '{type(other).__name__}' by 'SocketVector'.")
+            tag = generate_tag(NexVec, sockfunc, self, other,)
+            return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
+
+        # ---------------------
+        # NexVec Floor Division
+
+        def __floordiv__(self, other): # self // other
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexVec' | 'NexFloat':
+                    a = self.nxsock ; b = other.nxsock
+                    sockfunc = nodesetter.floordiv
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    a = self.nxsock ; b = py_to_Vec3(other)
+                    sockfunc = nodesetter.floordiv
+                case _:
+                    raise NexError(f"SocketTypeError. Cannot perform floor division on '{self.nxvname}' of type 'SocketVector' with '{type(other).__name__}'.")
+            tag = generate_tag(NexVec, sockfunc, self, other,)
+            return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
+
+        def __rfloordiv__(self, other): # other // self
+            type_name = type(other).__name__
+            match type_name:
+                case 'NexFloat':
+                    a = other.nxsock ; b = self.nxsock
+                    sockfunc = nodesetter.floordiv
+                case 'Vector' | 'list' | 'set' | 'tuple' | 'int' | 'float' | 'bool':
+                    a = py_to_Vec3(other) ; b = self.nxsock
+                    sockfunc = nodesetter.floordiv
+                case _:
+                    raise NexError(f"SocketTypeError. Cannot perform floor division of '{type(other).__name__}' by 'SocketVector'.")
+            tag = generate_tag(NexVec, sockfunc, self, other,)
+            return call_Nex_operand(NexVec, sockfunc, a, b, uniquetag=tag)
+
+        # ---------------------
+        # NexVec Negate
+
+        def __neg__(self): # -self
+            sockfunc = nodesetter.neg
+            tag = generate_tag(NexVec, sockfunc, self,)
+            return call_Nex_operand(NexVec, sockfunc, self.nxsock, uniquetag=tag)
+
+        # ---------------------
+        # NexVec Absolute
+
+        def __abs__(self): # abs(self)
+            sockfunc = nodesetter.abs
+            tag = generate_tag(NexVec, sockfunc, self,)
+            return call_Nex_operand(NexVec, sockfunc, self.nxsock, uniquetag=tag)
+
+    # ooooo      ooo                         .oooooo.                   .   
+    # `888b.     `8'                        d8P'  `Y8b                .o8   
+    #  8 `88b.    8   .ooooo.  oooo    ooo 888      888 oooo  oooo  .o888oo 
+    #  8   `88b.  8  d88' `88b  `88b..8P'  888      888 `888  `888    888   
+    #  8     `88b.8  888ooo888    Y888'    888      888  888   888    888   
+    #  8       `888  888    .o  .o8"'88b   `88b    d88'  888   888    888 . 
+    # o8o        `8  `Y8bod8P' o88'   888o  `Y8bood8P'   `V88V"V8P'   "888" 
+                                                                        
     class NexOutput(Nex):
         """A nex output is just a simple linking operation. We only assign to an output.
         After assinging the final output not a lot of other operations are possible"""

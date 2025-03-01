@@ -11,14 +11,22 @@ import bpy
 
 import inspect
 from functools import partial
+from mathutils import Vector
 
 from ..utils.node_utils import link_sockets, frame_nodes
 
 
-SkFloat = bpy.types.NodeSocketFloat
+sBoo = bpy.types.NodeSocketBool
+sInt = bpy.types.NodeSocketInt
+sFlo = bpy.types.NodeSocketFloat
+sCol = bpy.types.NodeSocketColor
+sMtx = bpy.types.NodeSocketMatrix
+sQut = bpy.types.NodeSocketRotation
+sVec = bpy.types.NodeSocketVector
+
 
 NODE_YOFF, NODE_XOFF = 120, 70
-_USER_FUNCTIONS = [] #don't import that directly, use get_user_functions, thanks.
+_MATHEXPRESSION_FUNCTIONS = [] #don't import that directly, use get_mathexp_functions, thanks.
 
 
 class InvalidTypePassedToSocket(Exception):
@@ -26,21 +34,20 @@ class InvalidTypePassedToSocket(Exception):
         super().__init__(message)
 
 
-def usernamespace(func):
+def check_any_type(*args, types:tuple=None) -> bool:
+    """Returns True if any argument in *args is an instance of any type in the 'types' tuple."""
+    return any(isinstance(arg, types) for arg in args)
+
+def mathexpressionfct(func):
     """decorator to easily store function names on an orderly manner at runtime"""
-    _USER_FUNCTIONS.append(func)
+    _MATHEXPRESSION_FUNCTIONS.append(func)
     return func
 
-def get_user_functions(fctsubset='float', default_ng=None,):
+def get_mathexp_functions(default_ng=None,):
     """get all functions and their names, depending on function types
     optionally, pass the default ng. The 'update_if_exists' functionality of the functions will be disabled"""
 
-    filtered_functions = []
-    match fctsubset:
-        case 'float':
-            filtered_functions = [f for f in _USER_FUNCTIONS if inspect.signature(f).return_annotation is SkFloat]
-        case _:
-            raise Exception("notSupported")
+    filtered_functions = _MATHEXPRESSION_FUNCTIONS[:]
 
     # If a default node group argument is provided, use functools.partial to bind it
     if (default_ng):
@@ -51,16 +58,18 @@ def get_user_functions(fctsubset='float', default_ng=None,):
 def generate_documentation(fctsubset='float'):
     """generate doc about function subset for user, we are collecting function name and arguments"""
 
+    match fctsubset:
+        case 'float':
+            functions = get_mathexp_functions()
+        case _:
+            raise Exception("Not Implemented")
     r = {}
-    for f in get_user_functions(fctsubset=fctsubset):
-
+    for f in functions:
         fargs = list(f.__code__.co_varnames[:f.__code__.co_argcount])
         if ('ng' in fargs):
             fargs.remove('ng')
         fstr = f'{f.__name__}({", ".join(fargs)})'
-
         r[f.__name__] = {'repr':fstr, 'doc':f.__doc__,}
-        continue
 
     return r
 
@@ -83,7 +92,13 @@ def assert_purple_node(node):
 # 88  Y8  YbodP  8888Y"  888888 8bodP'     8bodP' 888888   88     88   888888 88  Yb     88      YboodP   88   8bodP' 
 
 
-def _floatmath(ng, operation_type:str, val1:SkFloat|float=None, val2:SkFloat|float=None, val3:SkFloat|float=None, update_if_exists:str='',) -> SkFloat:
+def _floatmath(ng,
+    operation_type:str,
+    val1:sFlo|sInt|sBoo|float|int=None,
+    val2:sFlo|sInt|sBoo|float|int=None,
+    val3:sFlo|sInt|sBoo|float|int=None,
+    update_if_exists:str='',
+    ) -> sFlo:
     """generic operation for adding a float math node and linking.
     if 'update_if_exists' is passed the function shall only but update values of existing node, not adding new nodes"""
 
@@ -97,7 +112,7 @@ def _floatmath(ng, operation_type:str, val1:SkFloat|float=None, val2:SkFloat|flo
     if (node is None):
         last = ng.nodes.active
         if (last):
-              location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
         else: location = (0,200,)
         node = ng.nodes.new('ShaderNodeMath')
         node.operation = operation_type
@@ -112,13 +127,11 @@ def _floatmath(ng, operation_type:str, val1:SkFloat|float=None, val2:SkFloat|flo
     for i,val in enumerate(args):
         match val:
 
-            case SkFloat():
+            case sFlo():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
-            case float() | int() | bool():
-                if type(val) is bool:
-                    val = float(val)
+            case float() | int():
                 if (node.inputs[i].default_value!=val):
                     node.inputs[i].default_value = val
                     assert_purple_node(node)
@@ -127,52 +140,151 @@ def _floatmath(ng, operation_type:str, val1:SkFloat|float=None, val2:SkFloat|flo
                 pass
 
             case _:
-                raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatmath(). Expected parameters in 'Socket', 'float', 'int', 'bool'. Recieved '{type(val).__name__}'")
+                raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatmath(). Recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
 
-@usernamespace
-def add(ng, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+def _vecmath(ng,
+    operation_type:str,
+    val1:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
+    val2:sFlo|sInt|sBoo|sVec|Vector|float|int|Vector=None,
+    update_if_exists:str='',
+    ) -> sVec:
+    """Generic operation for adding a vector math node and linking.
+    If 'update_if_exists' is provided, update the existing node; otherwise, create a new one."""
+
+    node = None
+    args = (val1, val2)
+    needs_linking = False
+
+    if (update_if_exists):
+        node = ng.nodes.get(update_if_exists)
+
+    if (node is None):
+        last = ng.nodes.active
+        if (last):
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
+        else: location = (0, 200)
+        node = ng.nodes.new('ShaderNodeVectorMath')
+        node.operation = operation_type
+        node.location = location
+        ng.nodes.active = node
+        needs_linking = True
+        if (update_if_exists):
+            node.name = node.label = update_if_exists
+
+    for i, val in enumerate(args):
+        match val:
+
+            case sVec() | sFlo():
+                if needs_linking:
+                    link_sockets(val, node.inputs[i])
+
+            case Vector():
+                if node.inputs[i].default_value[:] != val[:]:
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case float() | int():
+                val = Vector((val,val,val))
+                if node.inputs[i].default_value[:] != val[:]:
+                    node.inputs[i].default_value = val
+                    assert_purple_node(node)
+
+            case None:
+                pass
+
+            case _:
+                raise InvalidTypePassedToSocket(f"ArgsTypeError for _vecmath(). Received unsupported type '{type(val).__name__}'")
+
+    return node.outputs[0]
+
+@mathexpressionfct
+def add(ng,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    update_if_exists:str='',
+    ) -> sFlo|sVec:
     """Addition.\nEquivalent to the '+' symbol."""
+    if check_any_type(a,b,types=(Vector,sVec),):
+        return _vecmath(ng,'ADD',a,b, update_if_exists=update_if_exists,)
     return _floatmath(ng,'ADD',a,b, update_if_exists=update_if_exists,)
 
-@usernamespace
-def sub(ng, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def sub(ng,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    update_if_exists:str='',
+    ) -> sFlo|sVec:
     """Subtraction.\nEquivalent to the '-' symbol."""
+    if check_any_type(a,b,types=(Vector,sVec),):
+        return _vecmath(ng,'SUBTRACT',a,b, update_if_exists=update_if_exists,)
     return _floatmath(ng,'SUBTRACT',a,b, update_if_exists=update_if_exists,)
 
-@usernamespace
-def mult(ng, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def mult(ng,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    update_if_exists:str='',
+    ) -> sFlo|sVec:
     """Multiplications.\nEquivalent to the '*' symbol."""
+    if check_any_type(a,b,types=(Vector,sVec),):
+        return _vecmath(ng,'MULTIPLY',a,b, update_if_exists=update_if_exists,)
     return _floatmath(ng,'MULTIPLY',a,b, update_if_exists=update_if_exists,)
 
-@usernamespace
-def div(ng, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def div(ng,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    update_if_exists:str='',
+    ) -> sFlo|sVec:
     """Division.\nEquivalent to the '/' symbol."""
+    if check_any_type(a,b,types=(Vector,sVec),):
+        return _vecmath(ng,'DIVIDE',a,b, update_if_exists=update_if_exists,)
     return _floatmath(ng,'DIVIDE',a,b, update_if_exists=update_if_exists,)
 
-@usernamespace
-def pow(ng, a:SkFloat|float, n:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def pow(ng,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    n:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    update_if_exists:str='',
+    ) -> sFlo|sVec:
     """A Power n.\nEquivalent to the 'a**n' and '²' symbol."""
+    if check_any_type(a,n,types=(Vector,sVec),):
+        return _vecmath(ng,'POWER',a,n, update_if_exists=update_if_exists,)
     return _floatmath(ng,'POWER',a,n, update_if_exists=update_if_exists,)
 
-@usernamespace
-def log(ng, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def log(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Logarithm A base B."""
     return _floatmath(ng,'LOGARITHM',a,b, update_if_exists=update_if_exists,)
 
-@usernamespace
-def sqrt(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def sqrt(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Square Root of A."""
     return _floatmath(ng,'SQRT',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def invsqrt(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def invsqrt(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """1/ Square Root of A."""
     return _floatmath(ng,'INVERSE_SQRT',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def nroot(ng, a:SkFloat|float, n:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def nroot(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    n:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """A Root N. a**(1/n.)"""
     
     if (update_if_exists): #this function is created multiple nodes so we need multiple tag
@@ -183,156 +295,265 @@ def nroot(ng, a:SkFloat|float, n:SkFloat|float, update_if_exists:str='',) -> SkF
     frame_nodes(ng, _x.node, _r.node, label='nRoot',)
     return _r
 
-@usernamespace
-def abs(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def abs(ng,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    update_if_exists:str='',
+    ) -> sFlo|sVec:
     """Absolute of A."""
+    if check_any_type(a,types=(Vector,sVec),):
+        return _vecmath(ng,'ABSOLUTE',a, update_if_exists=update_if_exists,)
     return _floatmath(ng,'ABSOLUTE',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def neg(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def neg(ng,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    update_if_exists:str='',
+    ) -> sFlo|sVec:
     """Negate the value of A.\nEquivalent to the symbol '-x.'"""
     _r = sub(ng,0,a, update_if_exists=update_if_exists,)
     frame_nodes(ng, _r.node, label='Negate',)
     return _r
 
-@usernamespace
-def min(ng, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def min(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Minimum between A & B."""
     return _floatmath(ng,'MINIMUM',a,b, update_if_exists=update_if_exists,)
 
-@usernamespace
-def smin(ng, a:SkFloat|float, b:SkFloat|float, dist:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def smin(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    dist:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Minimum between A & B considering a smoothing distance."""
     return _floatmath(ng,'SMOOTH_MIN',a,b,dist, update_if_exists=update_if_exists,)
 
-@usernamespace
-def max(ng, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def max(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Maximum between A & B."""
     return _floatmath(ng,'MAXIMUM',a,b, update_if_exists=update_if_exists,)
 
-@usernamespace
-def smax(ng, a:SkFloat|float, b:SkFloat|float, dist:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def smax(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    dist:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Maximum between A & B considering a smoothing distance."""
     return _floatmath(ng,'SMOOTH_MAX',a,b,dist, update_if_exists=update_if_exists,)
 
-@usernamespace
-def round(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def round(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Round a Float to an Integer."""
     return _floatmath(ng,'ROUND',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def floor(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def floor(ng,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    update_if_exists:str='',
+    ) -> sFlo|sVec:
     """Floor a Float to an Integer."""
+    if check_any_type(a,types=(Vector,sVec),):
+        return _vecmath(ng,'FLOOR',a, update_if_exists=update_if_exists,)
     return _floatmath(ng,'FLOOR',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def ceil(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def ceil(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Ceil a Float to an Integer."""
     return _floatmath(ng,'CEIL',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def trunc(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def trunc(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Trunc a Float to an Integer."""
     return _floatmath(ng,'TRUNC',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def frac(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def frac(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Fraction.\nThe fraction part of A."""
     return _floatmath(ng,'FRACT',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def mod(ng, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def mod(ng,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    update_if_exists:str='',
+    ) -> sFlo|sVec:
     """Modulo.\nEquivalent to the '%' symbol."""
+    if check_any_type(a,b,types=(Vector,sVec),):
+        return _vecmath(ng,'MODULO',a,b, update_if_exists=update_if_exists,)
     return _floatmath(ng,'MODULO',a,b, update_if_exists=update_if_exists,)
-
-@usernamespace
-def fmod(ng, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+    
+@mathexpressionfct
+def fmod(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Floored Modulo."""
     return _floatmath(ng,'FLOORED_MODULO',a,b, update_if_exists=update_if_exists,)
 
-@usernamespace
-def wrap(ng, v:SkFloat|float, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def wrap(ng,
+    v:sFlo|sInt|sBoo|float|int,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Wrap value to Range A B."""
     return _floatmath(ng,'WRAP',v,a,b, update_if_exists=update_if_exists,)
 
-@usernamespace
-def snap(ng, v:SkFloat|float, i:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def snap(ng,
+    v:sFlo|sInt|sBoo|float|int,
+    i:sFlo|sInt|sBoo|float|int, 
+    update_if_exists:str='',
+    ) -> sFlo:
     """Snap to Increment."""
     return _floatmath(ng,'SNAP',v,i, update_if_exists=update_if_exists,)
 
-@usernamespace
-def pingpong(ng, v:SkFloat|float, scale:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def pingpong(ng,
+    v:sFlo|sInt|sBoo|float|int,
+    scale:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """PingPong. Wrap a value and every other cycles at cycle Scale."""
     return _floatmath(ng,'PINGPONG',v,scale, update_if_exists=update_if_exists,)
 
-@usernamespace
-def floordiv(ng, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat: #Custom
+@mathexpressionfct
+def floordiv(ng,
+    a:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    b:sFlo|sInt|sBoo|sVec|float|int|Vector,
+    update_if_exists:str='',
+    ) -> sFlo|sVec:
     """Floor Division.\nEquivalent to the '//' symbol."""
 
     if (update_if_exists): #this function is created multiple nodes so we need multiple tag
           _x = div(ng,a,b,update_if_exists=f"{update_if_exists}|inner",)
     else: _x = div(ng,a,b)
 
-    _r = floor(ng,_x)
+    _r = floor(ng,_x,update_if_exists=update_if_exists)
     frame_nodes(ng, _x.node, _r.node, label='FloorDiv',)
     return _r
 
-@usernamespace
-def sin(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def sin(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """The Sine of A."""
     return _floatmath(ng,'SINE',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def cos(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def cos(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """The Cosine of A."""
     return _floatmath(ng,'COSINE',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def tan(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def tan(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """The Tangent of A."""
     return _floatmath(ng,'TANGENT',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def asin(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def asin(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """The Arcsine of A."""
     return _floatmath(ng,'ARCSINE',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def acos(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def acos(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """The Arccosine of A."""
     return _floatmath(ng,'ARCCOSINE',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def atan(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def atan(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """The Arctangent of A."""
     return _floatmath(ng,'ARCTANGENT',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def hsin(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def hsin(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """The Hyperbolic Sine of A."""
     return _floatmath(ng,'SINH',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def hcos(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def hcos(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """The Hyperbolic Cosine of A."""
     return _floatmath(ng,'COSH',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def htan(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def htan(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """The Hyperbolic Tangent of A."""
     return _floatmath(ng,'TANH',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def rad(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def rad(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Convert from Degrees to Radians."""
     return _floatmath(ng,'RADIANS',a, update_if_exists=update_if_exists,)
 
-@usernamespace
-def deg(ng, a:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def deg(ng,
+    a:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Convert from Radians to Degrees."""
     return _floatmath(ng,'DEGREES',a, update_if_exists=update_if_exists,)
 
-def _mix(ng, data_type:str, val1:SkFloat|float=None, val2:SkFloat|float=None, val3:SkFloat|float=None, update_if_exists:str='',) -> SkFloat:
+def _mix(ng,
+    data_type:str,
+    val1:sFlo|sInt|sBoo|float|int=None,
+    val2:sFlo|sInt|sBoo|float|int=None,
+    val3:sFlo|sInt|sBoo|float|int=None,
+    update_if_exists:str='',
+    ) -> sFlo:
     """generic operation for adding a mix node and linking.
     if 'update_if_exists' is passed the function shall only but update values of existing node, not adding new nodes"""
 
@@ -346,7 +567,7 @@ def _mix(ng, data_type:str, val1:SkFloat|float=None, val2:SkFloat|float=None, va
     if (node is None):
         last = ng.nodes.active
         if (last):
-              location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
         else: location = (0,200,)
         node = ng.nodes.new('ShaderNodeMix')
         node.data_type = data_type
@@ -369,7 +590,7 @@ def _mix(ng, data_type:str, val1:SkFloat|float=None, val2:SkFloat|float=None, va
     for i,val in zip(indexes,args):    
         match val:
 
-            case SkFloat():
+            case sFlo():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -384,21 +605,37 @@ def _mix(ng, data_type:str, val1:SkFloat|float=None, val2:SkFloat|float=None, va
                 pass
 
             case _:
-                raise InvalidTypePassedToSocket(f"ArgsTypeError for _mix(). Expected parameters in 'Socket', 'float', 'int', 'bool'. Recieved '{type(val).__name__}'")
+                raise InvalidTypePassedToSocket(f"ArgsTypeError for _mix(). Recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
 
-@usernamespace
-def lerp(ng, f:SkFloat|float, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def lerp(ng,
+    f:sFlo|sInt|sBoo|float|int,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Mix.\nLinear Interpolation of value A and B from given factor."""
     return _mix(ng,'FLOAT',f,a,b, update_if_exists=update_if_exists,)
 
-@usernamespace
-def mix(ng, f:SkFloat|float, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat: 
+@mathexpressionfct
+def mix(ng,
+    f:sFlo|sInt|sBoo|float|int,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo: 
     """Alternative notation to lerp() function."""
     return lerp(ng,f,a,b, update_if_exists=update_if_exists,)
 
-def _floatclamp(ng, clamp_type:str, val1:SkFloat|float=None, val2:SkFloat|float=None, val3:SkFloat|float=None, update_if_exists:str='',) -> SkFloat:
+def _floatclamp(ng,
+    clamp_type:str,
+    val1:sFlo|sInt|sBoo|float|int=None,
+    val2:sFlo|sInt|sBoo|float|int=None,
+    val3:sFlo|sInt|sBoo|float|int=None,
+    update_if_exists:str='',
+    ) -> sFlo:
     """generic operation for adding a mix node and linking"""
 
     node = None
@@ -411,7 +648,7 @@ def _floatclamp(ng, clamp_type:str, val1:SkFloat|float=None, val2:SkFloat|float=
     if (node is None):
         last = ng.nodes.active
         if (last):
-              location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
         else: location = (0,200,)
         node = ng.nodes.new('ShaderNodeClamp')
         node.clamp_type = clamp_type
@@ -425,7 +662,7 @@ def _floatclamp(ng, clamp_type:str, val1:SkFloat|float=None, val2:SkFloat|float=
     for i,val in enumerate(args):
         match val:
 
-            case SkFloat():
+            case sFlo():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -440,22 +677,41 @@ def _floatclamp(ng, clamp_type:str, val1:SkFloat|float=None, val2:SkFloat|float=
                 pass
 
             case _:
-                raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatclamp(). Expected parameters in 'Socket', 'float', 'int', 'bool'. Recieved '{type(val).__name__}'")
+                raise InvalidTypePassedToSocket(f"ArgsTypeError for _floatclamp(). Recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
 
-@usernamespace
-def clamp(ng, v:SkFloat|float, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def clamp(ng,
+    v:sFlo|sInt|sBoo|float|int,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Clamp value between min an max."""
     return _floatclamp(ng,'MINMAX',v,a,b, update_if_exists=update_if_exists,)
 
-@usernamespace
-def clampr(ng, v:SkFloat|float, a:SkFloat|float, b:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def clampr(ng,
+    v:sFlo|sInt|sBoo|float|int,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Clamp value between auto-defined min/max."""
     return _floatclamp(ng,'RANGE',v,a,b, update_if_exists=update_if_exists,)
 
-def _maprange(ng, data_type:str, interpolation_type:str, val1:SkFloat|float=None, val2:SkFloat|float=None, val3:SkFloat|float=None,
-    val4:SkFloat|float=None, val5:SkFloat|float=None, val6:SkFloat|float=None, update_if_exists:str='',) -> SkFloat:
+def _maprange(ng,
+    data_type:str,
+    interpolation_type:str,
+    val1:sFlo|sInt|sBoo|float|int=None,
+    val2:sFlo|sInt|sBoo|float|int=None,
+    val3:sFlo|sInt|sBoo|float|int=None,
+    val4:sFlo|sInt|sBoo|float|int=None,
+    val5:sFlo|sInt|sBoo|float|int=None,
+    val6:sFlo|sInt|sBoo|float|int=None,
+    update_if_exists:str='',
+    ) -> sFlo:
     """generic operation for adding a remap node and linking"""
 
     node = None
@@ -468,7 +724,7 @@ def _maprange(ng, data_type:str, interpolation_type:str, val1:SkFloat|float=None
     if (node is None):
         last = ng.nodes.active
         if (last):
-              location = (last.location.x+last.width+NODE_XOFF, last.location.y-NODE_YOFF,)
+              location = (last.location.x + last.width + NODE_XOFF, last.location.y - NODE_YOFF,)
         else: location = (0,200,)
         node = ng.nodes.new('ShaderNodeMapRange')
         node.data_type = data_type
@@ -484,7 +740,7 @@ def _maprange(ng, data_type:str, interpolation_type:str, val1:SkFloat|float=None
     for i,val in enumerate(args):
         match val:
 
-            case SkFloat():
+            case sFlo():
                 if needs_linking:
                     link_sockets(val, node.inputs[i])
 
@@ -499,39 +755,68 @@ def _maprange(ng, data_type:str, interpolation_type:str, val1:SkFloat|float=None
                 pass
 
             case _:
-                raise InvalidTypePassedToSocket(f"ArgsTypeError for _maprange(). Expected parameters in 'Socket', 'float', 'int', 'bool'. Recieved '{type(val).__name__}'")
+                raise InvalidTypePassedToSocket(f"ArgsTypeError for _maprange(). Recieved unsupported type '{type(val).__name__}'")
 
     return node.outputs[0]
 
-@usernamespace
-def map(ng, val:SkFloat|float, a:SkFloat|float, b:SkFloat|float, x:SkFloat|float, y:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def map(ng,
+    val:sFlo|sInt|sBoo|float|int,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    x:sFlo|sInt|sBoo|float|int,
+    y:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Map Range.\nRemap a value from a fiven A,B range to a X,Y range."""
     return _maprange(ng,'FLOAT','LINEAR',val,a,b,x,y, update_if_exists=update_if_exists,)
 
-@usernamespace
-def mapst(ng, val:SkFloat|float, a:SkFloat|float, b:SkFloat|float, x:SkFloat|float, y:SkFloat|float, step:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def mapst(ng,
+    val:sFlo|sInt|sBoo|float|int,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    x:sFlo|sInt|sBoo|float|int,
+    y:sFlo|sInt|sBoo|float|int,
+    step:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Map Range (Stepped).\nRemap a value from a fiven A,B range to a X,Y range with step."""
     return _maprange(ng,'FLOAT','STEPPED',val,a,b,x,y,step, update_if_exists=update_if_exists,)
 
-@usernamespace
-def mapsmo(ng, val:SkFloat|float, a:SkFloat|float, b:SkFloat|float, x:SkFloat|float, y:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def mapsmo(ng,
+    val:sFlo|sInt|sBoo|float|int,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    x:sFlo|sInt|sBoo|float|int,
+    y:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Map Range (Smooth).\nRemap a value from a fiven A,B range to a X,Y range."""
     return _maprange(ng,'FLOAT','SMOOTHSTEP',val,a,b,x,y, update_if_exists=update_if_exists,)
 
-@usernamespace
-def mapsmoo(ng, val:SkFloat|float, a:SkFloat|float, b:SkFloat|float, x:SkFloat|float, y:SkFloat|float, update_if_exists:str='',) -> SkFloat:
+@mathexpressionfct
+def mapsmoo(ng,
+    val:sFlo|sInt|sBoo|float|int,
+    a:sFlo|sInt|sBoo|float|int,
+    b:sFlo|sInt|sBoo|float|int,
+    x:sFlo|sInt|sBoo|float|int,
+    y:sFlo|sInt|sBoo|float|int,
+    update_if_exists:str='',
+    ) -> sFlo:
     """Map Range (Smoother).\nRemap a value from a fiven A,B range to a X,Y range."""
     return _maprange(ng,'FLOAT','SMOOTHERSTEP',val,a,b,x,y, update_if_exists=update_if_exists,)
 
 #TODO support comparison functions
-# def equal(a:SkFloat|float, b:SkFloat|float,)
-# def notequal(a:SkFloat|float, b:SkFloat|float,)
-# def aequal(a:SkFloat|float, b:SkFloat|float, threshold:SkFloat|float,)
-# def anotequal(a:SkFloat|float, b:SkFloat|float, threshold:SkFloat|float,)
-# def issmaller(a:SkFloat|float, b:SkFloat|float,)
-# def isasmaller(a:SkFloat|float, b:SkFloat|float, threshold:SkFloat|float,)
-# def isbigger(a:SkFloat|float, b:SkFloat|float,)
-# def isabigger(a:SkFloat|float, b:SkFloat|float, threshold:SkFloat|float,)
-# def isbetween(a:SkFloat|float, x:SkFloat|float, y:SkFloat|float,)
-# def isabetween(a:SkFloat|float, x:SkFloat|float, y:SkFloat|float, threshold:SkFloat|float,)
-# def isbetweeneq(a:SkFloat|float, x:SkFloat|float, y:SkFloat|float,)
+# def equal(a, b,)
+# def notequal(a, b,)
+# def aequal(a, b, threshold,)
+# def anotequal(a, b, threshold,)
+# def issmaller(a, b,)
+# def isasmaller(a, b, threshold,)
+# def isbigger(a, b,)
+# def isabigger(a, b, threshold,)
+# def isbetween(a, x, y,)
+# def isabetween(a, x, y, threshold,)
+# def isbetweeneq(a, x, y,)

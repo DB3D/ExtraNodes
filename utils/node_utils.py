@@ -289,18 +289,18 @@ def link_sockets(socket1, socket2):
 
 def replace_node(node_tree, old_node, node_group):
     """Replace an existing node with a new Node Group node (assuming same socket structure)"""
-    
+
     # Save old node properties.
     old_node_width = float(old_node.width)
     old_node_location = old_node.location.copy()
-    
+
     # For inputs, store default values and the linked from_socket (if exists)
     old_inputs_defaults = [getattr(sock, 'default_value', None) for sock in old_node.inputs]
     old_inputs_links = [sock.links[0].from_socket if sock.links else None for sock in old_node.inputs]
-    
+
     # For outputs, store the linked to_socket (if exists)
     old_outputs_links = [sock.links[0].to_socket if sock.links else None for sock in old_node.outputs]
-    
+
     # Determine the appropriate node type for a node group.
     match node_tree.bl_idname:
         case 'ShaderNodeTree':
@@ -315,12 +315,12 @@ def replace_node(node_tree, old_node, node_group):
 
     # Delete the old node.
     node_tree.nodes.remove(old_node)
-    
+
     # Create the new node group node.
     new_node = node_tree.nodes.new(new_node_type)
     new_node.location = old_node_location
     new_node.width = old_node_width
-    
+
     # Assign the provided node group.
     new_node.node_tree = node_group
 
@@ -331,7 +331,7 @@ def replace_node(node_tree, old_node, node_group):
                 sock.default_value = old_inputs_defaults[i]
             except Exception as e:
                 print(f"Warning: Could not copy default for input '{sock.name}': {e}")
-    
+
     # Re-create input links.
     for i, sock in enumerate(new_node.inputs):
         if i < len(old_inputs_links) and old_inputs_links[i] is not None:
@@ -339,7 +339,7 @@ def replace_node(node_tree, old_node, node_group):
                 node_tree.links.new(old_inputs_links[i], sock)
             except Exception as e:
                 print(f"Warning: Could not re-link input '{sock.name}': {e}")
-    
+
     # Re-create output links.
     for i, sock in enumerate(new_node.outputs):
         if i < len(old_outputs_links) and old_outputs_links[i] is not None:
@@ -354,19 +354,24 @@ def replace_node(node_tree, old_node, node_group):
 def frame_nodes(node_tree, *nodes, label="Frame",):
     """Create a Frame node in the given node_tree and parent the specified nodes to it."""
 
-    frame = node_tree.nodes.new('NodeFrame')
-    frame.label = label
+    # we check if there's not a frame already existing. Important for nodesetter.py
+    existing = set(n.parent.label for n in nodes if n.parent)
+    frame_exist_already = len(existing) == 1 and next(iter(existing)) == label
 
-    for node in nodes:
-        node.parent = frame
+    if (not frame_exist_already):
+        frame = node_tree.nodes.new('NodeFrame')
+        frame.label = label
 
-    return frame
+        for node in nodes:
+            node.parent = frame
+
+    return None
 
 
 def get_nearest_node_at_position(nodes, context, event, position=None, allow_reroute=True, forbidden=None,):
     """get nearest node at cursor location"""
     # Function from from 'node_wrangler.py'
-    
+
     nodes_near_mouse = []
     nodes_under_mouse = []
     target_node = None

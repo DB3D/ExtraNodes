@@ -246,6 +246,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             # NodeSocketBool
             # NodeSocketInt
             'infloat': NexFactory(self, 'NexFloat',),
+            'invec': NexFactory(self, 'NexVec',),
             # 'inauto': NexFactory(self, 'NexAuto',), #TODO for later.. maybe just 'in'.. problem with python linter then..
             # NodeSocketVector
             # NodeSocketColor
@@ -260,7 +261,7 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             'outcol': NexFactory(self, 'NexOutput', 'NodeSocketColor',),
             'outquat': NexFactory(self, 'NexOutput', 'NodeSocketRotation',),
             'outmat': NexFactory(self, 'NexOutput', 'NodeSocketMatrix',),
-            # 'outauto': NexFactory(self, 'NexOutput',), #TODO for later.. maybe just 'out'
+            # 'outauto': NexFactory(self, 'NexOutput',), #TODO for later.. maybe just 'out' ?
             }
         nextypes = {**nexintypes, **nexoutypes}
 
@@ -369,9 +370,9 @@ class NODEBOOSTER_NG_nexinterpreter(bpy.types.GeometryNodeCustomGroup):
             #Clean up nodes.. we'll rebuild the nodetree
             self.cleanse_nodes()
 
-        # We set the first node active
-        # (node arrangement in nodesetter.py module is based on active)
-        ng.nodes.active = in_nod
+            # We set the first node active
+            # (node arrangement in nodesetter.py module is based on active)
+            ng.nodes.active = in_nod
         
         # Namespace, we inject Nex types in user namespace
         exec_namespace = {}
